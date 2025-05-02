@@ -1,0 +1,101 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+.swc/
+
+# production
+/build
+/dist
+
+# misc
+.DS_Store
+*.pem
+Thumbs.db
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# local env files
+.env*.local
+.env
+.env.development
+.env.test
+.env.production
+.env.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE / editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+*.launch
+.settings/
+*.code-workspace
+
+# logs
+logs
+*.log
+
+# database
+*.sqlite
+*.sqlite3
+*.db
+
+# Prisma
+/prisma/.env
+/prisma/dev.db
+/prisma/migrations/*_init/*
+
+# OpenAI API keys and secrets
+api-keys.json
+**/credentials.json
+**/secret.json
+
+# Wallet keys or credentials
+**/wallet-keys.json
+**/wallets/
+**/keys/
+*private-key*
+*wallet*private*
+*secret*key*
+
+# Solana specific
+.anchor/
+target/
+**/*.rs.bk
+**/*.keypair
+**/.coderrect/
+**/dump.rdb
+
+# Local simulation data
+/amm-pool-state.json
+/simulation-data/
+
+# Temporary files
+*.tmp
+.temp/
+tmp/

@@ -1,0 +1,53 @@
+{
+  "name": "neuraltrader",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbo",
+    "build": "next build ",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@langchain/community": "^0.3.34",
+    "@langchain/core": "^0.3.42",
+    "@langchain/langgraph": "^0.2.54",
+    "@langchain/openai": "^0.4.4",
+    "@mui/icons-material": "^6.4.7",
+    "@mui/material": "^6.4.7",
+    "@prisma/client": "^6.4.1",
+    "@solana/spl-token-swap": "^0.4.4",
+    "@solana/web3.js": "^1.98.0",
+    "@tailwindcss/postcss": "^4.1.5",
+    "bs58": "^6.0.0",
+    "clsx": "^2.1.1",
+    "dotenv": "^16.4.7",
+    "lucide-react": "^0.506.0",
+    "motion": "^12.9.4",
+    "next": "15.2.1",
+    "p-map": "^7.0.3",
+    "p-queue": "^8.1.0",
+    "pg": "^8.13.3",
+    "prisma": "^6.4.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "rpc-websockets": "^7.10.0",
+    "solana-agent-kit": "^1.4.0",
+    "tailwind-merge": "^3.2.0",
+    "tailwindcss-animate": "^1.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "@types/react": "^19.0.10",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^4.1.5",
+    "typescript": "^5.8.3"
+  },
+  "nextConfig": {
+    "reactStrictMode": true,
+    "swcMinify": true
+  }
+}

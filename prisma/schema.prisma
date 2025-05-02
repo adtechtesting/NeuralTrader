@@ -1,0 +1,312 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// We'll add these enums in a future migration to ensure compatibility
+// with existing data
+
+model Agent {
+  id                     String        @id @default(uuid())
+  name                   String        // Existing field
+  personality            String        // Existing field
+  personalityType        String        // Existing field  
+  occupation             String
+  publicKey              String        @unique  // Existing field
+  walletPrivateKey       String        @map("privateKey")
+  walletBalance          Float         @default(0) @map("balance")
+  tokenBalance           Float         @default(0)  // New field
+  targetFunding          Float         @default(0)  // Existing field
+  actualFunding          Float         @default(0)  // Existing field
+  fundingSuccess         Boolean       @default(false) // Existing field
+  fundingSignature       String?       // Existing field
+  active                 Boolean       @default(true) // Existing field, will replace with status
+  avatarUrl              String?       // New field
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  lastActive             DateTime?     @default(now())
+  sentMessages           Message[]     @relation("SentMessages")
+  receivedMessages       Message[]     @relation("ReceivedMessages")
+  reactions              Reaction[]
+  transactions           Transaction[]
+  state                  AgentState?
+  actions                AgentAction[]
+  trading                Trading?      // Relation to Trading model
+  
+  // Agent preferences and behaviors (existing fields)
+  messageFrequency       Float         @default(0.5)
+  socialInfluence        Float         @default(0.5)
+  emotionalVolatility    Float         @default(0.5)
+  contraryOpinionRate    Float         @default(0.3)
+  technicalLanguageLevel Float         @default(0.5)
+  
+  // New behavior fields
+  riskTolerance          Float         @default(0.5)
+  tradeFrequency         Float         @default(0.5)
+  maxPositionSize        Float         @default(0.25)
+  
+  @@index([personalityType])
+  @@index([messageFrequency])
+  @@index([socialInfluence])
+  @@index([active])
+  @@index([lastActive])
+  @@index([riskTolerance])
+  @@index([tradeFrequency])
+  @@index([createdAt])
+}
+
+model Token {
+  id          String   @id @default(uuid())
+  name        String
+  symbol      String
+  decimals    Int
+  mintAddress String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([symbol])
+}
+
+model Message {
+  id          String     @id @default(uuid())
+  content     String     // Content (update to @db.Text in a future migration)
+  sentiment   String?    // positive, negative, neutral
+  sentimentScore Float?  // Numerical score (-1 to 1)
+  type        String     // chat, analysis, trade_signal, etc.
+  visibility  String     @default("public") // public, private, group
+  senderId    String
+  sender      Agent      @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId  String?
+  receiver    Agent?     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  mentions    String[]   // Token symbols or agent names mentioned
+  influence   Float?     // How influential this message is (0-1)
+  reactions   Reaction[]
+  createdAt   DateTime   @default(now())
+  
+  @@index([createdAt])
+  @@index([senderId])
+  @@index([sentiment])
+  @@index([type])
+  @@index([visibility])
+}
+
+model Reaction {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id])
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id])
+  type      String   // like, dislike, bullish, bearish, etc.
+  createdAt DateTime @default(now())
+  
+  @@index([messageId])
+  @@index([agentId])
+  @@index([type])
+}
+
+model Transaction {
+  id          String    @id @default(uuid())
+  signature   String    @unique
+  amount      Float
+  tokenAmount Float?   // For swap transactions - new field
+  priceImpact Float?   // Price impact percentage for swaps - new field
+  fromAgentId String?
+  toAgentId   String?
+  fromAgent   Agent?    @relation(fields: [fromAgentId], references: [id])
+  status      String    @default("pending")
+  type        String
+  details     Json?    // Additional details - new field
+  createdAt   DateTime  @default(now())
+  confirmedAt DateTime?
+  fee         Float?   // Transaction fee - new field
+  
+  @@index([createdAt])
+  @@index([status])
+  @@index([fromAgentId])
+  @@index([type])
+  @@index([signature])
+}
+
+model SimulationStats {
+  id                      String   @id @default(uuid())
+  totalAgents             Int      @default(0)
+  successfullyFunded      Int      @default(0)
+  failedToFund            Int      @default(0)
+  totalFunded             Float    @default(0)
+  personalityDistribution Json?    // Stored as JSON object
+  occupationDistribution  Json?    // Stored as JSON object
+  lastUpdated             DateTime @default(now())
+}
+
+model Cache {
+  key       String   @id
+  value     String   @db.Text
+  expiresAt DateTime
+  
+  @@index([expiresAt])
+}
+
+model AgentState {
+  id                String    @id @default(uuid())
+  agentId           String    @unique
+  agent             Agent     @relation(fields: [agentId], references: [id])
+  lastAction        DateTime  @default(now())  // Existing field
+  lastMarketAnalysis DateTime?  // New field
+  lastTradeDecision  DateTime?  // New field
+  lastSocialAction   DateTime?  // New field
+  lastDecision      Json?     // Existing field
+  lastMessage       Json?     // Existing field
+  state             Json?     // Existing field
+  contextData       String?   @db.Text @map("context") // New field with compatible name
+  updatedAt         DateTime  @default(now()) @updatedAt
+  
+  @@index([agentId])
+  @@index([lastAction])
+}
+
+model Trading {
+  id               String   @id @default(uuid())
+  agentId          String   @unique
+  agent            Agent    @relation(fields: [agentId], references: [id])
+  totalTrades      Int      @default(0)
+  successfulTrades Int      @default(0)
+  failedTrades     Int      @default(0)
+  profitLoss       Float    @default(0)
+  updatedAt        DateTime @default(now()) @updatedAt
+  
+  @@index([agentId])
+  @@index([profitLoss])
+}
+
+model TransactionLog {
+  id            String   @id @default(uuid())
+  transactionId String
+  action        String
+  details       Json?
+  timestamp     DateTime @default(now())
+  
+  @@index([transactionId])
+  @@index([timestamp])
+}
+
+// New models for AMM, simulation control and monitoring
+
+model PoolState {
+  id              String   @id
+  solAmount       Float
+  tokenAmount     Float
+  k               Float
+  currentPrice    Float    @default(0)  // New field
+  tradingVolume   Float    @default(0)
+  tradingVolume24h Float   @default(0)
+  highPrice24h    Float?   // New field
+  lowPrice24h     Float?   // New field
+  lastTradedAt    DateTime? // New field
+  lastUpdated     DateTime @default(now()) @updatedAt
+  priceHistory    String   @db.Text  // Keep as String for backward compatibility
+  trades          String   @db.Text  // Keep as String for backward compatibility
+  cacheVersion    Int      @default(1) // New field
+  
+  @@index([lastUpdated])
+}
+
+model Simulation {
+  id            String    @id @default(uuid())
+  status        String    @default("STOPPED")  // RUNNING, STOPPED, PAUSED, ERROR
+  currentPhase  String    @default("MARKET_ANALYSIS")  // MARKET_ANALYSIS, SOCIAL, TRADING, REPORTING
+  agentCount    Int
+  activeAgents  Int       @default(0)
+  completedPhases Int     @default(0)
+  phaseStartedAt DateTime?
+  startedAt     DateTime  @default(now())
+  endedAt       DateTime?
+  configuration Json?     // Simulation configuration parameters
+  simulationSpeed Float   @default(1.0)
+  logs          SimulationLog[]
+  
+  @@index([status])
+  @@index([startedAt])
+  @@index([currentPhase])
+}
+
+model SimulationLog {
+  id            String   @id @default(uuid())
+  simulationId  String?
+  simulation    Simulation? @relation(fields: [simulationId], references: [id])
+  level         String   @default("INFO") // INFO, WARNING, ERROR
+  event         String   // simulation_started, simulation_stopped, batch_error, etc.
+  details       Json?
+  agentId       String?
+  message       String?  @db.Text
+  timestamp     DateTime @default(now())
+  
+  @@index([simulationId])
+  @@index([level])
+  @@index([event])
+  @@index([timestamp])
+  @@index([agentId])
+}
+
+model AgentAction {
+  id        String   @id @default(uuid())
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id])
+  actionType String  // autonomous, error, manual, etc.
+  details   Json?
+  timestamp DateTime @default(now())
+  
+  @@index([agentId])
+  @@index([actionType])
+  @@index([timestamp])
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  action    String   // user action, system event, etc.
+  actor     String   // user, system, agent ID, etc.
+  details   Json?
+  timestamp DateTime @default(now())
+  
+  @@index([action])
+  @@index([timestamp])
+}
+
+// New models identified in the codebase
+
+model MarketState {
+  id                String    @id @default(uuid())
+  price             Float     // Match existing field
+  liquidity         Float     // Match existing field
+  volume24h         Float     // Match existing field
+  transactions24h   Int       // Match existing field
+  priceChange24h    Float     // Match existing field
+  historicalPrices  Json?     // Match existing field
+  timestamp         DateTime  @default(now()) // Match existing field
+  volatility        Float     @default(0.05) // Match existing field
+  type              String?   // New field for compatibility with new code
+  data              Json?     // New field
+  lastPriceUpdate   DateTime? // New field
+  lastVolumeUpdate  DateTime? // New field
+  cacheVersion      Int       @default(1) // New field
+
+  @@index([timestamp])
+  @@index([type])
+}
+
+model SimulationReport {
+  id          String    @id @default(uuid())
+  timestamp   DateTime  @default(now())
+  details     Json      // Full report data
+  isFinal     Boolean   @default(false)
+  
+  @@index([timestamp])
+  @@index([isFinal])
+}
