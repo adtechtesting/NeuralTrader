@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     if (cachedData) {
       return NextResponse.json({
         success: true,
-        data: cachedData.data,
+        data: cachedData,
         priceHistory: cachedData.priceHistory,
         cached: true
       });

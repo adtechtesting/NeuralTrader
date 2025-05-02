@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SimulationEngine } from '@/lib/simulation/engine/simulation-engine';
 import { AgentManager } from '@/lib/agents/autonomous/agent-manager';
-import { dbCache } from '@/lib/cache/dbCache';
 import { amm } from '@/lib/blockchain/amm';
 import { getCached, setCached } from '@/lib/cache/dbCache';
 

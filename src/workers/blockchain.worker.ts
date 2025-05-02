@@ -1,4 +1,5 @@
 // This would run in a web worker context
+import { PublicKey } from '@solana/web3.js';
 import { SolanaAgentKit } from 'solana-agent-kit';
 
 // Handle messages from main thread
@@ -18,7 +19,7 @@ self.onmessage = async (event) => {
       
       result = {
         success: true,
-        publicKey: solanaKit.publicKey.toString()
+        publicKey: PublicKey
       };
     }
     else if (type === 'executeTradeOperation') {
@@ -31,7 +32,7 @@ self.onmessage = async (event) => {
     self.postMessage({ 
       type: `${type}Error`, 
       success: false, 
-      error: error.message || String(error)
+      error: error || String(error)
     });
   }
 };

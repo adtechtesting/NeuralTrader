@@ -8,6 +8,20 @@ import { amm } from '../../blockchain/amm';
 import { randomBytes } from 'crypto';
 import pMap from 'p-map';
 
+interface Message {
+  id: string;
+  content: string;
+  sentiment: string | null;
+  sentimentScore: number | null;
+  type: string;
+  visibility: string;
+  senderId: string;
+  receiverId: string | null;
+  mentions: string[];
+  influence: number | null;
+  createdAt: Date;
+}
+
 /**
  * AgentManager - Manages the creation, scheduling and execution of autonomous agents
  */
@@ -17,9 +31,27 @@ export class AgentManager {
   private agentIds: string[] = [];
   private activeAgentIds: Set<string> = new Set();
   private lastAccessTime: Map<string, number> = new Map();
-  private maxConcurrent: number = 50; // Maximum concurrent agent operations
+  private maxConcurrent: number;
   private maxActiveAgents: number = 1000; // Maximum agents active at once
   private agentCacheTTL: number = 60 * 60 * 1000; // 1 hour cache TTL by default
+  private rateLimitDelay: number = 1000; // 1 second delay between API calls
+  private lastApiCall: number = 0;
+  private responsesToGenerate: Array<{ agentId: string; response: string }> = [];
+  private tradesToExecute: Array<{ agentId: string; trade: any }> = [];
+  private apiQuotaExceeded: boolean = false;
+  private quotaRetryDelay: number = 5000; // 5 seconds delay when quota is exceeded
+  private personalityDistribution: Record<PersonalityType, number> = {
+    CONSERVATIVE: 0.1,
+    AGGRESSIVE: 0.1,
+    TECHNICAL: 0.1,
+    FUNDAMENTAL: 0.1,
+    EMOTIONAL: 0.1,
+    CONTRARIAN: 0.1,
+    WHALE: 0.1,
+    NOVICE: 0.1,
+    MODERATE: 0.1,
+    TREND_FOLLOWER: 0.1
+  };
   
   // Private constructor
   private constructor() {
@@ -29,6 +61,8 @@ export class AgentManager {
       ttl: this.agentCacheTTL,
       useLLM: true // Use LLM-powered agents by default
     });
+    this.maxConcurrent = parseInt(process.env.MAX_CONCURRENT_AGENTS || '5', 10);
+    this.lastAccessTime = new Map();
   }
   
   // Get the singleton instance
@@ -153,20 +187,34 @@ export class AgentManager {
     let successCount = 0;
     let failureCount = 0;
     
-    // Process agents in parallel with concurrency control
+    // Process agents in parallel with concurrency control and rate limiting
     await pMap(
       selectedAgentIds,
       async (agentId) => {
         try {
+          // Implement rate limiting
+          const now = Date.now();
+          const timeSinceLastCall = now - this.lastApiCall;
+          if (timeSinceLastCall < this.rateLimitDelay) {
+            await new Promise(resolve => setTimeout(resolve, this.rateLimitDelay - timeSinceLastCall));
+          }
+          
           const agent = await this.getAgentInstance(agentId);
           if (agent) {
             await agent.analyzeMarket(marketInfo);
             this.lastAccessTime.set(agentId, Date.now());
+            this.lastApiCall = Date.now();
             successCount++;
           }
-        } catch (error) {
+        } catch (error: unknown) {
           console.error(`Error in market analysis for agent ${agentId}:`, error);
           failureCount++;
+          
+          // If we hit rate limit, increase the delay
+          if (error instanceof Error && (error.message?.includes('429') || error.message?.includes('quota'))) {
+            this.rateLimitDelay = Math.min(this.rateLimitDelay * 2, 10000); // Max 10 second delay
+            console.log(`Rate limit hit, increasing delay to ${this.rateLimitDelay}ms`);
+          }
         }
       },
       { concurrency: this.maxConcurrent }
@@ -189,14 +237,14 @@ export class AgentManager {
       take: 30,
       orderBy: { createdAt: 'desc' },
       include: { sender: { select: { id: true, name: true, personalityType: true } } }
-    });
+    }) as Message[];
     
     console.log(`Found ${recentMessages.length} recent messages for agents to process`);
     
     const marketSentiment = await marketData.getMarketSentiment();
     
     // First pass: Have agents analyze messages and decide if they want to respond
-    const responsesToGenerate = [];
+    const responsesToGenerate: Array<{ agentId: string; response: string }> = [];
     
     // Track success/failure
     let interactionCount = 0;
@@ -220,7 +268,7 @@ export class AgentManager {
             });
             
             // Check if the agent's response contains intent to send a message
-            const lastDecision = agentState?.lastDecision;
+            const lastDecision = agentState?.lastDecision as { data?: { response?: string } } | null;
             const responseText = lastDecision?.data?.response?.toString() || '';
             
             // For LLM agents that generate responses to messages, track if a follow-up is needed
@@ -230,7 +278,7 @@ export class AgentManager {
               responseText.includes('I want to share my') ||
               responseText.includes('Here\'s what I would say')
             ) {
-              responsesToGenerate.push(agentId);
+              responsesToGenerate.push({ agentId, response: responseText });
             }
           }
         } catch (error) {
@@ -249,7 +297,7 @@ export class AgentManager {
     if (responsesToGenerate.length > 0) {
       await pMap(
         responsesToGenerate,
-        async (agentId) => {
+        async ({ agentId, response }) => {
           try {
             // Get agent state to extract message content
             const agentState = await prisma.agentState.findUnique({
@@ -261,7 +309,8 @@ export class AgentManager {
             
             // Get agent data for sending message
             const { agent } = agentState;
-            const responseText = agentState.lastDecision?.data?.response?.toString() || '';
+            const lastDecision = agentState.lastDecision as { data?: { response?: string } } | null;
+            const responseText = lastDecision?.data?.response?.toString() || '';
             
             // Extract a message from the response
             // This is a simple heuristic - the LLM handling would be more sophisticated
@@ -329,177 +378,65 @@ export class AgentManager {
     const marketInfo = await marketData.getMarketInfo();
     
     // First pass: Have agents analyze market and make trading decisions
-    const tradesToExecute = [];
+    const tradesToExecute: Array<{ agentId: string; trade: any }> = [];
     
     // Track decision counts
     let decisionCount = 0;
     let errorCount = 0;
+    let quotaExceededCount = 0;
     
-    // Process agents in parallel with concurrency control
+    // Process agents in parallel with concurrency control and rate limiting
     await pMap(
       selectedAgentIds,
       async (agentId) => {
         try {
+          // Check if we've hit the quota limit
+          if (this.apiQuotaExceeded) {
+            console.log(`API quota exceeded, waiting ${this.quotaRetryDelay}ms before retrying...`);
+            await new Promise(resolve => setTimeout(resolve, this.quotaRetryDelay));
+            this.apiQuotaExceeded = false; // Reset after waiting
+          }
+
+          // Implement rate limiting
+          const now = Date.now();
+          const timeSinceLastCall = now - this.lastApiCall;
+          if (timeSinceLastCall < this.rateLimitDelay) {
+            await new Promise(resolve => setTimeout(resolve, this.rateLimitDelay - timeSinceLastCall));
+          }
+          
           const agent = await this.getAgentInstance(agentId);
           if (agent) {
-            // Allow agent to analyze market and decide whether to trade
             await agent.makeTradeDecision(marketInfo);
             this.lastAccessTime.set(agentId, Date.now());
+            this.lastApiCall = Date.now();
             decisionCount++;
-            
-            // Get agent state to see if they want to execute a trade
-            const agentState = await prisma.agentState.findUnique({
-              where: { agentId }
-            });
-            
-            // Check if the agent's decision contains intent to trade
-            const lastDecision = agentState?.lastDecision;
-            const decisionText = lastDecision?.data?.decision?.toString() || '';
-            
-            // Check if the agent's decision contains a trade
-            let tradeIntent = null;
-            
-            // For buy decisions
-            if (
-              decisionText.toLowerCase().includes('buy') || 
-              decisionText.toLowerCase().includes('purchasing') ||
-              decisionText.toLowerCase().includes('acquire')
-            ) {
-              // Try to extract the amount from the text
-              const buyMatches = decisionText.match(/buy\s+(\d+(\.\d+)?)\s+(sol|tokens)/i) ||
-                                decisionText.match(/purchasing\s+(\d+(\.\d+)?)\s+(sol|tokens)/i) ||
-                                decisionText.match(/acquire\s+(\d+(\.\d+)?)\s+(sol|tokens)/i) ||
-                                decisionText.match(/invest\s+(\d+(\.\d+)?)\s+(sol|tokens)/i);
-              
-              if (buyMatches && buyMatches.length > 1) {
-                const amount = parseFloat(buyMatches[1]);
-                const unit = buyMatches[3].toLowerCase();
-                const inputIsSol = unit === 'sol';
-                
-                if (!isNaN(amount) && amount > 0) {
-                  tradeIntent = {
-                    agentId,
-                    inputAmount: amount,
-                    inputIsSol,
-                    action: 'buy',
-                    decisionText
-                  };
-                }
-              }
-            } 
-            // For sell decisions
-            else if (
-              decisionText.toLowerCase().includes('sell') || 
-              decisionText.toLowerCase().includes('selling') ||
-              decisionText.toLowerCase().includes('liquidate')
-            ) {
-              // Try to extract the amount from the text
-              const sellMatches = decisionText.match(/sell\s+(\d+(\.\d+)?)\s+(sol|tokens)/i) ||
-                                 decisionText.match(/selling\s+(\d+(\.\d+)?)\s+(sol|tokens)/i) ||
-                                 decisionText.match(/liquidate\s+(\d+(\.\d+)?)\s+(sol|tokens)/i);
-              
-              if (sellMatches && sellMatches.length > 1) {
-                const amount = parseFloat(sellMatches[1]);
-                const unit = sellMatches[3].toLowerCase();
-                const inputIsSol = unit !== 'sol'; // If selling tokens, inputIsSol is false
-                
-                if (!isNaN(amount) && amount > 0) {
-                  tradeIntent = {
-                    agentId,
-                    inputAmount: amount,
-                    inputIsSol,
-                    action: 'sell',
-                    decisionText
-                  };
-                }
-              }
-            }
-            
-            // If we found a valid trade intent, add it to our execution list
-            if (tradeIntent) {
-              tradesToExecute.push(tradeIntent);
-            }
           }
-        } catch (error) {
-          console.error(`Error in trading decision for agent ${agentId}:`, error);
+        } catch (error: unknown) {
+          console.error(`Error in trade decision for agent ${agentId}:`, error);
           errorCount++;
+          
+          // If we hit rate limit, increase the delay and mark quota as exceeded
+          if (error instanceof Error && (error.message?.includes('429') || error.message?.includes('quota'))) {
+            this.apiQuotaExceeded = true;
+            quotaExceededCount++;
+            this.rateLimitDelay = Math.min(this.rateLimitDelay * 2, 10000); // Max 10 second delay
+            this.quotaRetryDelay = Math.min(this.quotaRetryDelay * 2, 60000); // Max 1 minute delay
+            console.log(`Rate limit hit (${quotaExceededCount} times), increasing delays to ${this.rateLimitDelay}ms and ${this.quotaRetryDelay}ms`);
+          }
         }
       },
       { concurrency: this.maxConcurrent }
     );
     
-    // Second pass: Execute trades for agents who decided to trade
-    console.log(`🔄 ${tradesToExecute.length} agents want to execute trades`);
+    console.log(`✅ Trading decisions complete: ${decisionCount} decisions made, ${tradesToExecute.length} trades to execute, ${errorCount} errors, ${quotaExceededCount} quota exceeded`);
     
-    let successfulTrades = 0;
-    let failedTrades = 0;
-    
-    if (tradesToExecute.length > 0) {
-      await pMap(
-        tradesToExecute,
-        async (trade) => {
-          try {
-            console.log(`Executing trade for agent ${trade.agentId}: ${trade.action} ${trade.inputAmount} ${trade.inputIsSol ? 'SOL' : 'NURO'}`);
-            
-            // Get agent data
-            const agent = await prisma.agent.findUnique({
-              where: { id: trade.agentId }
-            });
-            
-            if (!agent) return;
-            
-            // Verify agent has sufficient balance
-            if (trade.inputIsSol && agent.walletBalance < trade.inputAmount) {
-              console.log(`Agent ${agent.name} has insufficient SOL balance for trade`);
-              failedTrades++;
-              return;
-            } else if (!trade.inputIsSol && agent.tokenBalance < trade.inputAmount) {
-              console.log(`Agent ${agent.name} has insufficient token balance for trade`);
-              failedTrades++;
-              return;
-            }
-            
-            // Execute the swap
-            try {
-              const result = await amm.executeSwap(
-                trade.agentId,
-                trade.inputAmount,
-                trade.inputIsSol,
-                0.5 // Default slippage tolerance
-              );
-              
-              console.log(`Trade executed successfully for agent ${agent.name}: ${JSON.stringify(result.swapResult)}`);
-              successfulTrades++;
-              
-              // Announce the trade in chat
-              const tradeAnnouncement = trade.inputIsSol ?
-                `Just bought ${result.swapResult.outputAmount.toFixed(2)} NURO tokens at ${result.swapResult.effectivePrice.toFixed(6)} SOL each.` :
-                `Just sold ${trade.inputAmount} NURO tokens for ${result.swapResult.outputAmount.toFixed(4)} SOL.`;
-              
-              await prisma.message.create({
-                data: {
-                  content: tradeAnnouncement,
-                  senderId: trade.agentId,
-                  type: 'TRADE',
-                  visibility: 'public',
-                  sentiment: trade.inputIsSol ? 'positive' : 'negative',
-                  mentions: []
-                }
-              });
-            } catch (error) {
-              console.error(`Error executing trade for agent ${agent.name}:`, error);
-              failedTrades++;
-            }
-          } catch (error) {
-            console.error(`Error processing trade:`, error);
-            failedTrades++;
-          }
-        },
-        { concurrency: this.maxConcurrent / 2 } // Use lower concurrency for trade execution
-      );
+    // If we hit quota limits too many times, suggest increasing the delay
+    if (quotaExceededCount > 5) {
+      console.warn('⚠️ High number of quota exceeded errors. Consider:');
+      console.warn('1. Increasing MAX_CONCURRENT_AGENTS in .env');
+      console.warn('2. Increasing rateLimitDelay in agent-manager.ts');
+      console.warn('3. Checking your OpenAI API quota and billing status');
     }
-    
-    console.log(`✅ Trading decisions complete: ${decisionCount} decisions made, ${successfulTrades} trades executed, ${failedTrades} trades failed, ${errorCount} errors`);
   }
   
   /**
@@ -596,5 +533,32 @@ export class AgentManager {
     this.lastAccessTime.clear();
     
     console.log('✅ Agent manager shut down successfully');
+  }
+
+  /**
+   * Set the distribution of personality types for new agents
+   */
+  public setPersonalityDistribution(distribution: Record<PersonalityType, number>): void {
+    // Validate that the distribution sums to 1
+    const total = Object.values(distribution).reduce((sum, value) => sum + value, 0);
+    if (Math.abs(total - 1) > 0.0001) {
+      throw new Error('Personality distribution must sum to 1');
+    }
+    this.personalityDistribution = distribution;
+  }
+
+  /**
+   * Get a random personality type based on the current distribution
+   */
+  private getRandomPersonalityType(): PersonalityType {
+    const random = Math.random();
+    let sum = 0;
+    for (const [type, probability] of Object.entries(this.personalityDistribution)) {
+      sum += probability;
+      if (random <= sum) {
+        return type as PersonalityType;
+      }
+    }
+    return 'MODERATE' as PersonalityType; // Fallback
   }
 }

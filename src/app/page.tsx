@@ -2,22 +2,24 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowRight, ChevronRight, BarChart3, MessageCircle, Users, Star } from 'lucide-react';
+import { AnimatedGridPattern } from '@/components/ui/flickeringgrid';
+import { cn } from '@/lib/utils';
 
 
 
 
 export default function Home() {
-  // Use client-side state for any dynamic content
+
   const [mounted, setMounted] = useState(false);
   
-  // Only render dynamic content after mounting on client
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
   return (
-    <div className="min-h-screen bg-black bg-gradient-to-br from-purple-950 via-black to-indigo-950 overflow-hidden relative p-16">
-      {/* Decorative elements */}
+    <div className="min-h-screen bg-black bg-gradient-to-br from-neutral-950 via-black to-indigo-950 overflow-hidden relative p-16">
+        
       <div className="absolute top-0 right-0 w-px h-screen bg-purple-800/20"></div>
       <div className="absolute top-1/3 left-0 w-screen h-px bg-purple-800/20"></div>
       <div className="absolute bottom-1/4 right-0 w-screen h-px bg-purple-800/20"></div>
@@ -26,14 +28,19 @@ export default function Home() {
 
 
       <section className="pt-16 pb-24 relative z-10">
+    
+     
+
         <div className="container mx-auto px-6">
           <div className="flex flex-col lg:flex-row items-center">
             <div className="lg:w-3/5 mb-16 lg:mb-0">
+         
               <div className="inline-flex items-center px-3 py-1 rounded-full bg-purple-900/30 border border-purple-800/30 text-purple-400 text-sm font-medium mb-6">
+            
                 <span className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
                 Available for Early Access
               </div>
-              
+        
               <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight mb-6">
                 Transform <br/>
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-300">trading simulations</span> <br/>
@@ -55,10 +62,11 @@ export default function Home() {
                   Our Work
                 </Link>
               </div>
+              
             </div>
             
             <div className="lg:w-2/5 lg:pl-16 relative">
-              {/* 3D Abstract Visual Element */}
+            
               <img
   src="/design.png"
   alt="de"
@@ -70,7 +78,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Features Section */}
+
       <section className="py-24 relative z-10 ">
         <div className="container mx-auto px-6">
           <div className="mb-20">
@@ -80,7 +88,7 @@ export default function Home() {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="group">
-              <div className="h-full border  bg-gray-900/30 backdrop-blur-sm p-8 transition-all duration-300">
+              <div className="h-full border  bg-gray-900/30 backdrop-blur-sm p-8 transition-all duration-300 hover:cursor-pointer hover:border-neutral-800 hover:bg-black hover:translate-1 ">
                 <div className="w-12 h-12 bg-purple-900/60 rounded-md flex items-center justify-center mb-6 group-hover:bg-purple-800 transition-colors">
                   <Users className="text-purple-400 w-6 h-6" />
                 </div>
@@ -94,7 +102,7 @@ export default function Home() {
             </div>
             
             <div className="group">
-              <div className="h-full border  bg-gray-900/30 backdrop-blur-sm p-8 transition-all duration-300">
+              <div className="h-full border  bg-gray-900/30 backdrop-blur-sm p-8 transition-all duration-300 hover:cursor-pointer hover:bg-black hover:translate-1">
                 <div className="w-12 h-12 bg-purple-900/60 rounded-md flex items-center justify-center mb-6 group-hover:bg-purple-800 transition-colors">
                   <BarChart3 className="text-purple-400 w-6 h-6" />
                 </div>
@@ -108,7 +116,7 @@ export default function Home() {
             </div>
             
             <div className="group">
-              <div className="h-full border  bg-gray-900/30 backdrop-blur-sm p-8 transition-all duration-300">
+              <div className="h-full border  bg-gray-900/30 backdrop-blur-sm p-8 transition-all duration-300 hover:cursor-pointer hover:border-purple-950 hover:translate-1" >
                 <div className="w-12 h-12 bg-purple-900/60 rounded-md flex items-center justify-center mb-6 group-hover:bg-purple-800 transition-colors">
                   <MessageCircle className="text-purple-400 w-6 h-6" />
                 </div>
@@ -128,7 +136,7 @@ export default function Home() {
   
 
       {/* Footer */}
-      <footer className="py-16 border-t border-gray-800/50 mt-12">
+      <footer className="py-10 border-t border-gray-800/50 mt-12 ">
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center mb-8 md:mb-0">

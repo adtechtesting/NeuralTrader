@@ -209,7 +209,10 @@ export async function POST(request: NextRequest) {
       });
       
       const message = await prisma.message.findUnique({
-        where: { id: messageId },
+        where: {
+          id:messageId,
+          
+        },
         include: {
           sender: {
             select: {
@@ -256,7 +259,7 @@ export async function POST(request: NextRequest) {
         select: { data: true }
       });
       
-      const sentimentValue = marketSentiment?.data?.value || 0;
+      const sentimentValue = marketSentiment?.data?.valueOf || 0;
       
       // Generate and store messages for each agent
       const messagePromises = agents.map(async (agent) => {
@@ -275,7 +278,7 @@ export async function POST(request: NextRequest) {
         
         // Retrieve complete message with agent data
         return prisma.message.findUnique({
-          where: { id: messageId },
+          where: { id:messageId },
           include: {
             sender: {
               select: {

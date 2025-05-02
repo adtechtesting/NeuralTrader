@@ -65,11 +65,11 @@ export class SimulationEngine {
   
   private setupEventHandlers() {
     // Register default handlers
-    this.on('phase:complete', async (phase) => {
+    this.on('phase:complete', async (phase:any) => {
       console.log(`Phase ${phase} completed`);
     });
     
-    this.on('simulation:error', async (error) => {
+    this.on('simulation:error', async (error:any) => {
       console.error('Simulation error:', error);
       await this.logSimulationEvent('ERROR', `Simulation error: ${error.message}`);
     });
@@ -468,7 +468,7 @@ export class SimulationEngine {
         'REPORTING': '📝'
       };
       
-      await this.logSimulationEvent('INFO', `${phaseEmoji[this.currentPhase] || '🔄'} Phase ${this.currentPhase} started`);
+      await this.logSimulationEvent('INFO', `${phaseEmoji || '🔄'} Phase ${this.currentPhase} started`);
       
       // Process agents in batches based on the current phase
       const agentIds = await this.agentManager.getActiveAgentIds();

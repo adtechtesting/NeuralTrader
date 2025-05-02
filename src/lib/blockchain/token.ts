@@ -57,7 +57,7 @@ export async function deployToken(
       };
     } catch (deployError) {
       console.error("Deployment error:", deployError);
-      throw new Error(`Token deployment failed: ${deployError.message}`);
+      throw new Error(`Token deployment failed: ${deployError}`);
     }
   } catch (error) {
     console.error("Error deploying token:", error);

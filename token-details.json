@@ -1,0 +1,10 @@
+{
+  "name": "NURO",
+  "symbol": "$NURO",
+  "decimals": 9,
+  "mintAddress": "DRBejxFuGdXqL4ri8jBFgF9GFEFrLNG4V4fcZQ96cEpJ",
+  "tokenAccount": "FBwkKbowD3w6gc3QxrDXAJ58BAZfUNas1uLxUTCgUgUy",
+  "ownerAddress": "ErsH1VbZrHpdsWZUAEhrgpVqQchT6QRHJHyAvdsPmyB8",
+  "network": "devnet",
+  "deploymentDate": "2025-05-02T17:14:35.181Z"
+}

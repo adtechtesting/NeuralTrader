@@ -1,5 +1,4 @@
-// agent-factory.js - Script to generate multiple agents and store them in the database
-// This works with the Solana Agent Kit for blockchain interaction
+
 
 require('dotenv').config({ path: '.env.local' });
 const fs = require('fs');

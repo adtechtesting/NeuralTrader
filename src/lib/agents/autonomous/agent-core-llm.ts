@@ -7,8 +7,7 @@ import { prisma } from "../../cache/dbCache";
 import { PersonalityType } from "../personalities";
 import { amm } from "../../blockchain/amm";
 import { marketData } from "../../market/data";
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import * as bs58 from "bs58";
+
 
 /**
  * Create a fixed config with thread_id that works with LangChain Memory
@@ -18,6 +17,8 @@ const DEFAULT_CONFIG = {
     thread_id: 'global_default_thread'
   }
 };
+
+const OPENAI_KEY=process.env.OPENAI_API_KEY;
 
 /**
  * Add thread_id to any config that might be missing it
@@ -396,7 +397,37 @@ const PERSONALITY_PROMPTS: Record<PersonalityType, string> = {
     "You are a contrarian trader who seeks opportunities by going against prevailing market sentiment. " +
     "You buy when others are selling and sell when others are buying. " +
     "You are skeptical of trends and look for overreactions in the market. " +
-    "When communicating, you often challenge the consensus view."
+    "When communicating, you often challenge the consensus view.",
+    
+  TECHNICAL:
+    "You are a technical trader who relies heavily on chart patterns and indicators. " +
+    "You make decisions based on technical analysis and historical price movements. " +
+    "You look for specific patterns and signals before entering trades. " +
+    "When communicating, you often reference technical indicators and patterns.",
+    
+  FUNDAMENTAL:
+    "You are a fundamental trader who focuses on underlying value and project metrics. " +
+    "You analyze tokenomics, team, roadmap, and adoption metrics. " +
+    "You make decisions based on long-term value rather than short-term price movements. " +
+    "When communicating, you emphasize project fundamentals and utility.",
+    
+  EMOTIONAL:
+    "You are an emotional trader who makes decisions based on feelings and intuition. " +
+    "You are highly influenced by market sentiment and community reactions. " +
+    "You often make impulsive decisions based on current emotions. " +
+    "When communicating, you express strong feelings and reactions.",
+    
+  WHALE:
+    "You are a whale trader with significant capital and market influence. " +
+    "You make large trades that can impact market prices. " +
+    "You are strategic about when and how you enter and exit positions. " +
+    "When communicating, you are confident and authoritative.",
+    
+  NOVICE:
+    "You are a novice trader who is still learning about the market. " +
+    "You tend to follow the advice of more experienced traders. " +
+    "You make smaller trades and are more cautious with your capital. " +
+    "When communicating, you ask questions and seek guidance."
 };
 
 /**
@@ -408,20 +439,23 @@ export class LLMAutonomousAgent {
   private tools: Tool[] = [];
   private personalityPrompt: string;
   private llm: ChatOpenAI;
+  private agentData: any;
+  private cache: Map<string, { response: string; timestamp: number }> = new Map();
+  private cacheTTL: number = 60 * 60 * 1000; // 1 hour cache TTL
 
   constructor(
-    private readonly agentData: any,
+    data: any,
     private readonly options: {
       llmModel?: string;
       temperature?: number;
     } = {}
   ) {
-    this.personalityPrompt =
-      PERSONALITY_PROMPTS[agentData.personalityType] || PERSONALITY_PROMPTS.MODERATE;
+    this.agentData = data;
+    this.personalityPrompt = PERSONALITY_PROMPTS.MODERATE;
 
     // Set up LLM
     this.llm = new ChatOpenAI({
-      modelName: options.llmModel || "gpt-4o",
+      modelName: options.llmModel || "gpt-3.5-turbo",
       temperature: options.temperature || 0.7,
     });
 
@@ -436,20 +470,22 @@ export class LLMAutonomousAgent {
    * Initialize the custom tools for this agent.
    */
   private initializeTools() {
-    // Add custom tools
+
     this.tools.push(new MarketDataTool());
     this.tools.push(new TokenSwapTool(this.agentData.id));
     this.tools.push(new GetBalanceTool(this.agentData.id));
     this.tools.push(new SendMessageTool(this.agentData.id, this.agentData.name));
     this.tools.push(new ReadMessagesTool(this.agentData.id));
 
-    // Add Solana native tools if using real blockchain interaction
+
     if (process.env.USE_REAL_BLOCKCHAIN === "true" && this.agentData.walletPrivateKey) {
       try {
         const solanaKit = new SolanaAgentKit(
           this.agentData.walletPrivateKey,
           process.env.NEXT_PUBLIC_RPC_URL || "http://localhost:8899",
-          process.env.OPENAI_API_KEY
+          {
+            OPENAI_API_KEY:OPENAI_KEY
+     }
         );
         const solanaTools = createSolanaTools(solanaKit);
         this.tools.push(...solanaTools);
@@ -460,9 +496,7 @@ export class LLMAutonomousAgent {
     }
   }
 
-  /**
-   * Initialize the React agent with tools and personality.
-   */
+
   private async initializeAgent() {
     try {
       const agentContext = {
@@ -505,7 +539,6 @@ export class LLMAutonomousAgent {
       this.agent = createReactAgent({
         llm: this.llm,
         tools: this.tools,
-        systemMessage: systemPrompt,
       });
 
       // Wrap the invoke method to add a thread_id safely
@@ -598,6 +631,28 @@ export class LLMAutonomousAgent {
         `- Liquidity: ${marketInfo.liquidity} SOL\n` +
         `- Market sentiment: ${marketInfo.sentiment?.bullish > 0.5 ? 'Bullish' : 'Bearish'}\n`;
 
+      // Check cache first
+      const cacheKey = `market_analysis_${this.agentData.id}_${marketInfo.price}_${marketInfo.priceChange24h}`;
+      const cachedResponse = this.cache.get(cacheKey);
+      
+      if (cachedResponse && Date.now() - cachedResponse.timestamp < this.cacheTTL) {
+        console.log(`Using cached market analysis for agent ${this.agentData.name}`);
+        await this.createOrUpdateAgentState({
+          lastMarketAnalysis: new Date(),
+          lastAction: new Date(),
+          lastDecision: {
+            type: 'MARKET_ANALYSIS',
+            timestamp: new Date().toISOString(),
+            data: {
+              marketInfo,
+              analysis: cachedResponse.response,
+              cached: true
+            }
+          }
+        });
+        return true;
+      }
+
       const response = await this.agent.invoke({
         messages: [
           new HumanMessage(
@@ -608,6 +663,12 @@ export class LLMAutonomousAgent {
         ]
       });
 
+      // Cache the response
+      this.cache.set(cacheKey, {
+        response: response.toString(),
+        timestamp: Date.now()
+      });
+
       await this.createOrUpdateAgentState({
         lastMarketAnalysis: new Date(),
         lastAction: new Date(),
@@ -616,14 +677,41 @@ export class LLMAutonomousAgent {
           timestamp: new Date().toISOString(),
           data: {
             marketInfo,
-            analysis: response.toString()
+            analysis: response.toString(),
+            cached: false
           }
         }
       });
 
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Error in market analysis for agent ${this.agentData.name}:`, error);
+      
+      // If we hit rate limit, try to use cached response
+      if (error instanceof Error && (error.message?.includes('429') || error.message?.includes('quota'))) {
+        const fallbackCacheKey = `market_analysis_${this.agentData.id}`;
+        const fallbackResponse = this.cache.get(fallbackCacheKey);
+        
+        if (fallbackResponse) {
+          console.log(`Using fallback cached response for agent ${this.agentData.name}`);
+          await this.createOrUpdateAgentState({
+            lastMarketAnalysis: new Date(),
+            lastAction: new Date(),
+            lastDecision: {
+              type: 'MARKET_ANALYSIS',
+              timestamp: new Date().toISOString(),
+              data: {
+                marketInfo,
+                analysis: fallbackResponse.response,
+                cached: true,
+                error: 'API quota exceeded, using cached response'
+              }
+            }
+          });
+          return true;
+        }
+      }
+      
       return false;
     }
   }

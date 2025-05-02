@@ -1,4 +1,4 @@
-// low-supply-deploy.js
+
 
 require('dotenv').config({ path: '.env.local' });
 const fs = require('fs');

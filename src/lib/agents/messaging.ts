@@ -248,7 +248,38 @@ export const messagingSystem = {
         MARKET_FALL: 0.3,
         BUY_SIGNAL: 0.7,
         SELL_SIGNAL: 0.3
+      },
+      TECHNICAL:{
+        MARKET_RISE: 0.9,
+        MARKET_FALL: 0.4,
+        BUY_SIGNAL: 0.3,
+        SELL_SIGNAL: 0.6
+      } ,
+      FUNDAMENTAL:{
+        MARKET_RISE: 0.7,
+        MARKET_FALL: 0.5,
+        BUY_SIGNAL: 0.2,
+        SELL_SIGNAL: 0.3
+      },
+      EMOTIONAL:{
+        MARKET_RISE: 0.8,
+        MARKET_FALL: 0.4,
+        BUY_SIGNAL: 0.1,
+        SELL_SIGNAL: 0.2
+      },
+      WHALE:{
+        MARKET_RISE: 0.3,
+        MARKET_FALL: 0.5,
+        BUY_SIGNAL: 0.2,
+        SELL_SIGNAL: 0.6
+      },
+      NOVICE:{
+        MARKET_RISE: 0.3,
+        MARKET_FALL: 0.5,
+        BUY_SIGNAL: 0.2,
+        SELL_SIGNAL: 0.6
       }
+      
     };
     
     // Generate random threshold based on personality

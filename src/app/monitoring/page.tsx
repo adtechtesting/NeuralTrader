@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
 import { 
 
   TrendingUp, 
@@ -276,7 +275,7 @@ export default function MonitoringPage() {
   
   return (
     <div className="min-h-screen bg-black bg-gradient-to-br from-purple-950 via-black to-indigo-950 overflow-hidden relative p-16">
-      {/* Decorative elements */}
+     
       <div className="absolute top-0 right-0 w-px h-screen bg-purple-800/20"></div>
       <div className="absolute top-1/3 left-0 w-screen h-px bg-purple-800/20"></div>
       <div className="absolute bottom-1/4 right-0 w-screen h-px bg-purple-800/20"></div>
@@ -284,7 +283,7 @@ export default function MonitoringPage() {
       
       
       <main className="container mx-auto px-6 py-8">
-        {/* Simulation Controls */}
+
         <div className="mb-8 bg-gray-900/30 backdrop-blur-sm rounded-lg border border-gray-800/50 p-6">
           <SimulationControls onDataRefresh={loadData} />
         </div>
@@ -295,7 +294,7 @@ export default function MonitoringPage() {
           </div>
         )}
         
-        {/* Status section */}
+
         <div className="mb-8 bg-gray-900/30 backdrop-blur-sm rounded-lg border border-gray-800/50 p-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="flex items-center gap-3">
@@ -369,7 +368,7 @@ export default function MonitoringPage() {
             </span>
           </div>
           
-          {/* Token Price Card */}
+
           <div className="bg-gray-900/30 backdrop-blur-sm rounded-lg border border-gray-800/50 p-6 transition-all hover:border-purple-800/50">
             <div className="flex justify-between items-start mb-4">
               <span className="text-gray-400">NURO Token Price</span>
@@ -387,7 +386,7 @@ export default function MonitoringPage() {
             </div>
           </div>
           
-          {/* Volume Card */}
+
           <div className="bg-gray-900/30 backdrop-blur-sm rounded-lg border border-gray-800/50 p-6 transition-all hover:border-purple-800/50">
             <div className="flex justify-between items-start mb-4">
               <span className="text-gray-400">24h Trading Volume</span>
@@ -400,8 +399,7 @@ export default function MonitoringPage() {
               {simulationStatus?.market?.operationCount || 0} trades ({((simulationStatus?.market?.successRate || 0) * 100).toFixed(1)}% success)
             </span>
           </div>
-          
-          {/* Liquidity Card */}
+     
           <div className="bg-gray-900/30 backdrop-blur-sm rounded-lg border border-gray-800/50 p-6 transition-all hover:border-purple-800/50">
             <div className="flex justify-between items-start mb-4">
               <span className="text-gray-400">Liquidity Pool</span>
@@ -433,16 +431,16 @@ export default function MonitoringPage() {
               <MemoryStick className="w-5 h-5 text-purple-400" />
               Liquidity Distribution
             </h3>
-            <div className="h-80">
+            <div className="h-100">
               <AMMVisualization />
             </div>
           </div>
         </div>
         
         {/* Recent Transactions */}
-        <div className="mb-8 bg-gray-900/30 backdrop-blur-sm rounded-lg border border-gray-800/50 p-6">
+        <div className="mb-8 bg-gray-900/30 backdrop-blur-sm rounded-lg border border-gray-800/50 pb-10 ">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium text-white">Recent Transactions</h3>
+            <h3 className="text-lg font-medium text-white py-4">Recent Transactions</h3>
             <button 
               onClick={loadData}
               className="px-3 py-1 rounded-md bg-purple-900/30 border border-purple-800/50 text-purple-400 text-sm font-medium hover:bg-purple-800/30 transition-all flex items-center gap-1"
@@ -507,16 +505,9 @@ export default function MonitoringPage() {
         </div>
       </main>
       
-      {/* Chat Section */}
-      <div className="container mx-auto px-6 mb-16">
-        <div className="bg-gray-900/30 backdrop-blur-sm rounded-lg border border-gray-800/50 p-6">
-          <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
-            <MessageCircle className="w-5 h-5 text-purple-400" />
-            Agent Communications
-          </h3>
-          <ChatSection />
-        </div>
-      </div>
+     
+    
+       
       
       {/* Footer */}
       <footer className="border-t border-gray-800/50 py-8">
@@ -550,6 +541,7 @@ export default function MonitoringPage() {
           animation: pulse-x 2s ease-in-out infinite;
         }
       `}</style>
+            <ChatSection />
     </div>
   );
 }
