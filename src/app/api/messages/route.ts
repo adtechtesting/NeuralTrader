@@ -207,7 +207,9 @@ export async function POST(request: NextRequest) {
         agentId: agent.id,
         content
       });
-      
+      if (!messageId || typeof messageId !== 'string') {
+        throw new Error('Invalid messageId');
+      }
       const message = await prisma.message.findUnique({
         where: {
           id:messageId,
@@ -275,6 +277,9 @@ export async function POST(request: NextRequest) {
           agentId: agent.id,
           content
         });
+        if (!messageId || typeof messageId !== 'string') {
+          throw new Error('Invalid messageId');
+        }
         
         // Retrieve complete message with agent data
         return prisma.message.findUnique({

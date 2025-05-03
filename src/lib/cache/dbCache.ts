@@ -51,3 +51,7 @@ export const dbCache = {
 };
 
 export { prisma };
+
+export function getPrismaClient(): PrismaClient {
+  return prisma;
+}

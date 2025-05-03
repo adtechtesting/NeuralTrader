@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbo",
-    "build": "next build ",
+    "build": " prisma generate && next build ",
     "start": "next start",
     "lint": "next lint"
   },
@@ -19,6 +19,10 @@
     "@mui/material": "^6.4.7",
     "@prisma/client": "^6.4.1",
     "@solana/spl-token-swap": "^0.4.4",
+    "@solana/wallet-adapter-base": "^0.9.26",
+    "@solana/wallet-adapter-react": "^0.15.38",
+    "@solana/wallet-adapter-react-ui": "^0.9.38",
+    "@solana/wallet-adapter-wallets": "^0.19.36",
     "@solana/web3.js": "^1.98.0",
     "@tailwindcss/postcss": "^4.1.5",
     "bs58": "^6.0.0",
@@ -36,12 +40,14 @@
     "rpc-websockets": "^7.10.0",
     "solana-agent-kit": "^1.4.0",
     "tailwind-merge": "^3.2.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "uuidv4": "^6.2.13"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
     "@types/react": "^19.0.10",
     "autoprefixer": "^10.4.21",
+    "eslint": "^9.26.0",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.5",
     "typescript": "^5.8.3"

@@ -126,67 +126,70 @@ export default function MonitoringPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [simulationStatus, setSimulationStatus] = useState<SimulationStatus | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [refreshRate, setRefreshRate] = useState(3000); // 3 seconds
+  const [refreshRate, setRefreshRate] = useState(3000);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  
-  // Format a number with commas and fixed decimals
+  const [error, setError] = useState<string | null>(null); // Add error state
+
   const formatNumber = (num: number | undefined | null, decimals: number = 2): string => {
     if (num === undefined || num === null) return '0.00';
-    return num.toLocaleString(undefined, { 
+    return num.toLocaleString(undefined, {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals
     });
   };
-  
-  // Format timestamp
+
   const formatTime = (timestamp: number): string => {
     return new Date(timestamp).toLocaleTimeString();
   };
-  
-  // Determine color based on sentiment/direction
+
   const getDirectionColor = (value: number): string => {
     if (value > 0) return 'text-green-400';
     if (value < 0) return 'text-red-400';
     return 'text-gray-400';
   };
-  
-  // Load data function
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // Get simulation status first
+      setError(null);
+
+      // Get simulation status
       const statusResponse = await fetch('/api/simulation');
-      if (statusResponse.ok) {
-        const statusData = await statusResponse.json();
-        setSimulationStatus(statusData);
+      if (!statusResponse.ok) {
+        throw new Error(
+          `Failed to fetch simulation status: ${statusResponse.status} ${statusResponse.statusText}`
+        );
       }
-      
+      const statusData = await statusResponse.json();
+      setSimulationStatus(statusData);
+
       // Get recent trades
       const tradesResponse = await fetch('/api/transactions?limit=10');
-      if (tradesResponse.ok) {
-        const tradesData = await tradesResponse.json();
-        if (tradesData.success) {
-          setTransactions(tradesData.transactions || []);
-        }
+      if (!tradesResponse.ok) {
+        throw new Error(
+          `Failed to fetch transactions: ${tradesResponse.status} ${tradesResponse.statusText}`
+        );
       }
-      
+      const tradesData = await tradesResponse.json();
+      if (tradesData.success) {
+        setTransactions(tradesData.transactions || []);
+      }
+
       setLastUpdate(new Date());
     } catch (error) {
       console.error('Error loading data:', error);
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
   }, []);
-  
-  // Load data on mount
+
   useEffect(() => {
     loadData();
   }, [loadData]);
-  
-  // Auto-refresh setup
+
   useEffect(() => {
-    let interval: any;
+    let interval: NodeJS.Timeout | null = null;
     if (autoRefresh) {
       interval = setInterval(loadData, refreshRate);
     }
@@ -194,15 +197,14 @@ export default function MonitoringPage() {
       if (interval) clearInterval(interval);
     };
   }, [autoRefresh, refreshRate, loadData]);
-  
-  // Show different status based on simulation state
+
   const getStatusChip = () => {
     if (!simulationStatus) return (
       <span className="px-3 py-1 rounded-full bg-gray-700 text-gray-300 text-xs font-medium">
         Unknown
       </span>
     );
-    
+
     switch (simulationStatus.status) {
       case 'RUNNING':
         return (
@@ -238,20 +240,18 @@ export default function MonitoringPage() {
         );
     }
   };
-  
-  // Get phase display
+
   const getPhaseDisplay = () => {
     if (!simulationStatus) return null;
-    
+
     let phaseLabel = simulationStatus.currentPhase;
     if (phaseLabel) {
       phaseLabel = phaseLabel.replace(/_/g, ' ');
-      // Title case
-      phaseLabel = phaseLabel.toLowerCase().split(' ').map(word => 
+      phaseLabel = phaseLabel.toLowerCase().split(' ').map(word =>
         word.charAt(0).toUpperCase() + word.slice(1)
       ).join(' ');
     }
-    
+
     return (
       <div className="flex flex-col gap-1">
         <span className="text-sm text-gray-400">
@@ -260,7 +260,7 @@ export default function MonitoringPage() {
         <div className="flex items-center gap-2">
           <span className="text-lg font-medium text-white">{phaseLabel}</span>
           <div className="flex-1 h-2 min-w-24 bg-gray-800 rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-300"
               style={{ width: `${simulationStatus.phaseProgress}%` }}
             ></div>
@@ -273,8 +273,9 @@ export default function MonitoringPage() {
     );
   };
   
+  
   return (
-    <div className="min-h-screen bg-black bg-gradient-to-br from-purple-950 via-black to-indigo-950 overflow-hidden relative p-16">
+    <div className="min-h-screen bg-black bg-gradient-to-br from-purple-950 via-black to-indigo-950 overflow-hidden relative p-20">
      
       <div className="absolute top-0 right-0 w-px h-screen bg-purple-800/20"></div>
       <div className="absolute top-1/3 left-0 w-screen h-px bg-purple-800/20"></div>
@@ -284,10 +285,18 @@ export default function MonitoringPage() {
       
       <main className="container mx-auto px-6 py-8">
 
+         {/* Error Display */}
+         {error && (
+          <div className="mb-8 bg-red-900/30 backdrop-blur-sm rounded-lg border border-red-800/50 p-4 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
+            <span className="text-red-200">{error}</span>
+          </div>
+        )}
+
         <div className="mb-8 bg-gray-900/30 backdrop-blur-sm rounded-lg border border-gray-800/50 p-6">
           <SimulationControls onDataRefresh={loadData} />
         </div>
-        
+
         {loading && (
           <div className="w-full h-1 bg-gray-800 mb-6 overflow-hidden">
             <div className="h-full w-1/3 bg-gradient-to-r from-purple-500 to-indigo-500 animate-pulse-x"></div>

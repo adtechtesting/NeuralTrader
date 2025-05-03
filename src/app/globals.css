@@ -1,1 +1,35 @@
 @import "tailwindcss";
+
+:root {
+    --font-main: 'Bricolage Grotesque', sans-serif;
+    --font-secondary: 'Lexend Deca', sans-serif;
+  }
+  
+  /* Apply to all body text */
+  body {
+    font-family: var(--font-main);
+  }
+  
+  /* Use secondary font for headings */
+  h1, h2, h3 {
+    font-family: var(--font-secondary);
+  }
+  .wallet-adapter-button {
+    background-color: transparent !important;
+    color: #ffffff !important;
+    border-radius: 12px !important;
+    font-weight: 600;
+    padding: 10px 16px;
+    transition: all 0.2s ease-in-out;
+    z-index: 1000; 
+    position: relative; 
+  }
+  
+  .wallet-adapter-button:hover {
+    transform: scale(1.02);
+  }
+  .wallet-adapter-modal {
+    z-index: 9999; 
+    position: fixed; 
+  }
+  

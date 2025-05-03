@@ -314,3 +314,74 @@ export const messagingSystem = {
     return message;
   }
 };
+
+export async function reactToMessage(messageId: string,agentId:string, reactionType: string) {
+  await prisma.message.update({
+    where: { id: messageId },
+    data: {
+      reactions: {
+        create: {
+          agentId:agentId,
+          type:reactionType
+        }
+      }
+    }
+  });
+
+  
+}
+export async function generateGroupChat(messageCount: number): Promise<void> {
+  try {
+    // Fetch random active agents
+    const agents = await prisma.agent.findMany({
+      where: { active: true },
+      select: {
+        id: true,
+        name: true,
+        personalityType: true
+      },
+      take: Math.min(messageCount, 50), // Cap at 50 agents to avoid overload
+    });
+
+    if (agents.length === 0) {
+      console.warn('No active agents found for group chat');
+      return;
+    }
+
+    // Calculate market sentiment (simplified)
+    const marketSentiment = Math.random(); // Placeholder: Replace with actual market data if available
+
+    // Generate messages for each agent
+    const messagePromises = agents.slice(0, messageCount).map(async (agent) => {
+      try {
+        // Generate message content using messagingSystem
+        const content = await messagingSystem.generateMessage(
+          agent.id,
+          agent.personalityType,
+          marketSentiment
+        );
+
+        // Determine sentiment based on message type
+        const messageType = marketSentiment > 0.5 ? 'MARKET_RISE' : 'MARKET_FALL';
+        const sentiment = messageType === 'MARKET_RISE' ? 'positive' : 'negative';
+
+        // Create message
+        await messagingSystem.createMessage(agent.id, content, {
+          type: messageType === 'MARKET_RISE' ? 'MARKET_UPDATE' : 'PRICE_COMMENT',
+          sentiment,
+          visibility: 'public'
+        });
+      } catch (error) {
+        console.error(`Error generating message for agent ${agent.id}:`, error);
+      }
+    });
+
+    // Wait for all messages to be created
+    await Promise.all(messagePromises);
+
+    console.log(`Generated ${Math.min(messageCount, agents.length)} group chat messages`);
+  } catch (error) {
+    console.error('Error generating group chat:', error);
+    throw error;
+  }
+}

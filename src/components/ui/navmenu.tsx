@@ -10,7 +10,7 @@ export const MenuItem = ({
 }) => {
   return (
     <div onMouseEnter={() => setActive(item)} className="relative bg-transparent">
-      <p className="cursor-pointer  hover:opacity-[0.9] text-neutral-200">
+      <p className="cursor-pointer  hover:opacity-[0.9]  text-gray-200 hover:text-purple-300 transition-colors px-5 py-2 text-lg">
         {item}
       </p>
     </div>

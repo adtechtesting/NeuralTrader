@@ -121,7 +121,7 @@ export default function AgentDashboardPage() {
   }
   
   return (
-    <div className="min-h-screen bg-black bg-gradient-to-br from-purple-950 via-black to-indigo-950 overflow-hidden relative p-16">
+    <div className="min-h-screen bg-black bg-gradient-to-br from-purple-950 via-black to-indigo-950 overflow-hidden relative p-22">
      
       <div className="absolute top-0 right-0 w-px h-screen bg-purple-800/20"></div>
       <div className="absolute top-1/3 left-0 w-screen h-px bg-purple-800/20"></div>

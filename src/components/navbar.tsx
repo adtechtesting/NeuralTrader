@@ -4,6 +4,8 @@ import React from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Menu, MenuItem } from "./ui/navmenu";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+
 
 export function NavbarDemo() {
   return (
@@ -19,12 +21,12 @@ function Navbar({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "fixed top-4 inset-x-0 max-w-5xl mx-auto z-50",
+        "fixed top-6 inset-x-0 max-w-7xl mx-auto z-50",
         className
       )}
     >
-      <div className="flex justify-between items-center bg-transparent shadow-md rounded-xl border  backdrop-blur-md">
-        <Link href="/" className="text-2xl font-bold tracking-tight text-neutral-300 px-2">
+      <div className="flex justify-between items-center bg-transparent shadow-md rounded-xl border  backdrop-blur-md  ">
+        <Link href="/" className="text-2xl font-bold  px-2  tracking-tight text-white">
           NeuralTrader
         </Link>
 
@@ -36,6 +38,11 @@ function Navbar({ className }: { className?: string }) {
             <MenuItem setActive={handleHover} item="Simulation" />
           </Link>
         </Menu>
+        <div className="ml-4 z-10">
+          <WalletMultiButton />
+        </div>
+
+        
       </div>
     </div>
   );

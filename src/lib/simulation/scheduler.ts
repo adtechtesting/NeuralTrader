@@ -1,13 +1,13 @@
-// src/lib/simulation/scheduler.ts
-import { PrismaClient } from '@prisma/client';
-import { makeAgentAct } from '../agents/agent-factory';
+
+
 import { getPersonalityBehavior } from '../agents/personalities';
 import { getPrismaClient } from '../cache/dbCache';
 import { generateGroupChat } from '../agents/messaging';
 import pLimit from 'p-limit';
-import cluster from 'cluster';
-import os from 'os';
+
 import { EventEmitter } from 'events';
+import { Axe } from 'lucide-react';
+import { makeAgentAct } from '../agents/agent-factory';
 
 const prisma = getPrismaClient();
 
@@ -256,7 +256,7 @@ export async function startSimulation(config = {
       await prisma.agent.updateMany({
         where: { active: false },
         data: { active: true },
-        take: activationCount
+        
       });
       
       simulationStats.agentStats.totalAgents = activationCount;
@@ -292,7 +292,8 @@ export async function startSimulation(config = {
     }
     
     // Schedule the first phase
-    scheduleNextPhase(config);
+ 
+    scheduleNextBatch(config);
     
     return {
       status: 'started',
@@ -416,7 +417,7 @@ export function getSimulationStatus() {
 /**
  * Schedule the next batch of agent actions
  */
-async function scheduleNextBatch(config) {
+async function scheduleNextBatch(config:any) {
   // Always check if simulation is still active
   if (!simulationActive) return;
   
@@ -553,7 +554,7 @@ async function selectAgentsForAction(count: number): Promise<any[]> {
           id: true,
           name: true,
           personalityType: true,
-          balance: true,
+          tokenBalance: true,
           socialInfluence: true,
           messageFrequency: true  // Used for weighting
         },
@@ -634,7 +635,7 @@ function selectWeightedRandom(items: Array<{ weight: number, [key: string]: any 
 /**
  * Queue an agent action operation
  */
-function queueAgentAction(agent) {
+function queueAgentAction(agent:any) {
   // Check if queue is already at capacity
   if (operationQueue.length >= MAX_QUEUE_SIZE) {
     addLog('warn', `Queue is full (${operationQueue.length} items). Dropping operation for agent ${agent.name}.`);
@@ -769,7 +770,7 @@ function processQueue() {
       currentOperations++;
       addLog('debug', `Starting queued operation (${operationQueue.length} remaining in queue, ${currentOperations}/${MAX_CONCURRENT_OPERATIONS} active)`);
       
-      operation().catch(err => {
+      operation().catch( (err:any)=> {
         addLog('error', "Unhandled error in operation", { 
           error: err instanceof Error ? { 
             message: err.message, 

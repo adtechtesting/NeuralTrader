@@ -44,6 +44,7 @@ export async function deployToken(
           updateAuthority: undefined, // by default, deployer account
           isMutable: true          // by default, true
         },
+        //@ts-ignore
         BigInt(Math.floor(initialSupply))  // Ensure it's a valid integer before converting to BigInt
       );
       

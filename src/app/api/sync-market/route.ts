@@ -2,9 +2,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { amm } from '@/lib/blockchain/amm';
-import { marketData } from '@/lib/market/data';
+
 import { prisma } from '@/lib/cache/dbCache';
-import { getCached, setCached } from '@/lib/cache/dbCache';
+import {setCached } from '@/lib/cache/dbCache';
 
 export async function GET(request: NextRequest) {
   try {

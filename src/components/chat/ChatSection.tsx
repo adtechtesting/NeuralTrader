@@ -1,9 +1,15 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Send, RefreshCw } from 'lucide-react';
+import { MessageCircle, X,  RefreshCw } from 'lucide-react';
 import AgentAvatar from '../AgentAvatar';
 import { fetchJsonWithTimeout } from '@/lib/communication/fetch-with-timeout';
+
+
+interface MessagesApiResponse {
+  messages: Message[];
+}
+
 
 interface Message {
   id: string;
@@ -43,7 +49,7 @@ export default function ChatSection() {
   const loadMessages = async () => {
     try {
       setLoading(true);
-      const data = await fetchJsonWithTimeout('/api/messages?count=50', {
+      const data = await fetchJsonWithTimeout<MessagesApiResponse>('/api/messages?count=50', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -60,13 +66,13 @@ export default function ChatSection() {
     }
   };
 
-  // Generate message from random agent
+   /*
   const generateMessage = async () => {
     try {
       setAgentGenerating(true);
 
       // Generate message from a random agent
-      const response = await fetchJsonWithTimeout('/api/messages', {
+      const response = await fetchJsonWithTimeout<MessagesApiResponse>('/api/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -85,7 +91,7 @@ export default function ChatSection() {
       setAgentGenerating(false);
     }
   };
-
+  */
   // Helper to format timestamp
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -118,7 +124,7 @@ export default function ChatSection() {
 
       {/* Chat drawer */}
       {open && (
-        <div className="fixed top-0 right-0 w-96 h-full bg-gray-800 text-gray-100 shadow-lg flex flex-col">
+        <div className="fixed bottom-0 right-0 w-96 h-[700px] bg-gray-800 text-gray-100 shadow-lg flex flex-col">
           {/* Header */}
           <div className="p-4 flex items-center justify-between border-b border-gray-700">
             <h2 className="text-lg font-semibold text-white">Agent Chat</h2>
