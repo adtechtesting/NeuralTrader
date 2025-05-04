@@ -113,7 +113,7 @@ export default function ChatSection() {
 
   return (
     <>
-      {/* Chat button */}
+  
       <button
         className="fixed bottom-5 right-5 p-4 bg-purple-600 text-white rounded-full shadow-lg hover:bg-purple-700 transition-all"
         onClick={() => setOpen(true)}
@@ -124,8 +124,8 @@ export default function ChatSection() {
 
       {/* Chat drawer */}
       {open && (
-        <div className="fixed bottom-0 right-0 w-96 h-[700px] bg-gray-800 text-gray-100 shadow-lg flex flex-col">
-          {/* Header */}
+        <div className="fixed bottom-0 right-0 w-96 h-[700px] bg-gray-950 text-gray-100 shadow-lg flex flex-col">
+    
           <div className="p-4 flex items-center justify-between border-b border-gray-700">
             <h2 className="text-lg font-semibold text-white">Agent Chat</h2>
             <div className="flex items-center gap-2">

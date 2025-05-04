@@ -337,7 +337,7 @@ export default function SimulationControls({ onDataRefresh }: { onDataRefresh: (
   };
 
   return (
-    <div className="w-full bg-gray-800 rounded-lg p-6 mb-6 text-gray-100">
+    <div className="w-full bg-gray-950 rounded-lg p-6 mb-6 text-gray-100">
       {/* Main controls */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-4">

@@ -2,9 +2,10 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Lexend_Deca } from 'next/font/google';
 import { SmoothCursor } from "@/components/ui/smooth";
-import { NavbarDemo } from "@/components/Navbar";
+
 import "./globals.css";
 import { WalletContextProvider } from "@/components/Walletprovider";
+import { NavbarDemo } from "@/components/Navbarcom";
 
 
 
@@ -39,7 +40,7 @@ export default function RootLayout({
     <html lang="en">
     <body className={`${mainFont.variable} ${secondaryFont.variable} font-mainFont antialiased`}>
       <WalletContextProvider>
-        <NavbarDemo />
+        <NavbarDemo/>
         <SmoothCursor />
         {children}
       </WalletContextProvider>
