@@ -576,6 +576,9 @@ import {
   Zap,
   X
 } from 'lucide-react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useRouter } from 'next/navigation';
+import {toast} from "sonner"
 
 // Dynamically import heavy components with no SSR
 const SimulationControls = dynamic(
@@ -690,6 +693,17 @@ export default function MonitoringPage() {
   const [refreshRate, setRefreshRate] = useState(3000);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const {connected}=useWallet()
+
+  const router=useRouter()
+
+
+   useEffect(()=>{
+     if(!connected){
+       router.push("/")
+       toast.warning("Please connect your wallet Solana to track simulation")
+     }
+   },[connected,loading])
 
   const formatNumber = (num: number | undefined | null, decimals: number = 2): string => {
     if (num === undefined || num === null) return '0.00';
@@ -699,8 +713,10 @@ export default function MonitoringPage() {
     });
   };
 
-  const formatTime = (timestamp: number): string => {
-    return new Date(timestamp).toLocaleTimeString();
+  const formatTime = (timestamp: number|Date |number): string => {
+    const date=new Date(timestamp)
+    if(isNaN(date.getTime())) return "Invalid Date"
+    return date.toLocaleTimeString()
   };
 
   const getDirectionColor = (value: number): string => {

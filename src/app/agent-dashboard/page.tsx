@@ -18,6 +18,9 @@ import { motion } from 'framer-motion';
 import AgentAvatar from '@/components/AgentAvatar';
 import ChatSection from '@/components/chat/ChatSection';
 import Link from 'next/link';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useRouter } from 'next/navigation';
+import { toast } from "sonner"; 
 
 
 
@@ -49,6 +52,8 @@ interface Stats {
 }
 
 export default function AgentDashboardPage() {
+   const {connected}=useWallet()
+   const router=useRouter()
 
   const [loading, setLoading] = useState(true);
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -63,6 +68,17 @@ export default function AgentDashboardPage() {
   const [personalityFilter, setPersonalityFilter] = useState('');
   const [mounted, setMounted] = useState(false);
   
+
+  useEffect(()=>{
+    setMounted(true)
+
+    if(!connected){
+      router.push("/")
+      toast.warning("Connect Your Solana Wallet to see the Agent Dashboard")
+
+    }
+  },[router,connected])
+
 
   useEffect(() => {
     setMounted(true);

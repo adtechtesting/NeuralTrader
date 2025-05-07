@@ -6,6 +6,7 @@ import { SmoothCursor } from "@/components/ui/smooth";
 import "./globals.css";
 import { WalletContextProvider } from "@/components/Walletprovider";
 import { NavbarDemo } from "@/components/Navbarcom";
+import { Toaster } from "@/components/ui/sonner";
 
 
 
@@ -42,6 +43,7 @@ export default function RootLayout({
       <WalletContextProvider>
         <NavbarDemo/>
         <SmoothCursor />
+        <Toaster></Toaster>
         {children}
       </WalletContextProvider>
     </body>

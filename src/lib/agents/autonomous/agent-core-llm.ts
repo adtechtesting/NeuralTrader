@@ -1,13 +1,12 @@
 import { SolanaAgentKit, createSolanaTools } from "solana-agent-kit";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { ChatOpenAI } from "@langchain/openai";
-import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { GeminiAdapter } from "../../llm/gemini-adapter";
 import { Tool } from "@langchain/core/tools";
 import { prisma } from "../../cache/dbCache";
 import { PersonalityType } from "../personalities";
 import { amm } from "../../blockchain/amm";
 import { marketData } from "../../market/data";
-
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
 
 /**
  * Create a fixed config with thread_id that works with LangChain Memory
@@ -62,17 +61,41 @@ class MarketDataTool extends Tool {
       const marketInfo = await marketData.getMarketInfo();
       const sentiment = await marketData.getMarketSentiment();
 
+      if (!marketInfo) {
+        return JSON.stringify({
+          price: 0,
+          liquidity: 0,
+          volume24h: 0,
+          priceChange24h: 0,
+          sentiment: {
+            bullish: sentiment.bullishPercentage || 0,
+            bearish: sentiment.bearishPercentage || 0,
+            neutral: sentiment.neutralPercentage || 0
+          },
+          poolState: null
+        });
+      }
+
+      // Use type assertion for marketInfo
+      const typedMarketInfo = marketInfo as {
+        price: number;
+        liquidity: number;
+        volume24h: number;
+        priceChange24h: number;
+        poolState: any;
+      };
+
       return JSON.stringify({
-        price: marketInfo.price || 0,
-        liquidity: marketInfo.liquidity || 0,
-        volume24h: marketInfo.volume24h || 0,
-        priceChange24h: marketInfo.priceChange24h || 0,
+        price: typedMarketInfo.price || 0,
+        liquidity: typedMarketInfo.liquidity || 0,
+        volume24h: typedMarketInfo.volume24h || 0,
+        priceChange24h: typedMarketInfo.priceChange24h || 0,
         sentiment: {
           bullish: sentiment.bullishPercentage || 0,
           bearish: sentiment.bearishPercentage || 0,
           neutral: sentiment.neutralPercentage || 0
         },
-        poolState: marketInfo.poolState
+        poolState: typedMarketInfo.poolState || null
       });
     } catch (error: any) {
       return JSON.stringify({ error: "Failed to get market data", details: error.message });
@@ -438,7 +461,7 @@ export class LLMAutonomousAgent {
   private agent: any; // The React agent instance
   private tools: Tool[] = [];
   private personalityPrompt: string;
-  private llm: ChatOpenAI;
+  private llm: GeminiAdapter;
   private agentData: any;
   private cache: Map<string, { response: string; timestamp: number }> = new Map();
   private cacheTTL: number = 60 * 60 * 1000; // 1 hour cache TTL
@@ -451,12 +474,13 @@ export class LLMAutonomousAgent {
     } = {}
   ) {
     this.agentData = data;
-    this.personalityPrompt = PERSONALITY_PROMPTS.MODERATE;
-
-    // Set up LLM
-    this.llm = new ChatOpenAI({
-      modelName: options.llmModel || "gpt-3.5-turbo",
-      temperature: options.temperature || 0.7,
+    this.personalityPrompt = PERSONALITY_PROMPTS[data.personality as keyof typeof PERSONALITY_PROMPTS] || PERSONALITY_PROMPTS.MODERATE;
+    
+    // Initialize Gemini adapter
+    this.llm = new GeminiAdapter({
+      apiKey: process.env.GEMINI_API_KEY || '',
+      modelName: 'gemini-pro', // Always use gemini-pro
+      temperature: options.temperature || 0.7
     });
 
     // Initialize tools
@@ -537,8 +561,8 @@ export class LLMAutonomousAgent {
       );
 
       this.agent = createReactAgent({
-        llm: this.llm,
-        tools: this.tools,
+         llm:this.lmm,
+         tools:this.tools
       });
 
       // Wrap the invoke method to add a thread_id safely
