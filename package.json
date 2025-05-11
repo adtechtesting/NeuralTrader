@@ -41,6 +41,7 @@
     "prisma": "^6.4.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "recharts": "^2.15.3",
     "rpc-websockets": "^7.10.0",
     "solana-agent-kit": "^1.4.0",
     "sonner": "^2.0.3",

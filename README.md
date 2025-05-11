@@ -1,7 +1,7 @@
 
 # NeuralTrader
 
-A sophisticated simulation of an autonomous AI-powered trading ecosystem where hundreds of AI agents interact with each other and a marketplace to trade a custom token (NURO) in the Solana environment.
+A sophisticated simulation of an autonomous AI-powered trading ecosystem where hundreds of AI agents interact with each other and a marketplace to trade a custom token (NURO) in the Solana environment which is built for Soalna Breakout .
 
 ---
 
@@ -20,6 +20,7 @@ This simulation demonstrates how AI agents can form emergent behaviors in financ
 - **Agent Communication**: Agents share information and react to market movements through a public chat system  
 - **Real-time Monitoring**: Visualization of market data, trading activities, and agent interactions  
 - **Configurable Simulation**: Adjust parameters like number of agents, agent personalities, and simulation speed  
+- **Agent-Test**:Connect Solana wallet and Create test ai agent or request airdop in Devnet mode 
 
 ---
 
@@ -93,7 +94,7 @@ npx prisma migrate dev --name init
 
 ---
 
-## Deploy Trading Token and Setup Agents
+## Deploy Trading token ans setup Agent
 
 ### Deploy Trading Token
 
@@ -113,3 +114,8 @@ node setup-llm-agents.js 50
 
 --- 
 
+## ScreenShots 
+   go to screenshots folder
+
+## Future Refrence 
+It’s currently buiklt on local where trading a custom NURO token and powered by Solana Agent Kit and the OpenAI API. Due to OpenAI API rate limits and cost issues , Mainnet deployment will follow once we have api with good token limits and and its  currently build for breakout more work will be going on.

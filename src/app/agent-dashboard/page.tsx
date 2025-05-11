@@ -4,20 +4,19 @@ import { useState, useEffect } from 'react';
 import { 
   BarChart3, 
   Users, 
-  MessageCircle, 
+
   RefreshCw, 
   Search,
   ChevronDown,
   X,
   AlertTriangle,
   Zap,
-  ArrowLeft,
-  Sparkles,
+
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import AgentAvatar from '@/components/AgentAvatar';
 import ChatSection from '@/components/chat/ChatSection';
-import Link from 'next/link';
+
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useRouter } from 'next/navigation';
 import { toast } from "sonner"; 
@@ -144,7 +143,7 @@ export default function AgentDashboardPage() {
   
   return (
     <div className="min-h-screen bg-[#050008] overflow-hidden relative p-16 bg-gradient-to-br from-black  to-neutral-950">
- =
+ 
     <div className="absolute top-0 left-0 w-full h-full">
       <div className="absolute top-0 left-0 w-full h-full bg-gradient-radial from-[#14082f] via-[#0c0020] to-[#050008] opacity-80 z-0"></div>
       
@@ -174,13 +173,13 @@ export default function AgentDashboardPage() {
         transition={{ duration: 0.5 }}
         className="mb-8"
       >
-        <h1 className="text-4xl font-bold text-white mb-3">Agent Dashboard</h1>
+        <h1 className="text-4xl font-bold text-white mb-3">Agents Dashboard</h1>
         <p className="text-gray-300 text-lg">
           Monitor and manage AI trading agents in your simulated Solana environment
         </p>
       </motion.div>
 
-      {/* Stats Cards */}
+
       {stats && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -490,12 +489,13 @@ export default function AgentDashboardPage() {
         transition={{ duration: 0.6, delay: 0.5 }}
         className="mt-8"
       >
-        <ChatSection />
+
       </motion.div>
+      <ChatSection />
     </main>
     
 
-    <footer className="py-8 px-6 border-t border-purple-900/30 mt-12 relative z-10 backdrop-blur-sm">
+    <footer className="py-8 px-6 border-t border-purple-900/30 mt-12 relative  backdrop-blur-sm">
       <div className="container mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-center">
           <div className="flex items-center mb-6 md:mb-0">

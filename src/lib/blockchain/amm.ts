@@ -64,7 +64,7 @@ export const amm = {
       console.log("Creating new pool with initial liquidity");
 
       const initialSolAmount = 1000; // 1000 SOL
-      const initialTokenAmount = 1000000; // 1,000,000 NURO tokens
+      const initialTokenAmount = 1000000; // 1,000,000 STORM tokens
       const initialPrice = initialSolAmount / initialTokenAmount; // Initial price
 
       const newPool = await prisma.poolState.create({

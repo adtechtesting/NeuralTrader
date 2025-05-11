@@ -659,7 +659,7 @@ const AMMVisualization = dynamic(
   { 
     ssr: false, 
     loading: () => (
-      <div className="h-100 w-full bg-black/60 backdrop-blur-sm rounded-lg border border-purple-900/50 flex items-center justify-center">
+      <div className="h-150 w-full bg-black/60 backdrop-blur-sm rounded-lg border border-purple-900/50 flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center">
           <MemoryStick className="h-12 w-12 text-purple-400 mb-4" />
           <div className="h-4 w-64 bg-purple-800/50 rounded mb-3"></div>
@@ -701,7 +701,7 @@ export default function MonitoringPage() {
    useEffect(()=>{
      if(!connected){
        router.push("/")
-       toast.warning("Please connect your wallet Solana to track simulation")
+       toast.warning("Please connect your Solana Wallet to track simulation")
      }
    },[connected,loading])
 
@@ -1086,7 +1086,7 @@ export default function MonitoringPage() {
                 <TrendingUp className="mr-2 w-5 h-5 text-purple-400" />
                 Market Activity
               </h3>
-              <div className="h-100">
+              <div className="h-150">
                 <MarketVisualization />
               </div>
             </div>
@@ -1100,7 +1100,7 @@ export default function MonitoringPage() {
                 <MemoryStick className="mr-2 w-5 h-5 text-purple-400" />
                 Liquidity Distribution
               </h3>
-              <div className="h-100">
+              <div className="h-150">
                 <AMMVisualization />
               </div>
             </div>

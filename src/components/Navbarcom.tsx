@@ -79,11 +79,14 @@ function Navbar({ className }: { className?: string }) {
                <Link href="/monitoring">
                  <MenuItem setActive={handleHover} item="Simulation" />
                </Link>
+               <Link href="/agent-test">
+               <MenuItem setActive={handleHover} item="Create Agent" />
+               </Link>
              </Menu>
           
         <div className="ml-4 z-10">
          
-          <WalletMultiButton onClick={checkBalance} />
+          <WalletMultiButton  />
         </div>
 
         

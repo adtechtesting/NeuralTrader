@@ -305,7 +305,7 @@ export default function Home() {
           <div className="absolute top-1/2 left-0 w-screen h-[1px] bg-indigo-700/20 transform rotate-[-3deg] origin-center-left"></div>
         </div>
         
-        {/* Particles */}
+
         <div className="absolute inset-0 overflow-hidden">
           {Array.from({ length: 20 }).map((_, i) => (
             <div key={i} className="absolute" style={{
@@ -318,7 +318,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Hero Section */}
       <section className="relative z-10 pt-24 pb-20 px-6 md:px-16">
         <div className="container mx-auto">
           <motion.div 
@@ -336,7 +335,7 @@ export default function Home() {
                 className="inline-flex items-center px-5 py-2 rounded-full bg-gradient-to-r from-purple-900/80 to-indigo-900/80 border border-purple-400/30 text-white text-sm font-medium mb-8 backdrop-blur-sm shadow-lg shadow-purple-900/30"
               >
                 <span className="w-3 h-3 bg-gradient-to-r from-green-400 to-emerald-300 rounded-full mr-3 animate-pulse"></span>
-                Now Available for Early Access
+                  Interactive Trading Simulations
               </motion.div>
               
               <motion.h1 
@@ -350,7 +349,7 @@ export default function Home() {
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-fuchsia-300 to-indigo-400">
                     Trading
                   </span>
-                  <span className="absolute -bottom-1 left-0 w-full h-[3px] bg-gradient-to-r from-purple-500 via-fuchsia-500 to-indigo-500"></span>
+                
                 </span>
                 <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-fuchsia-400 to-indigo-300">
@@ -471,7 +470,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats Section */}
+
       <motion.section 
         className="py-12 relative z-10"
         initial="hidden"
@@ -508,7 +507,7 @@ export default function Home() {
         </div>
       </motion.section>
 
-      {/* Features Section */}
+
       <section className="py-20 relative z-10">
         <div className="container mx-auto px-6">
           <motion.div 
