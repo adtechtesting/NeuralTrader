@@ -562,7 +562,9 @@ export default function Home() {
                 NeuralTraders
               </span>
             </div>
-            
+            <div className="text-gray-400 text-sm">
+              Built by Adtech ♡
+            </div>
           
             
             <div className="text-gray-400 text-sm">

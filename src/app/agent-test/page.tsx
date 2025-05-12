@@ -251,10 +251,14 @@ export default function AgentTestPage() {
                         onChange={(e) => setPersonalityType(e.target.value)}
                         className="w-full p-3 bg-black/80 border border-purple-500/40 rounded-lg text-white text-sm focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all duration-200 outline-none"
                       >
-                        <option value="ANALYTICAL">Analytical</option>
-                        <option value="CREATIVE">Creative</option>
-                        <option value="SOCIAL">Social</option>
-                        <option value="STRATEGIC">Strategic</option>
+                     <option value="ANALYTICAL">Analytical</option>
+     <option value="CREATIVE">Creative</option>
+<option value="SOCIAL">Social</option>
+<option value="STRATEGIC">Strategic</option>
+
+
+
+                       
                       </select>
                     </div>
                   </div>
@@ -301,52 +305,54 @@ export default function AgentTestPage() {
             </motion.div>
 
             {/* Agent List Card */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="border border-purple-900/30 bg-black/40 backdrop-blur-md p-6 rounded-2xl shadow-lg shadow-purple-900/10 hover:shadow-purple-800/20 transition-all duration-300"
-            >
-              <h2 className="text-xl font-semibold text-white mb-5 flex items-center gap-3">
-                <div className="p-2 bg-purple-900/30 rounded-lg">
-                  <List className='w-5 h-5 text-purple-300' />
-                </div>
-                <span>Agent List</span>
-              </h2>
-              <div className="p-5 bg-black/50 rounded-xl border border-purple-500/20 backdrop-blur-sm">
-                {agentsLoading ? (
-                  <div className="flex items-center justify-center py-6">
-                    <div className="animate-spin h-5 w-5 border-2 border-purple-400 border-t-transparent rounded-full mr-2"></div>
-                    <p className="text-sm text-gray-400">Loading agents...</p>
-                  </div>
-                ) : agents.length === 0 ? (
-                  <div className="py-6 text-center">
-                    <p className="text-sm text-gray-400">No agents found. Create your first agent above.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {agents.map((agent) => (
-                      <div 
-                        key={agent.id} 
-                        className="p-4 bg-black/60 border border-purple-500/20 rounded-lg hover:border-purple-500/40 transition-all duration-300 hover:shadow-md hover:shadow-purple-900/20"
-                      >
-                        <p className="text-md font-semibold text-white mb-2">{agent.name}</p>
-                        <div className="space-y-1">
-                          <p className="text-xs text-gray-300 flex items-center gap-2">
-                            <span className="text-gray-500">Personality:</span>
-                            <span className="py-0.5 px-2 bg-purple-900/30 rounded-full text-purple-300 font-medium">{agent.personalityType}</span>
-                          </p>
-                          <p className="text-xs text-gray-300 flex flex-wrap items-center gap-1">
-                            <span className="text-gray-500">Public Key:</span>
-                            <span className="truncate max-w-[160px] font-mono">{agent.publicKey}</span>
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </motion.div>
+          
+{/* Agent List Card */}
+<motion.div 
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.5, delay: 0.3 }}
+  className="border border-purple-900/30 bg-black/40 backdrop-blur-md p-6 rounded-2xl shadow-lg shadow-purple-900/10 hover:shadow-purple-800/20 transition-all duration-300"
+>
+  <h2 className="text-xl font-semibold text-white mb-5 flex items-center gap-3">
+    <div className="p-2 bg-purple-900/30 rounded-lg">
+      <List className='w-5 h-5 text-purple-300' />
+    </div>
+    <span>Agent List</span>
+  </h2>
+  <div className="p-5 bg-black/50 rounded-xl border border-purple-500/20 backdrop-blur-sm">
+    {agentsLoading ? (
+      <div className="flex items-center justify-center py-6">
+        <div className="animate-spin h-5 w-5 border-2 border-purple-400 border-t-transparent rounded-full mr-2"></div>
+        <p className="text-sm text-gray-400">Loading agents...</p>
+      </div>
+    ) : agents.length === 0 ? (
+      <div className="py-6 text-center">
+        <p className="text-sm text-gray-400">No agents found. Create your first agent above.</p>
+      </div>
+    ) : (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4  md:max-h-100 overflow-y-auto pr-2 custom-scrollbar">
+        {agents.map((agent) => (
+          <div 
+            key={agent.id} 
+            className="p-4 bg-black/60 border border-purple-500/20 rounded-lg hover:border-purple-500/40 transition-all duration-300 hover:shadow-md hover:shadow-purple-900/20"
+          >
+            <p className="text-md font-semibold text-white mb-2">{agent.name}</p>
+            <div className="space-y-1">
+              <p className="text-xs text-gray-300 flex items-center gap-2">
+                <span className="text-gray-500">Personality:</span>
+                <span className="py-0.5 px-2 bg-purple-900/30 rounded-full text-purple-300 font-medium">{agent.personalityType}</span>
+              </p>
+              <p className="text-xs text-gray-300 flex flex-wrap items-center gap-1">
+                <span className="text-gray-500">Public Key:</span>
+                <span className="truncate max-w-[160px] font-mono">{agent.publicKey}</span>
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+</motion.div>
 
             {/* Result Card */}
             {result && (
@@ -381,6 +387,9 @@ export default function AgentTestPage() {
               <span className="text-xl font-bold text-transparent bg-clip-text  bg-gradient-to-r from-white to-purple-300">
                 NeuralTraders
               </span>
+            </div>
+            <div className="text-gray-400 text-sm">
+              Built by Adtech ♡
             </div>
             
             <div className="text-gray-400 text-sm">

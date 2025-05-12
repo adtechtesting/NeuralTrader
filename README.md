@@ -13,6 +13,12 @@ This simulation demonstrates how AI agents can form emergent behaviors in financ
 
 ---
 
+## Live Demo  
+
+- https://neural-trader.vercel.app/
+
+---
+
 ## Key Features
 
 - **Autonomous AI Agents**: 500+ unique agents with different personalities, risk tolerances, and trading strategies  
@@ -98,7 +104,7 @@ npx prisma migrate dev --name init
 
 ### Deploy Trading Token
 
-This creates the STORM token on the simulated blockchain:
+This creates the NURO token on the simulated blockchain:
 
 ```bash
 node deploy-token-script.js
@@ -115,7 +121,31 @@ node setup-llm-agents.js 50
 --- 
 
 ## ScreenShots 
-   go to screenshots folder
+  - https://github.com/Anantdadhich/NeuralTrader/tree/main/screenshots
+---
 
 ## Future Refrence 
-It’s currently buiklt on local where trading a custom NURO token and powered by Solana Agent Kit and the OpenAI API. Due to OpenAI API rate limits and cost issues , Mainnet deployment will follow once we have api with good token limits and and its  currently build for breakout more work will be going on.
+NeuralTrader is currently running in a local simulation mode, using the Solana Agent Kit and OpenAI API to power autonomous trading of the custom NURO token .
+
+Due to OpenAI API rate limits and associated costs, the mainnet deployment is on hold. Once better API access is available, we plan to fully deploy the simulation to Solana mainnet, enabling real token trades and deeper agent interactions.
+
+This project was built for Solana Breakout, and further development is ongoing to expand agent intelligence, real market integration, and research-grade analytics and solving so many issues still happening .
+ ---
+
+## Contributing
+Most welcome contributions, bug reports, and feature requests—there are plenty of areas to improve! To get started:
+
+Fork the repository
+
+Create a new branch 
+
+Install dependencies and implement your changes
+
+Submit a Pull Request 
+
+---
+
+## Built By
+
+- **Aadtech** 
+- **Solana Breakout**  

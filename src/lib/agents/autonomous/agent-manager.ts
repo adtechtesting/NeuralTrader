@@ -2,10 +2,10 @@ import { AgentPool } from '../agent-factory';
 import { AutonomousAgent } from './agent-core';
 import { prisma } from '../../cache/dbCache';
 import { PersonalityType } from '../personalities';
-import { PrismaClient } from '@prisma/client';
+
 import { marketData } from '../../market/data';
 import { amm } from '../../blockchain/amm';
-import { randomBytes } from 'crypto';
+
 import pMap from 'p-map';
 
 interface Message {
@@ -59,13 +59,13 @@ export class AgentManager {
       maxSize: 100,
       cleanupInterval: 5 * 60 * 1000,
       ttl: this.agentCacheTTL,
-      useLLM: true // Use LLM-powered agents by default
+      useLLM: true 
     });
     this.maxConcurrent = parseInt(process.env.MAX_CONCURRENT_AGENTS || '5', 10);
     this.lastAccessTime = new Map();
   }
   
-  // Get the singleton instance
+ 
   public static getInstance(): AgentManager {
     if (!AgentManager.instance) {
       AgentManager.instance = new AgentManager();
@@ -73,7 +73,7 @@ export class AgentManager {
     return AgentManager.instance;
   }
   
-  // Set maximum concurrent operations and active agents
+
   public setLimits(maxConcurrent: number, maxActiveAgents: number) {
     this.maxConcurrent = maxConcurrent;
     this.maxActiveAgents = maxActiveAgents;
@@ -109,11 +109,11 @@ export class AgentManager {
     }
   }
   
-  // Get active agent IDs
+
   public async getActiveAgentIds(): Promise<string[]> {
     const now = Date.now();
     
-    // Clean up stale entries
+   
     for (const [id, lastAccess] of this.lastAccessTime.entries()) {
       if (now - lastAccess > this.agentCacheTTL) {
         this.lastAccessTime.delete(id);
@@ -121,14 +121,14 @@ export class AgentManager {
       }
     }
     
-    // If we have fewer active agents than max, add more
+    
     if (this.activeAgentIds.size < this.maxActiveAgents) {
       const allAgentIds = await this.getAgentIds();
       
-      // Shuffle the array to randomize which agents are active
+     
       const shuffled = [...allAgentIds].sort(() => 0.5 - Math.random());
       
-      // Add agents up to the max active limit
+
       for (const id of shuffled) {
         if (!this.activeAgentIds.has(id)) {
           this.activeAgentIds.add(id);
@@ -144,10 +144,10 @@ export class AgentManager {
     return [...this.activeAgentIds];
   }
   
-  // Get all known agent IDs
+  
   public async getAgentIds(): Promise<string[]> {
     if (this.agentIds.length === 0) {
-      // Load agent IDs from database if not already loaded
+
       const agents = await prisma.agent.findMany({
         select: { id: true },
         orderBy: { createdAt: 'asc' }
@@ -180,19 +180,78 @@ export class AgentManager {
     
     console.log(`🔍 Processing ${selectedAgentIds.length} agents for market analysis`);
     
-    // First, get current market data once to share across all agents
+   
     const marketInfo = await marketData.getMarketInfo();
     
-    // Track success/failure counts
+
+    const isRateLimited = this.rateLimitDelay > 2000; 
+    
+   
     let successCount = 0;
     let failureCount = 0;
     
-    // Process agents in parallel with concurrency control and rate limiting
+  
+    if (isRateLimited) {
+      console.log('⚠️ OpenAI API rate limited, using simulated market analysis');
+      
+      await pMap(
+        selectedAgentIds,
+        async (agentId) => {
+          try {
+            // Get agent data from database
+            const agentData = await prisma.agent.findUnique({
+              where: { id: agentId },
+              include: { state: true }
+            });
+            
+            if (!agentData) return;
+            
+
+            const analysisText = this.generateSimulatedAnalysis(agentData.personalityType, marketInfo);
+            
+
+            await prisma.agentState.update({
+              where: { agentId },
+              data: {
+                lastMarketAnalysis: new Date(),
+                lastAction: new Date(),
+                lastDecision: {
+                  type: 'MARKET_ANALYSIS',
+                  timestamp: new Date().toISOString(),
+                  data: {
+                    marketInfo: {
+                      price: marketInfo.price || 0,
+                      liquidity: marketInfo.liquidity || 0,
+                      volume24h: marketInfo.volume24h || 0,
+                      priceChange24h: marketInfo.priceChange24h || 0
+                    },
+                    analysis: analysisText,
+                    simulated: true
+                  }
+                }
+              }
+            });
+            
+            this.lastAccessTime.set(agentId, Date.now());
+            successCount++;
+          } catch (error) {
+            console.error(`Error in simulated market analysis for agent ${agentId}:`, error);
+            failureCount++;
+          }
+        },
+        { concurrency: Math.min(20, this.maxConcurrent) }
+      );
+      
+      console.log(`✅ Simulated market analysis complete: ${successCount} successful, ${failureCount} failed`);
+      return;
+    }
+    
+ 
     await pMap(
       selectedAgentIds,
       async (agentId) => {
         try {
-          // Implement rate limiting
+        
           const now = Date.now();
           const timeSinceLastCall = now - this.lastApiCall;
           if (timeSinceLastCall < this.rateLimitDelay) {
@@ -210,10 +269,53 @@ export class AgentManager {
           console.error(`Error in market analysis for agent ${agentId}:`, error);
           failureCount++;
           
-          // If we hit rate limit, increase the delay
+
           if (error instanceof Error && (error.message?.includes('429') || error.message?.includes('quota'))) {
             this.rateLimitDelay = Math.min(this.rateLimitDelay * 2, 10000); // Max 10 second delay
             console.log(`Rate limit hit, increasing delay to ${this.rateLimitDelay}ms`);
+            
+        
+            try {
+              const agentData = await prisma.agent.findUnique({
+                where: { id: agentId },
+                include: { state: true }
+              });
+              
+              if (agentData) {
+
+                const analysisText = this.generateSimulatedAnalysis(agentData.personalityType, marketInfo);
+                
+        
+                await prisma.agentState.update({
+                  where: { agentId },
+                  data: {
+                    lastMarketAnalysis: new Date(),
+                    lastAction: new Date(),
+                    lastDecision: {
+                      type: 'MARKET_ANALYSIS',
+                      timestamp: new Date().toISOString(),
+                      data: {
+                        marketInfo: {
+                          price: marketInfo.price || 0,
+                          liquidity: marketInfo.liquidity || 0,
+                          volume24h: marketInfo.volume24h || 0,
+                          priceChange24h: marketInfo.priceChange24h || 0
+                        },
+                        analysis: analysisText,
+                        simulated: true,
+                        error: 'API quota exceeded, using fallback analysis'
+                      }
+                    }
+                  }
+                });
+                
+                this.lastAccessTime.set(agentId, Date.now());
+                successCount++; 
+                failureCount--; 
+              }
+            } catch (fallbackError) {
+              console.error(`Error in fallback analysis for agent ${agentId}:`, fallbackError);
+            }
           }
         }
       },
@@ -221,6 +323,53 @@ export class AgentManager {
     );
     
     console.log(`✅ Market analysis complete: ${successCount} successful, ${failureCount} failed`);
+  }
+  
+  /**
+   * Generate a simulated market analysis text based on agent personality type
+   */
+  private generateSimulatedAnalysis(personalityType: string, marketInfo: any): string {
+    const price = marketInfo.price || 0.001;
+    const priceChange = marketInfo.priceChange24h || 0;
+    const volume = marketInfo.volume24h || 0;
+    
+    // Create personalized analysis based on personality type
+    switch (personalityType) {
+      case 'AGGRESSIVE':
+        return `As an aggressive trader, I see the current NURO price of ${price} SOL as an opportunity. ` +
+               `The market ${priceChange >= 0 ? 'growth' : 'dip'} of ${Math.abs(priceChange).toFixed(2)}% ` +
+               `presents a ${priceChange >= 0 ? 'momentum to ride' : 'buying opportunity'}. ` +
+               `With ${volume} SOL in trading volume, there's decent liquidity. ` +
+               `I'm inclined to take a more aggressive position.`;
+               
+      case 'CONSERVATIVE':
+        return `Looking at the NURO market with caution. Current price at ${price} SOL with ` +
+               `${Math.abs(priceChange).toFixed(2)}% ${priceChange >= 0 ? 'increase' : 'decrease'} in 24h. ` +
+               `Volume of ${volume} SOL indicates ${volume > 100 ? 'reasonable' : 'limited'} market activity. ` +
+               `I prefer to maintain a conservative approach and ${priceChange < -5 ? 'wait for stabilization' : 'make small, calculated moves'}.`;
+               
+      case 'MODERATE':
+        return `Taking a balanced view of the NURO market. Price at ${price} SOL with ` +
+               `${priceChange.toFixed(2)}% change over 24h. Trading volume of ${volume} SOL ` +
+               `suggests ${volume > 50 ? 'decent' : 'moderate'} market activity. ` +
+               `I'll consider a diversified approach, possibly ${priceChange > 0 ? 'capitalizing on uptrend with partial positions' : 'averaging in on dips'}.`;
+               
+      case 'TREND_FOLLOWER':
+        return `Analyzing the NURO trend at ${price} SOL. The ${priceChange >= 0 ? 'positive' : 'negative'} trend of ` +
+               `${Math.abs(priceChange).toFixed(2)}% in 24h is ${Math.abs(priceChange) > 3 ? 'significant' : 'noteworthy'}. ` +
+               `Volume at ${volume} SOL shows ${volume > 100 ? 'strong' : 'some'} market interest. ` +
+               `I'll likely ${priceChange >= 1 ? 'follow the upward momentum' : priceChange <= -1 ? 'follow the downward trend' : 'wait for a clearer trend'}.`;
+               
+      case 'CONTRARIAN':
+        return `Taking a contrarian view on NURO at ${price} SOL. The ${priceChange >= 0 ? 'rise' : 'drop'} of ` +
+               `${Math.abs(priceChange).toFixed(2)}% may be ${Math.abs(priceChange) > 5 ? 'overextended' : 'approaching reversal'}. ` +
+               `Trading volume of ${volume} SOL ${volume > 100 ? 'might indicate peak interest' : 'shows limited conviction'}. ` +
+               `I'm considering ${priceChange >= 3 ? 'preparing for a potential reversal' : priceChange <= -3 ? 'looking for entry points against the trend' : 'waiting for stronger signals'}.`;
+               
+      default:
+        return `Analyzing the current NURO market conditions. Price: ${price} SOL, 24h change: ${priceChange.toFixed(2)}%, ` +
+               `trading volume: ${volume} SOL. Monitoring the situation and will adjust strategy accordingly.`;
+    }
   }
   
   /**
@@ -384,8 +533,7 @@ export class AgentManager {
     let decisionCount = 0;
     let errorCount = 0;
     let quotaExceededCount = 0;
-    
-    // Process agents in parallel with concurrency control and rate limiting
+
     await pMap(
       selectedAgentIds,
       async (agentId) => {
@@ -506,11 +654,11 @@ export class AgentManager {
     // Force pool cleanup to release memory
     await this.agentPool.cleanup();
     
-    // Clear some of the least recently used active agents
+  
     const now = Date.now();
     const sortedByAccess = [...this.lastAccessTime.entries()]
       .sort((a, b) => a[1] - b[1])
-      .slice(0, Math.floor(this.activeAgentIds.size * 0.2)); // Remove ~20% of least active
+      .slice(0, Math.floor(this.activeAgentIds.size * 0.2));
     
     for (const [id] of sortedByAccess) {
       this.lastAccessTime.delete(id);
