@@ -289,7 +289,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050008] overflow-hidden relative p-12">
+    <div className="min-h-screen bg-[#050008] overflow-hidden relative p-10">
       {/* Background elements */}
       <div className="absolute top-0 left-0 w-full h-full">
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-radial from-[#14082f] via-[#0c0020] to-[#050008] opacity-80 z-0"></div>
@@ -391,7 +391,7 @@ export default function Home() {
 
             <div className="lg:w-1/2 relative">
               <motion.div 
-                className="relative w-full h-[550px]"
+                className="relative w-full h-[600px]"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 1, delay: 0.6 }}
@@ -420,9 +420,9 @@ export default function Home() {
                   }}
                 >
                   <img
-                    src="/design1.png"
+                    src="/agenticon1.png"
                     alt="Abstract 3D purple shape"
-                    className="w-full h-full object-contain drop-shadow-2xl"
+                    className="w-[100%] h-[100%] object-contain drop-shadow-xl "
                   />
                 </motion.div>
                 

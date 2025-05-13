@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       
       return NextResponse.json({
         success: true,
-        message: `Agent "${agentName}" created successfully`,
+        message: `${agentName} created successfully`,
         agent: {
           id: savedAgent.id,
           name: savedAgent.name,

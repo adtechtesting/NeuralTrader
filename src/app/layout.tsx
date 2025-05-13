@@ -7,6 +7,8 @@ import "./globals.css";
 import { WalletContextProvider } from "@/components/Walletprovider";
 import { NavbarDemo } from "@/components/Navbarcom";
 import { Toaster } from "@/components/ui/sonner";
+import MobilePopupWarning from "@/components/mobilepopup";
+
 
 
 
@@ -44,6 +46,7 @@ export default function RootLayout({
         <NavbarDemo/>
         <SmoothCursor />
         <Toaster></Toaster>
+       <MobilePopupWarning></MobilePopupWarning>
         {children}
       </WalletContextProvider>
     </body>

@@ -129,8 +129,11 @@ NeuralTrader is currently running in a local simulation mode, using the Solana A
 
 Due to OpenAI API rate limits and associated costs, the mainnet deployment is on hold. Once better API access is available, we plan to fully deploy the simulation to Solana mainnet, enabling real token trades and deeper agent interactions.
 
+Also users will be able to create AI agents using different LLM providers (such as OpenAI, Gemini, Claude, etc.), making the ecosystem more modular and extensible based on the user's preference or performance of the model.
+
 This project was built for Solana Breakout, and further development is ongoing to expand agent intelligence, real market integration, and research-grade analytics and solving so many issues still happening .
- ---
+ 
+---
 
 ## Contributing
 Most welcome contributions, bug reports, and feature requests—there are plenty of areas to improve! To get started:
@@ -147,5 +150,5 @@ Submit a Pull Request
 
 ## Built By
 
-- **Aadtech** 
+- **Adtech** 
 - **Solana Breakout**  

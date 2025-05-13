@@ -9,6 +9,10 @@ import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { Connection } from '@solana/web3.js';
 import { toast } from 'sonner';
 import { Activity, Check, InfoIcon, List } from 'lucide-react';
+import { Transaction } from '@solana/web3.js';
+import { SystemProgram } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
+import MobilePopupWarning from '@/components/mobilepopup';
 
 export default function AgentTestPage() {
   const [loading, setLoading] = useState(false);
@@ -28,7 +32,7 @@ export default function AgentTestPage() {
   const network = WalletAdapterNetwork.Devnet; 
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
   const connection = useMemo(() => new Connection(endpoint), [endpoint]); 
-  const { connected, publicKey: walletPublicKey } = wallet;
+  const { connected, publicKey: walletPublicKey, sendTransaction } = wallet;
   const [walletbalance, setwalletbalance] = useState<number|null>(null);
   const [isAllowed, setisAllowed] = useState(false);      
 
@@ -36,7 +40,7 @@ export default function AgentTestPage() {
     if(wallet.publicKey) {
       checkBalance();
     }
-  });
+  },[wallet.publicKey]);
 
   const checkBalance = async () => {
     if(!wallet.publicKey) {
@@ -95,12 +99,54 @@ export default function AgentTestPage() {
     try {
       setLoading(true);
       const payload = { action };
-      
+  
       if (action === 'create-agent') {
         Object.assign(payload, { agentName, personalityType });
+  
+        if (!wallet.publicKey) {
+          toast.error("Wallet not connected");
+          setLoading(false);
+          return;
+        }
+  
+        try {
+        
+          const transaction=new Transaction().add(
+            SystemProgram.transfer({
+              fromPubkey:wallet.publicKey,
+              toPubkey:new PublicKey(tokenDetails.mintAddress) ,
+              lamports:0.01* LAMPORTS_PER_SOL,
+            })
+          )
+
+          const {blockhash}=await connection.getLatestBlockhash() ;
+          transaction.recentBlockhash=blockhash;
+          transaction.feePayer=wallet.publicKey ;
+
+          if(!wallet.signTransaction) {
+            return Error("wallet not connect")
+          }
+
+          const signedTransaction=await wallet.signTransaction(transaction) 
+          const transactionsignature=await connection.sendRawTransaction(signedTransaction.serialize()) 
+          console.log("Agent Creation fee paid",transactionsignature)
+
+          toast.success("Transaction done agent created")
+           await connection.confirmTransaction(transactionsignature)
+
+        } catch (error) {
+          console.error("Error processing transaction:", error);
+          toast.error("Transaction failed. Please try again.");
+          setLoading(false);
+          return;
+        }
       } else {
         Object.assign(payload, { publicKey, airdropAmount });
+     
       }
+    
+
+     
       
       const response = await fetch('/api/agent-test', {
         method: 'POST',
@@ -121,6 +167,7 @@ export default function AgentTestPage() {
 
   return (
     <div className="min-h-screen bg-[#080010] overflow-hidden relative p-20">
+      
       {/* Background effects */}
 
       <div className="absolute top-0 left-0 w-full h-full bg-gradient-radial from-[#14082f] via-[#0c0020] to-[#050008] opacity-80 z-0"></div>
@@ -304,7 +351,6 @@ export default function AgentTestPage() {
               </form>
             </motion.div>
 
-            {/* Agent List Card */}
           
 {/* Agent List Card */}
 <motion.div 
@@ -377,6 +423,15 @@ export default function AgentTestPage() {
             )}
           </div>
         </section>
+        <div className="mb-8 p-4 rounded-xl border border-purple-700/40 bg-gradient-to-r from-purple-900/40 to-indigo-900/30 backdrop-blur-md shadow-lg shadow-purple-900/10 text-white">
+  <h3 className="text-lg font-semibold text-purple-300 mb-1">🚧 Page Under Deployment</h3>
+  <p className="text-sm text-gray-300">
+    This page is currently under deployment. Soon, you'll be able to choose  different LLM providers, create agents with the llm provider of your choice like openai, anthropic, gemini, and perform  trades .
+    <br />
+    In the meantime, you can <span className="text-purple-200 font-medium">create agents locally</span> and <span className="text-purple-200 font-medium">request an airdrop</span> 
+  </p>
+</div>
+
       </main>
       
       <footer className="py-10 border-t border-purple-900/30 mt-16 relative z-10 backdrop-blur-sm">
