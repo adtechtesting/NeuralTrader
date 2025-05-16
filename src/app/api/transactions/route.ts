@@ -29,7 +29,36 @@ export async function GET(request: NextRequest) {
       }
     });
     
-    // Get stats
+
+    const processedTransactions = transactions.map(tx => {
+    
+      const processed: any = { ...tx };
+      
+
+      if (processed.createdAt) {
+        processed.timestamp = new Date(processed.createdAt).getTime();
+      }
+      if (processed.confirmedAt) {
+        processed.confirmedTimestamp = new Date(processed.confirmedAt).getTime();
+      }
+      
+
+      if (processed.fromAgent) {
+        processed.agent = {
+          displayName: processed.fromAgent.name,
+          personalityType: processed.fromAgent.personalityType,
+          avatarUrl: `/agents/${processed.fromAgent.personalityType.toLowerCase()}.png`
+        };
+      }
+
+      if (!processed.type) {
+        processed.type = processed.amount > 0 ? 'buy' : 'sell';
+      }
+      
+      return processed;
+    });
+    
+
     const totalTransactions = await prisma.transaction.count();
     const successfulTransactions = await prisma.transaction.count({
       where: { status: 'confirmed' }
@@ -40,7 +69,7 @@ export async function GET(request: NextRequest) {
     const totalMessages = await prisma.message.count();
     const totalAgents = await prisma.agent.count();
     
-    // Calculate total traded amount
+
     const totalTradedResult = await prisma.transaction.aggregate({
       _sum: {
         amount: true
@@ -53,7 +82,7 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({
       success: true,
-      transactions,
+      transactions: processedTransactions,
       stats: {
         totalTransactions,
         successfulTransactions,

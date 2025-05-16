@@ -713,10 +713,23 @@ export default function MonitoringPage() {
     });
   };
 
-  const formatTime = (timestamp: number|Date |number): string => {
-    const date=new Date(timestamp)
-    if(isNaN(date.getTime())) return "Invalid Date"
-    return date.toLocaleTimeString()
+  const formatTime = (timestamp: number): string => {
+    // Ensure timestamp is a valid number
+    if (!timestamp || isNaN(timestamp)) return 'N/A';
+    
+    try {
+      // Check if timestamp is in milliseconds (length > 10) or seconds (length <= 10)
+      const timeMs = String(timestamp).length <= 10 ? timestamp * 1000 : timestamp;
+      const date = new Date(timeMs);
+      
+      // Validate the date is correct before returning
+      if (isNaN(date.getTime())) return 'N/A';
+      
+      return date.toLocaleTimeString();
+    } catch (error) {
+      console.error('Error formatting time:', error);
+      return 'N/A';
+    }
   };
 
   const getDirectionColor = (value: number): string => {
