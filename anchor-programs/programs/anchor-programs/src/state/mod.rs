@@ -20,9 +20,9 @@ pub struct Agent {
 pub struct Trade {
     pub agent: Pubkey,
     pub market: Pubkey,
-    pub trade_type: u8,
-    pub amount: u64,
-    pub price: u64,
+    pub trade_type: u8, // 0 = buy, 1 = sell
+    pub amount_in: u64,
+    pub amount_out: u64,
     pub bump: u8,
 }
 
@@ -30,6 +30,6 @@ pub struct Trade {
 #[derive(InitSpace)]
 pub struct Vault {
     pub market: Pubkey,
-    pub token:Pubkey,
+    pub token: Pubkey,
     pub bump: u8,
 }

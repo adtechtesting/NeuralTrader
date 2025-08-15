@@ -8,7 +8,7 @@ use crate::errors::ErrorCode;
 #[derive(Accounts)]
 pub struct WithdrawTokens<'info> {
     /// The agent account associated with the user.
-    #[account(mut, has_one = owner)]
+    #[account(mut)]
     pub agent: Account<'info, Agent>,
 
     /// The market account where the tokens are being withdrawn from.
@@ -32,11 +32,9 @@ pub struct WithdrawTokens<'info> {
     /// The vault account for the specific token.
     /// It is a PDA that is a key part of the signing logic.
     #[account(
-        mut,
         seeds = [b"vault", market.token_a.as_ref(), market.token_b.as_ref(), token_mint.key().as_ref()],
         bump = vault.bump,
-        has_one = market,
-        
+        has_one = market @ ErrorCode::InvalidVault
     )]
     pub vault: Account<'info, Vault>,
     
@@ -58,24 +56,24 @@ pub struct WithdrawTokens<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn withdraw_tokens(
-    ctx: Context<WithdrawTokens>,
-    amount: u64,
-) -> Result<()> {
-    // Determine which token mint corresponds to the vault.
+pub fn withdraw_tokens(ctx: Context<WithdrawTokens>, amount: u64) -> Result<()> {
     let token_mint_key = ctx.accounts.token_mint.key();
+    if token_mint_key != ctx.accounts.market.token_a && token_mint_key != ctx.accounts.market.token_b {
+        return err!(ErrorCode::InvalidTokenMint);
+    }
+    if ctx.accounts.vault.token != token_mint_key {
+        return err!(ErrorCode::InvalidVault);
+    }
 
-    // Prepare the PDA seeds for signing the transfer.
     let seeds = &[
         b"vault",
         ctx.accounts.market.token_a.as_ref(),
         ctx.accounts.market.token_b.as_ref(),
         token_mint_key.as_ref(),
-        &ctx.accounts.vault.bump.to_le_bytes(),
+        &[ctx.accounts.vault.bump],
     ];
     let signer_seeds = &[&seeds[..]];
 
-    // Prepare the CPI (Cross-Program Invocation) to transfer the tokens.
     let cpi_accounts = Transfer {
         from: ctx.accounts.vault_token_account.to_account_info(),
         to: ctx.accounts.user_token_account.to_account_info(),
@@ -86,9 +84,6 @@ pub fn withdraw_tokens(
         cpi_accounts,
         signer_seeds,
     );
-    
-    // Perform the token transfer from the market's vault to the user's account.
     token::transfer(cpi_ctx, amount)?;
-    
     Ok(())
 }
