@@ -3,6 +3,7 @@
 mod instructions;
 use instructions::*;
 mod state;
+mod errors;
 pub use state::*;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount};

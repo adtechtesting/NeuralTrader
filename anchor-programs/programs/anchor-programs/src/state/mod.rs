@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 
 #[account]
+#[derive(InitSpace)]
 pub struct Market {
     pub token_a: Pubkey,
     pub token_b: Pubkey,
@@ -8,12 +9,14 @@ pub struct Market {
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct Agent {
     pub owner: Pubkey,
     pub bump: u8,
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct Trade {
     pub agent: Pubkey,
     pub market: Pubkey,
@@ -24,7 +27,9 @@ pub struct Trade {
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct Vault {
     pub market: Pubkey,
+    pub token:Pubkey,
     pub bump: u8,
 }
