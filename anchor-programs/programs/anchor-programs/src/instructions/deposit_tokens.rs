@@ -1,52 +1,49 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
-    associated_token::AssociatedToken,
     token::{self, Mint, Token, TokenAccount, Transfer},
 };
 
-use crate::{Agent, Market, Vault};
-use crate::errors::ErrorCode;
+use crate::{Agent, Market, Vault, errors::ErrorCode};
 
 #[derive(Accounts)]
 #[instruction(amount: u64)]
 pub struct DepositTokens<'info> {
     #[account(
-        mut,
-      
+        constraint = agent.owner == user.key() @ ErrorCode::InvalidAgentOwner
     )]
     pub agent: Account<'info, Agent>,
     pub market: Account<'info, Market>,
     #[account(mut)]
     pub user: Signer<'info>,
     pub token_mint: Account<'info, Mint>,
+
+  
     #[account(
-        
-        init_if_needed,
-        payer = user,
-        token::mint = token_mint,
-        token::authority = user
+        mut,
+        constraint = user_token_account.mint == token_mint.key() @ ErrorCode::InvalidTokenMint,
+        constraint = user_token_account.owner == user.key() @ ErrorCode::InvalidAgentOwner,
     )]
     pub user_token_account: Account<'info, TokenAccount>,
+
     #[account(
         seeds = [b"vault", market.token_a.as_ref(), market.token_b.as_ref(), token_mint.key().as_ref()],
         bump = vault.bump,
         has_one = market @ ErrorCode::InvalidVault
     )]
     pub vault: Account<'info, Vault>,
+
+    
     #[account(
-        
-        init_if_needed,
-        payer = user,
-        associated_token::mint = token_mint,
-        associated_token::authority = vault
+        mut,
+        constraint = vault_token_account.mint == token_mint.key() @ ErrorCode::InvalidTokenMint,
+        constraint = vault_token_account.owner == vault.key() @ ErrorCode::InvalidVault,
     )]
     pub vault_token_account: Account<'info, TokenAccount>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
     pub token_program: Program<'info, Token>,
-    pub system_program: Program<'info, System>,
 }
 
 pub fn deposit_tokens(ctx: Context<DepositTokens>, amount: u64) -> Result<()> {
+   
     let token_mint_key = ctx.accounts.token_mint.key();
     if token_mint_key != ctx.accounts.market.token_a && token_mint_key != ctx.accounts.market.token_b {
         return err!(ErrorCode::InvalidTokenMint);

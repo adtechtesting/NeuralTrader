@@ -9,6 +9,7 @@ import {
   mintTo,
   getAccount,
   ASSOCIATED_TOKEN_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { expect } from "chai";
 
@@ -18,7 +19,10 @@ describe("market", () => {
   const program = anchor.workspace.AgentMarketSim as Program<AgentMarketSim>;
   const connection = provider.connection as any;
 
-  // Global variables
+  
+  const wallet = provider.wallet as anchor.Wallet & { payer: any };
+
+  
   let tokenAMint: PublicKey;
   let tokenBMint: PublicKey;
   let marketPda: PublicKey;
@@ -37,7 +41,7 @@ describe("market", () => {
   let vaultATokenAccount: PublicKey;
   let vaultBTokenAccount: PublicKey;
 
-  const user = provider.wallet;
+  const user = wallet;
   const depositAmount = new BN(1000);
   const withdrawAmount = new BN(500);
   const tradeAmount = new BN(200);
@@ -46,11 +50,11 @@ describe("market", () => {
   const amountOut = tradeAmount;
 
   before(async () => {
-    // Create token mints
-    tokenAMint = await createMint(connection, user.payer, user.publicKey, null, 9);
-    tokenBMint = await createMint(connection, user.payer, user.publicKey, null, 9);
+   
+    tokenAMint = await createMint(connection, wallet.payer, wallet.publicKey, null, 9);
+    tokenBMint = await createMint(connection, wallet.payer, wallet.publicKey, null, 9);
 
-    // Derive PDAs
+   
     [marketPda, marketBump] = PublicKey.findProgramAddressSync(
       [Buffer.from("market"), tokenAMint.toBuffer(), tokenBMint.toBuffer()],
       program.programId
@@ -69,10 +73,10 @@ describe("market", () => {
     );
 
     // Create user token accounts and mint tokens
-    userTokenAAccount = await createAssociatedTokenAccount(connection, user.payer, tokenAMint, user.publicKey);
-    userTokenBAccount = await createAssociatedTokenAccount(connection, user.payer, tokenBMint, user.publicKey);
-    await mintTo(connection, user.payer, tokenAMint, userTokenAAccount, user.payer, 10000);
-    await mintTo(connection, user.payer, tokenBMint, userTokenBAccount, user.payer, 10000);
+    userTokenAAccount = await createAssociatedTokenAccount(connection, wallet.payer, tokenAMint, user.publicKey);
+    userTokenBAccount = await createAssociatedTokenAccount(connection, wallet.payer, tokenBMint, user.publicKey);
+    await mintTo(connection, wallet.payer, tokenAMint, userTokenAAccount, wallet.payer, 10000);
+    await mintTo(connection, wallet.payer, tokenBMint, userTokenBAccount, wallet.payer, 10000);
 
     // Derive vault token accounts
     vaultATokenAccount = await getAssociatedTokenAddress(tokenAMint, vaultAPda, true);
@@ -82,17 +86,17 @@ describe("market", () => {
   it("Initializes a market", async () => {
     await program.methods
       .initializeMarket()
-      .accountsPartial({
+      .accounts({
         market: marketPda,
         vaultA: vaultAPda,
         vaultB: vaultBPda,
-        vaultATokenAccount,
-        vaultBTokenAccount,
-        tokenAMint,
-        tokenBMint,
+        vaultATokenAccount: vaultATokenAccount,
+        vaultBTokenAccount: vaultBTokenAccount,
+        tokenAMint: tokenAMint,
+        tokenBMint: tokenBMint,
         signer: user.publicKey,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+        tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
       })
       .rpc();
@@ -106,7 +110,7 @@ describe("market", () => {
   it("Registers an agent", async () => {
     await program.methods
       .registerAgent()
-      .accountsPartial({
+      .accounts({
         agent: agentPda,
         user: user.publicKey,
         systemProgram: SystemProgram.programId,
@@ -121,9 +125,10 @@ describe("market", () => {
   it("Deposits tokens (Token A)", async () => {
     const initialUserBalance = (await getAccount(connection, userTokenAAccount)).amount;
 
+    
     await program.methods
       .depositTokens(depositAmount)
-      .accountsPartial({
+      .accounts({
         agent: agentPda,
         market: marketPda,
         user: user.publicKey,
@@ -132,11 +137,11 @@ describe("market", () => {
         vault: vaultAPda,
         vaultTokenAccount: vaultATokenAccount,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+        tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
       })
       .rpc();
-
+      
     const vaultTokenAccountInfo = await getAccount(connection, vaultATokenAccount);
     expect(vaultTokenAccountInfo.amount.toString()).to.equal(depositAmount.toString());
 
@@ -152,9 +157,10 @@ describe("market", () => {
     const initialVaultBalance = (await getAccount(connection, vaultATokenAccount)).amount;
     const initialUserBalance = (await getAccount(connection, userTokenAAccount)).amount;
 
+   
     await program.methods
       .withdrawTokens(withdrawAmount)
-      .accountsPartial({
+      .accounts({
         agent: agentPda,
         market: marketPda,
         user: user.publicKey,
@@ -163,7 +169,7 @@ describe("market", () => {
         vault: vaultAPda,
         vaultTokenAccount: vaultATokenAccount,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+        tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
       })
       .rpc();
@@ -191,7 +197,7 @@ describe("market", () => {
 
     await program.methods
       .placeTrade(0, amountIn, amountOut)
-      .accountsPartial({
+      .accounts({
         agent: agentPda,
         market: marketPda,
         trade: tradePda,
@@ -210,16 +216,18 @@ describe("market", () => {
   });
 
   it("Executes the trade", async () => {
-    await mintTo(connection, user.payer, tokenBMint, vaultBTokenAccount, user.payer, BigInt(amountOut.toString()));
-
-    const initialUserA = (await getAccount(connection, userTokenAAccount)).amount;
-    const initialUserB = (await getAccount(connection, userTokenBAccount)).amount;
-    const initialVaultA = (await getAccount(connection, vaultATokenAccount)).amount;
-    const initialVaultB = (await getAccount(connection, vaultBTokenAccount)).amount;
+    await mintTo(
+      connection,
+      wallet.payer,
+      tokenBMint,
+      vaultBTokenAccount,
+      wallet.payer,
+      BigInt(amountOut.toString())
+    );
 
     await program.methods
       .executeTrade()
-      .accountsPartial({
+      .accounts({
         trade: tradePda,
         market: marketPda,
         agent: agentPda,
@@ -232,19 +240,13 @@ describe("market", () => {
         vaultTokenAccountIn: vaultATokenAccount,
         vaultOut: vaultBPda,
         vaultTokenAccountOut: vaultBTokenAccount,
-        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+        tokenProgram: TOKEN_PROGRAM_ID,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
       })
       .rpc();
 
-    const finalUserA = (await getAccount(connection, userTokenAAccount)).amount;
-    const finalUserB = (await getAccount(connection, userTokenBAccount)).amount;
-    const finalVaultA = (await getAccount(connection, vaultATokenAccount)).amount;
-    const finalVaultB = (await getAccount(connection, vaultBTokenAccount)).amount;
-
-    // Here you can add asserts if needed, currently skipping for brevity
-
+    
     const tradeAccountInfo = await provider.connection.getAccountInfo(tradePda);
     expect(tradeAccountInfo).to.be.null;
   });

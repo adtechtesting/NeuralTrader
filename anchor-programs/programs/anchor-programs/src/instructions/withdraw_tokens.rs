@@ -3,56 +3,39 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token::{self, Mint, Token, TokenAccount, Transfer},
 };
-use crate::{Agent, Market, Vault};
-use crate::errors::ErrorCode;
+use crate::{Agent, Market, Vault, errors::ErrorCode};
+
 #[derive(Accounts)]
 pub struct WithdrawTokens<'info> {
-    /// The agent account associated with the user.
-    #[account(mut)]
+    #[account(
+        
+        constraint = agent.owner == user.key() @ ErrorCode::InvalidAgentOwner
+    )]
     pub agent: Account<'info, Agent>,
-
-    /// The market account where the tokens are being withdrawn from.
     pub market: Account<'info, Market>,
-
-    /// The user who owns the agent and is initiating the transaction.
     #[account(mut)]
     pub user: Signer<'info>,
-
-    /// The mint of the token being withdrawn.
     pub token_mint: Account<'info, Mint>,
-
-    /// The user's token account, where the tokens will be received.
     #[account(
         mut,
         token::mint = token_mint,
         token::authority = user,
     )]
     pub user_token_account: Account<'info, TokenAccount>,
-
-    /// The vault account for the specific token.
-    /// It is a PDA that is a key part of the signing logic.
     #[account(
         seeds = [b"vault", market.token_a.as_ref(), market.token_b.as_ref(), token_mint.key().as_ref()],
         bump = vault.bump,
         has_one = market @ ErrorCode::InvalidVault
     )]
     pub vault: Account<'info, Vault>,
-    
-    /// The vault's token account, from which the tokens will be transferred.
     #[account(
         mut,
         associated_token::mint = token_mint,
         associated_token::authority = vault,
     )]
     pub vault_token_account: Account<'info, TokenAccount>,
-
-    /// The Solana Token Program.
     pub token_program: Program<'info, Token>,
-
-    /// The Solana Associated Token Program.
     pub associated_token_program: Program<'info, AssociatedToken>,
-
-    /// The Solana System Program.
     pub system_program: Program<'info, System>,
 }
 

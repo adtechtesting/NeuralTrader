@@ -12,4 +12,7 @@ pub enum ErrorCode {
     InvalidTradeType,
     #[msg("Invalid token accounts")]
     InvalidTokenAccounts,
+
+    #[msg("Invlaid agent owner")]
+    InvalidAgentOwner
 }
