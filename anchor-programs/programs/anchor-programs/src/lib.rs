@@ -1,12 +1,13 @@
 
-
+#![allow(deprecated)]
+#![allow(unexpected_cfgs)]
 mod instructions;
 use instructions::*;
 mod state;
 mod errors;
 pub use state::*;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount};
+
 
 // Replace with your real program ID after deployment
 declare_id!("HsASKa2TVc2S8FX3hpFHZ2Yy39jQeXou1bnmiEBL1VJ1");

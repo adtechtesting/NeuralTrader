@@ -1,0 +1,6 @@
+# Devnet Deploy 
+- Program Id: GAmxv5ze5Y1rvaJziz8nrnFtz4pBuF14YDvs8iqm7XkB
+
+- Signature: jDc26V5XeCaQjxaAcv1jV4qcLYgfaYkh1BH85QwbXLvsNR1GAuijR1gGDKdMGXaqVQ3hRGLtVxttGo1haJrX2rj
+
+Deploy success

@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::Token; 
 use crate::{Agent, Market, Trade};
 use crate::errors::ErrorCode;
 
