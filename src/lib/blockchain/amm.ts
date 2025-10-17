@@ -1,6 +1,8 @@
 import { prisma } from '../cache/dbCache';
 import { MarketState } from '@prisma/client';
 import { marketData } from '../market/data'; // For market state update in executeSwap
+import { getSolBalance, getSplTokenBalance } from '@/blockchain/onchain-balances';
+import { getQuote } from '@/services/market';
 
 /**
  * AMM (Automated Market Maker) implementation
@@ -226,7 +228,9 @@ export const amm = {
     agentId: string,
     inputAmount: number,
     inputIsSol: boolean,
-    slippageTolerance: number = 0.5 // Default 0.5%
+    slippageTolerance: number = 0.5, // Default 0.5%
+    tokenMint?: string, // Selected SPL token mint for reference pricing
+    tokenDecimals: number = 9 // Default decimals if not provided
   ) {
     try {
       // Get agent details
@@ -238,14 +242,26 @@ export const amm = {
         throw new Error(`Agent ${agentId} not found`);
       }
 
-      // Calculate swap result
+      // Calculate swap result (simulation)
       const swapResult = await this.calculateSwapAmount(inputAmount, inputIsSol);
 
-      // Check if agent has sufficient balance
-      if (inputIsSol && agent.walletBalance < inputAmount) {
-        throw new Error('Insufficient SOL balance');
-      } else if (!inputIsSol && agent.tokenBalance < inputAmount) {
-        throw new Error('Insufficient token balance');
+      // Eligibility checks using on-chain balances if tokenMint provided; fallback to DB balances
+      if (tokenMint) {
+        const [onchainSol, onchainSpl] = await Promise.all([
+          getSolBalance(agent.publicKey),
+          getSplTokenBalance(agent.publicKey, tokenMint)
+        ]);
+        if (inputIsSol) {
+          if (onchainSol < inputAmount) throw new Error('Insufficient on-chain SOL balance');
+        } else {
+          if (onchainSpl < inputAmount) throw new Error('Insufficient on-chain SPL token balance');
+        }
+      } else {
+        if (inputIsSol && agent.walletBalance < inputAmount) {
+          throw new Error('Insufficient SOL balance');
+        } else if (!inputIsSol && agent.tokenBalance < inputAmount) {
+          throw new Error('Insufficient token balance');
+        }
       }
 
       // Check price impact against slippage tolerance
@@ -253,6 +269,20 @@ export const amm = {
         throw new Error(
           `Price impact (${swapResult.priceImpact.toFixed(2)}%) exceeds slippage tolerance (${slippageTolerance}%)`
         );
+      }
+
+      // Fetch reference quote from Jupiter (does not execute on-chain)
+      let referenceQuote: any = null;
+      try {
+        if (tokenMint) {
+          const solMint = 'So11111111111111111111111111111111111111112';
+          const inputMint = inputIsSol ? solMint : tokenMint;
+          const outputMint = inputIsSol ? tokenMint : solMint;
+          const amountLamports = Math.round(inputAmount * 10 ** (inputIsSol ? 9 : tokenDecimals));
+          referenceQuote = await getQuote(inputMint, outputMint, amountLamports, Math.round(slippageTolerance * 100));
+        }
+      } catch (e) {
+        // ignore quote failures; simulation continues
       }
 
       // Get current pool state
@@ -290,10 +320,10 @@ export const amm = {
         }
       });
 
-      // Record the successful transaction
+      // Record the successful transaction (simulated signature)
       const transaction = await prisma.transaction.create({
         data: {
-          signature: `swap_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
+          signature: `simulated_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
           amount: inputIsSol ? inputAmount : swapResult.outputAmount,
           tokenAmount: inputIsSol ? swapResult.outputAmount : inputAmount,
           fromAgentId: agentId,
@@ -306,7 +336,8 @@ export const amm = {
             inputIsSol,
             effectivePrice: swapResult.effectivePrice,
             poolSolReserve: newPool.solAmount,
-            poolTokenReserve: newPool.tokenAmount
+            poolTokenReserve: newPool.tokenAmount,
+            referenceQuote
           },
           confirmedAt: new Date()
         }

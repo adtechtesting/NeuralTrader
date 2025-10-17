@@ -10,7 +10,7 @@ use anchor_lang::prelude::*;
 
 
 // Replace with your real program ID after deployment
-declare_id!("HsASKa2TVc2S8FX3hpFHZ2Yy39jQeXou1bnmiEBL1VJ1");
+declare_id!("GAmxv5ze5Y1rvaJziz8nrnFtz4pBuF14YDvs8iqm7XkB");
 
 #[program]
 pub mod agent_market_sim {

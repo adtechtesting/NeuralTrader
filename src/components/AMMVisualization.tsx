@@ -30,6 +30,7 @@ interface APIData {
 export default function AMMVisualization() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [tokenSymbol, setTokenSymbol] = useState<string>('TOKEN');
   const [ammData, setAmmData] = useState<AMMData>({
     solAmount: 0,
     tokenAmount: 0,
@@ -48,6 +49,19 @@ export default function AMMVisualization() {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     });
+  };
+
+  // Fetch selected token symbol
+  const fetchTokenSymbol = async () => {
+    try {
+      const response = await fetch('/api/simulation/config');
+      const data = await response.json();
+      if (data.selectedToken?.symbol) {
+        setTokenSymbol(data.selectedToken.symbol);
+      }
+    } catch (err) {
+      console.log('Could not fetch token symbol, using default');
+    }
   };
 
   // Fetch AMM data
@@ -161,7 +175,7 @@ export default function AMMVisualization() {
     ctx.fillStyle = solColor;
     ctx.fill();
 
-    // Draw NURO token segment
+    // Draw token segment
     ctx.beginPath();
     ctx.moveTo(centerX, centerY);
     ctx.arc(centerX, centerY, radius, 2 * Math.PI * solPercentage, 2 * Math.PI);
@@ -187,16 +201,16 @@ export default function AMMVisualization() {
     ctx.textBaseline = 'middle';
     ctx.fillText(`SOL: ${(solPercentage * 100).toFixed(1)}%`, solLabelX, solLabelY);
 
-    // NURO label
+    // Token label
     const tokenLabelAngle = Math.PI * (1 + solPercentage);
     const tokenLabelX = centerX + (radius + 20) * Math.cos(tokenLabelAngle);
     const tokenLabelY = centerY + (radius + 20) * Math.sin(tokenLabelAngle);
 
-    ctx.fillStyle = '#f3f4f6'; // Gray-100
+    ctx.fillStyle = tokenColor;
     ctx.font = 'bold 12px Inter, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`NURO: ${(tokenPercentage * 100).toFixed(1)}%`, tokenLabelX, tokenLabelY);
+    ctx.fillText(`${tokenSymbol}: ${(tokenPercentage * 100).toFixed(1)}%`, tokenLabelX, tokenLabelY);
 
     // Center text - total value
     ctx.fillStyle = '#f3f4f6'; // Gray-100
@@ -212,6 +226,7 @@ export default function AMMVisualization() {
 
   // Fetch data on component mount
   useEffect(() => {
+    fetchTokenSymbol();
     fetchAmmData();
     const interval = setInterval(fetchAmmData, 10000);
     return () => clearInterval(interval);
@@ -284,8 +299,8 @@ export default function AMMVisualization() {
                 <div className="text-white font-medium">{formatNumber(ammData.solAmount, 4)} SOL</div>
               </div>
               <div>
-                <div className="text-xs text-gray-500">NURO Reserve</div>
-                <div className="text-white font-medium">{formatNumber(ammData.tokenAmount, 0)} NURO</div>
+                <div className="text-xs text-gray-500">{tokenSymbol} Reserve</div>
+                <div className="text-white font-medium">{formatNumber(ammData.tokenAmount, 0)} {tokenSymbol}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-500">Current Price</div>
@@ -316,7 +331,7 @@ export default function AMMVisualization() {
                       <div className="text-right">
                         <div className="text-gray-400">Amount</div>
                         <div className="text-white">
-                          {formatNumber(txn.amount, 2)} SOL / {formatNumber(txn.tokenAmount, 0)} NURO
+                          {formatNumber(txn.amount, 2)} SOL / {formatNumber(txn.tokenAmount, 0)} {tokenSymbol}
                         </div>
                       </div>
                     </div>
@@ -368,6 +383,7 @@ interface APIData {
 export default function AMMVisualization() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [tokenSymbol, setTokenSymbol] = useState<string>('TOKEN');
   const [ammData, setAmmData] = useState<AMMData>({
     solAmount: 0,
     tokenAmount: 0,
@@ -387,6 +403,17 @@ export default function AMMVisualization() {
     });
   };
 
+  const fetchTokenSymbol = async () => {
+    try {
+      const response = await fetch('/api/simulation/config');
+      const data = await response.json();
+      if (data.selectedToken?.symbol) {
+        setTokenSymbol(data.selectedToken.symbol);
+      }
+    } catch (err) {
+      console.log('Could not fetch token symbol, using default');
+    }
+  };
  
   const fetchAmmData = async () => {
     try {
@@ -450,6 +477,7 @@ export default function AMMVisualization() {
 
   
   useEffect(() => {
+    fetchTokenSymbol();
     fetchAmmData();
     const interval = setInterval(fetchAmmData, 10000);
     return () => clearInterval(interval);
@@ -482,7 +510,7 @@ export default function AMMVisualization() {
     
     return [
       { name: 'SOL', value: ammData.solAmount },
-      { name: 'NURO', value: tokenValueInSol }
+      { name: tokenSymbol, value: tokenValueInSol }
     ];
   };
 
@@ -586,8 +614,8 @@ export default function AMMVisualization() {
                 <div className="text-white font-medium">{formatNumber(ammData.solAmount, 4)} SOL</div>
               </div>
               <div className="bg-gray-800/50 p-3 rounded-md border border-gray-700/50">
-                <div className="text-xs text-gray-400 mb-1">NURO Reserve</div>
-                <div className="text-white font-medium">{formatNumber(ammData.tokenAmount, 0)} NURO</div>
+                <div className="text-xs text-gray-400 mb-1">{tokenSymbol} Reserve</div>
+                <div className="text-white font-medium">{formatNumber(ammData.tokenAmount, 0)} {tokenSymbol}</div>
               </div>
               <div className="bg-gray-800/50 p-3 rounded-md border border-gray-700/50">
                 <div className="text-xs text-gray-400 mb-1">Current Price</div>
@@ -635,7 +663,7 @@ export default function AMMVisualization() {
               </span>
               {' / '}
               <span className="text-indigo-300 ml-1">
-                {formatNumber(txn.tokenAmount, 0)} NURO
+                {formatNumber(txn.tokenAmount, 0)} {tokenSymbol}
               </span>
             </div>
           </div>

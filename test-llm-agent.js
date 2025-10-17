@@ -6,10 +6,42 @@ const { ChatOpenAI } = require('@langchain/openai');
 
 // Simplified test script since we can't directly import the TypeScript files
 
+// Function to get selected token
+async function getSelectedToken() {
+  try {
+    const config = await prisma.simulationConfig.findUnique({
+      where: { key: 'selected_token' }
+    });
+    
+    if (config && config.value) {
+      return JSON.parse(config.value);
+    }
+    
+    // Default to SOL if no token selected
+    return {
+      mint: 'So11111111111111111111111111111111111111112',
+      symbol: 'SOL',
+      name: 'Solana'
+    };
+  } catch (error) {
+    console.log('Could not fetch selected token, using SOL');
+    return {
+      mint: 'So11111111111111111111111111111111111111112',
+      symbol: 'SOL',
+      name: 'Solana'
+    };
+  }
+}
+
 // Function to test an agent with the OpenAI API
 async function testAgentWithLLM(agentId) {
   try {
     console.log(`\n=== Testing GPT-4 integration with agent ID: ${agentId} ===`);
+    
+    // Get selected token
+    const selectedToken = await getSelectedToken();
+    const tokenSymbol = selectedToken.symbol || 'TOKEN';
+    console.log(`Using token: ${tokenSymbol}`);
     
     // Get agent data
     const agentData = await prisma.agent.findUnique({
@@ -33,10 +65,10 @@ async function testAgentWithLLM(agentId) {
     // Create market analysis prompt
     const marketAnalysisPrompt = `
 You are ${agentData.name}, a ${agentData.personalityType.toLowerCase()} trader on the Solana blockchain.
-You have a balance of ${agentData.walletBalance || 0} SOL and ${agentData.tokenBalance || 0} NURO tokens.
+You have a balance of ${agentData.walletBalance || 0} SOL and ${agentData.tokenBalance || 0} ${tokenSymbol} tokens.
 
 The current market conditions are:
-- NURO token price: 0.01 SOL
+- ${tokenSymbol} token price: 0.01 SOL
 - 24h price change: +3.5%
 - 24h trading volume: 5000 SOL
 - Market sentiment: 60% bullish, 30% bearish, 10% neutral
@@ -72,8 +104,8 @@ Based on these conditions and your personality as a ${agentData.personalityType}
 You are ${agentData.name}, a ${agentData.personalityType.toLowerCase()} trader on the Solana blockchain.
 
 Recent messages from other traders:
-1. Market Bot (SYSTEM): "NURO token has seen increased volatility today."
-2. Alex Smith (AGGRESSIVE): "I'm buying more NURO tokens. Price is going to spike soon!"
+1. Market Bot (SYSTEM): "${tokenSymbol} token has seen increased volatility today."
+2. Alex Smith (AGGRESSIVE): "I'm buying more ${tokenSymbol} tokens. Price is going to spike soon!"
 3. Jamie Lee (CONSERVATIVE): "Too much risk in the market today. I'm holding for now."
 
 Current market sentiment is 60% bullish, 30% bearish, 10% neutral.
@@ -108,18 +140,18 @@ You are ${agentData.name}, a ${agentData.personalityType.toLowerCase()} trader o
 
 Your current balances:
 - SOL: ${agentData.walletBalance || 0} SOL
-- NURO tokens: ${agentData.tokenBalance || 0} NURO
+- ${tokenSymbol} tokens: ${agentData.tokenBalance || 0} ${tokenSymbol}
 
 Current market conditions:
-- NURO token price: 0.01 SOL
+- ${tokenSymbol} token price: 0.01 SOL
 - 24h price change: +3.5%
 - 24h trading volume: 5000 SOL
 - Liquidity: 20000 SOL
 
 Based on your balance, the market conditions, and your trading style as a ${agentData.personalityType} trader, decide if you want to:
 
-1. Buy NURO tokens with SOL
-2. Sell NURO tokens for SOL
+1. Buy ${tokenSymbol} tokens with SOL
+2. Sell ${tokenSymbol} tokens for SOL
 3. Hold your current position
 
 If you decide to trade, specify exactly how much you want to buy or sell, and explain your reasoning.

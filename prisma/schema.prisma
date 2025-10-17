@@ -310,3 +310,15 @@ model SimulationReport {
   @@index([timestamp])
   @@index([isFinal])
 }
+
+// Key-value configuration store
+model SimulationConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String   @db.Text
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+}

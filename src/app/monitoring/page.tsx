@@ -128,7 +128,8 @@ export default function MonitoringPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshRate, setRefreshRate] = useState(3000);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [error, setError] = useState<string | null>(null); // Add error state
+  const [error, setError] = useState<string | null>(null);
+  const [tokenSymbol, setTokenSymbol] = useState<string>('TOKEN');
 
   const formatNumber = (num: number | undefined | null, decimals: number = 2): string => {
     if (num === undefined || num === null) return '0.00';
@@ -152,6 +153,19 @@ export default function MonitoringPage() {
     try {
       setLoading(true);
       setError(null);
+
+      // Get selected token
+      try {
+        const tokenResponse = await fetch('/api/simulation/config');
+        if (tokenResponse.ok) {
+          const tokenData = await tokenResponse.json();
+          if (tokenData.selectedToken?.symbol) {
+            setTokenSymbol(tokenData.selectedToken.symbol);
+          }
+        }
+      } catch (err) {
+        console.log('Could not fetch token symbol');
+      }
 
       // Get simulation status
       const statusResponse = await fetch('/api/simulation');
@@ -380,7 +394,7 @@ export default function MonitoringPage() {
 
           <div className="bg-gray-900/30 backdrop-blur-sm rounded-lg border border-gray-800/50 p-6 transition-all hover:border-purple-800/50">
             <div className="flex justify-between items-start mb-4">
-              <span className="text-gray-400">NURO Token Price</span>
+              <span className="text-gray-400">{tokenSymbol} Token Price</span>
               {simulationStatus?.market?.price && simulationStatus.market.price > 0 ? (
                 <TrendingUp className="w-5 h-5 text-green-400" />
               ) : (
@@ -418,7 +432,7 @@ export default function MonitoringPage() {
               {formatNumber(simulationStatus?.market?.solReserve || 0)} SOL
             </div>
             <span className="text-sm text-gray-400">
-              {formatNumber(simulationStatus?.market?.tokenReserve || 0)} NURO
+              {formatNumber(simulationStatus?.market?.tokenReserve || 0)} {tokenSymbol}
             </span>
           </div>
         </div>
@@ -497,7 +511,7 @@ export default function MonitoringPage() {
                         {tx.agent ? tx.agent.displayName : 'System'}
                       </td>
                       <td className="py-3 px-4 text-sm text-gray-300 text-right">
-                        {formatNumber(tx.amount)} {tx.type === 'buy' ? 'SOL' : 'NURO'}
+                        {formatNumber(tx.amount)} {tx.type === 'buy' ? 'SOL' : tokenSymbol}
                       </td>
                       <td className="py-3 px-4 text-sm text-gray-300 text-right">
                         {formatNumber(tx.price, 8)} SOL
@@ -693,6 +707,7 @@ export default function MonitoringPage() {
   const [refreshRate, setRefreshRate] = useState(3000);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tokenSymbol, setTokenSymbol] = useState<string>('TOKEN');
   const {connected}=useWallet()
 
   const router=useRouter()
@@ -742,6 +757,19 @@ export default function MonitoringPage() {
     try {
       setLoading(true);
       setError(null);
+
+      // Get selected token
+      try {
+        const tokenResponse = await fetch('/api/simulation/config');
+        if (tokenResponse.ok) {
+          const tokenData = await tokenResponse.json();
+          if (tokenData.selectedToken?.symbol) {
+            setTokenSymbol(tokenData.selectedToken.symbol);
+          }
+        }
+      } catch (err) {
+        console.log('Could not fetch token symbol');
+      }
 
       // Get simulation status
       const statusResponse = await fetch('/api/simulation');
@@ -1027,7 +1055,7 @@ export default function MonitoringPage() {
             </div>
           </div>
 
-          {/* NURO Token Price */}
+          {/* Token Price */}
           <div className="relative group">
             <div className="absolute -inset-0.5 bg-gradient-to-r from-green-600/50 to-emerald-800/50 rounded-xl blur opacity-30 group-hover:opacity-70 transition duration-300"></div>
             <div className="relative border border-green-900/50 bg-black/60 backdrop-blur-md p-6 rounded-xl shadow-xl">
@@ -1038,7 +1066,7 @@ export default function MonitoringPage() {
                   <TrendingDown className="text-red-200 w-6 h-6" />
                 )}
               </div>
-              <p className="text-gray-400 text-sm mb-1">NURO Token Price</p>
+              <p className="text-gray-400 text-sm mb-1">{tokenSymbol} Token Price</p>
               <h3 className="text-3xl font-bold text-green-400">
                 {formatNumber(simulationStatus?.market?.price || 0, 8)} SOL
               </h3>
@@ -1078,7 +1106,7 @@ export default function MonitoringPage() {
                 {formatNumber(simulationStatus?.market?.solReserve || 0)} SOL
               </h3>
               <p className="text-sm text-gray-400">
-                {formatNumber(simulationStatus?.market?.tokenReserve || 0)} NURO
+                {formatNumber(simulationStatus?.market?.tokenReserve || 0)} {tokenSymbol}
               </p>
             </div>
           </div>
@@ -1184,7 +1212,7 @@ export default function MonitoringPage() {
                         {tx.agent ? tx.agent.displayName : 'System'}
                       </td>
                       <td className="py-3 px-4 text-sm text-gray-300 text-right">
-                        {formatNumber(tx.amount)} {tx.type === 'buy' ? 'SOL' : 'NURO'}
+                        {formatNumber(tx.amount)} {tx.type === 'buy' ? 'SOL' : tokenSymbol}
                       </td>
                       <td className="py-3 px-4 text-sm text-gray-300 text-right">
                         {formatNumber(tx.price, 8)} SOL

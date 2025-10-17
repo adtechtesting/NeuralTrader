@@ -169,6 +169,8 @@ import { prisma } from '../cache/dbCache';
 import { EventEmitter } from 'events';
 import { randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
+import { getSelectedToken } from '../config/selectedToken';
+import { getPrice } from '@/services/market';
 
 // Define MarketState type using Prisma's generated type
 type MarketState = Prisma.MarketStateGetPayload<{}>;
@@ -211,8 +213,20 @@ export const marketData = {
         where: { id: 'main_pool' }
       });
 
+      // Fetch real price from Jupiter for selected token
+      let realPrice = marketState?.price || 0;
+      try {
+        const selectedToken = await getSelectedToken();
+        const jupiterPrice = await getPrice(selectedToken.mint);
+        if (jupiterPrice !== null) {
+          realPrice = jupiterPrice;
+        }
+      } catch (e) {
+        console.log('Could not fetch Jupiter price, using pool price');
+      }
+
       return {
-        price: marketState?.price || 0,
+        price: realPrice,
         liquidity: marketState?.liquidity || 0,
         volume24h: marketState?.volume24h || 0,
         priceChange24h: marketState?.priceChange24h || 0,

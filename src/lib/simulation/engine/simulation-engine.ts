@@ -265,11 +265,16 @@ export class SimulationEngine {
             });
             
             if (agent) {
+              // Get selected token
+              const { getSelectedToken } = await import('../../config/selectedToken');
+              const selectedToken = await getSelectedToken();
+              const tokenSymbol = selectedToken.symbol || 'TOKEN';
+              
               // Create a market observation message
               const initialPrice = await this.getInitialPrice();
               const message = await prisma.message.create({
                 data: {
-                  content: `I'm looking at the NURO token market. Initial price seems to be set at ${initialPrice} SOL.`,
+                  content: `I'm looking at the ${tokenSymbol} token market. Initial price seems to be set at ${initialPrice} SOL.`,
                   senderId: agentId,
                   type: 'MARKET_UPDATE',
                   visibility: 'public',
@@ -309,10 +314,15 @@ export class SimulationEngine {
             
             await this.agentManager.executeTradeForAgent(agentId, solAmount, true);
             
+            // Get selected token
+            const { getSelectedToken } = await import('../../config/selectedToken');
+            const selectedToken = await getSelectedToken();
+            const tokenSymbol = selectedToken.symbol || 'TOKEN';
+            
             // Create a message about the trade
             await prisma.message.create({
               data: {
-                content: `Just bought some NURO tokens. I like the initial price point.`,
+                content: `Just bought some ${tokenSymbol} tokens. I like the initial price point.`,
                 senderId: agentId,
                 type: 'TRADE',
                 visibility: 'public',
@@ -339,7 +349,7 @@ export class SimulationEngine {
   }
   
   /**
-   * Get the initial NURO token price
+   * Get the initial token price
    */
   private async getInitialPrice(): Promise<number> {
     try {

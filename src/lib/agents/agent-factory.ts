@@ -62,7 +62,7 @@ export class AgentPool {
         // Create LLM-powered autonomous agent
         console.log(`Creating LLM-powered agent for ${agentData.name}`);
         const llmAgent = new LLMAutonomousAgent(agentData, {
-          llmModel: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
+         llmModel: process.env.LLM_MODEL || "llama3.1",
           temperature: 0.7
         });
         this.pool.set(agentId, llmAgent);

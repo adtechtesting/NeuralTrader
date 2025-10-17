@@ -207,7 +207,7 @@ export class AgentManager {
             if (!agentData) return;
             
 
-            const analysisText = this.generateSimulatedAnalysis(agentData.personalityType, marketInfo);
+            const analysisText = await this.generateSimulatedAnalysis(agentData.personalityType, marketInfo);
             
 
             await prisma.agentState.update({
@@ -283,7 +283,7 @@ export class AgentManager {
               
               if (agentData) {
 
-                const analysisText = this.generateSimulatedAnalysis(agentData.personalityType, marketInfo);
+                const analysisText = await this.generateSimulatedAnalysis(agentData.personalityType, marketInfo);
                 
         
                 await prisma.agentState.update({
@@ -328,46 +328,50 @@ export class AgentManager {
   /**
    * Generate a simulated market analysis text based on agent personality type
    */
-  private generateSimulatedAnalysis(personalityType: string, marketInfo: any): string {
+  private async generateSimulatedAnalysis(personalityType: string, marketInfo: any): Promise<string> {
     const price = marketInfo.price || 0.001;
     const priceChange = marketInfo.priceChange24h || 0;
     const volume = marketInfo.volume24h || 0;
     
+    const { getSelectedToken } = await import('../../config/selectedToken');
+    const selectedToken = await getSelectedToken();
+    const tokenSymbol = selectedToken.symbol || 'TOKEN';
+    
     // Create personalized analysis based on personality type
     switch (personalityType) {
       case 'AGGRESSIVE':
-        return `As an aggressive trader, I see the current NURO price of ${price} SOL as an opportunity. ` +
+        return `As an aggressive trader, I see the current ${tokenSymbol} price of ${price} SOL as an opportunity. ` +
                `The market ${priceChange >= 0 ? 'growth' : 'dip'} of ${Math.abs(priceChange).toFixed(2)}% ` +
                `presents a ${priceChange >= 0 ? 'momentum to ride' : 'buying opportunity'}. ` +
                `With ${volume} SOL in trading volume, there's decent liquidity. ` +
                `I'm inclined to take a more aggressive position.`;
                
       case 'CONSERVATIVE':
-        return `Looking at the NURO market with caution. Current price at ${price} SOL with ` +
+        return `Looking at the ${tokenSymbol} market with caution. Current price at ${price} SOL with ` +
                `${Math.abs(priceChange).toFixed(2)}% ${priceChange >= 0 ? 'increase' : 'decrease'} in 24h. ` +
                `Volume of ${volume} SOL indicates ${volume > 100 ? 'reasonable' : 'limited'} market activity. ` +
                `I prefer to maintain a conservative approach and ${priceChange < -5 ? 'wait for stabilization' : 'make small, calculated moves'}.`;
                
       case 'MODERATE':
-        return `Taking a balanced view of the NURO market. Price at ${price} SOL with ` +
+        return `Taking a balanced view of the ${tokenSymbol} market. Price at ${price} SOL with ` +
                `${priceChange.toFixed(2)}% change over 24h. Trading volume of ${volume} SOL ` +
                `suggests ${volume > 50 ? 'decent' : 'moderate'} market activity. ` +
                `I'll consider a diversified approach, possibly ${priceChange > 0 ? 'capitalizing on uptrend with partial positions' : 'averaging in on dips'}.`;
                
       case 'TREND_FOLLOWER':
-        return `Analyzing the NURO trend at ${price} SOL. The ${priceChange >= 0 ? 'positive' : 'negative'} trend of ` +
+        return `Analyzing the ${tokenSymbol} trend at ${price} SOL. The ${priceChange >= 0 ? 'positive' : 'negative'} trend of ` +
                `${Math.abs(priceChange).toFixed(2)}% in 24h is ${Math.abs(priceChange) > 3 ? 'significant' : 'noteworthy'}. ` +
                `Volume at ${volume} SOL shows ${volume > 100 ? 'strong' : 'some'} market interest. ` +
                `I'll likely ${priceChange >= 1 ? 'follow the upward momentum' : priceChange <= -1 ? 'follow the downward trend' : 'wait for a clearer trend'}.`;
                
       case 'CONTRARIAN':
-        return `Taking a contrarian view on NURO at ${price} SOL. The ${priceChange >= 0 ? 'rise' : 'drop'} of ` +
+        return `Taking a contrarian view on ${tokenSymbol} at ${price} SOL. The ${priceChange >= 0 ? 'rise' : 'drop'} of ` +
                `${Math.abs(priceChange).toFixed(2)}% may be ${Math.abs(priceChange) > 5 ? 'overextended' : 'approaching reversal'}. ` +
                `Trading volume of ${volume} SOL ${volume > 100 ? 'might indicate peak interest' : 'shows limited conviction'}. ` +
                `I'm considering ${priceChange >= 3 ? 'preparing for a potential reversal' : priceChange <= -3 ? 'looking for entry points against the trend' : 'waiting for stronger signals'}.`;
                
       default:
-        return `Analyzing the current NURO market conditions. Price: ${price} SOL, 24h change: ${priceChange.toFixed(2)}%, ` +
+        return `Analyzing the current ${tokenSymbol} market conditions. Price: ${price} SOL, 24h change: ${priceChange.toFixed(2)}%, ` +
                `trading volume: ${volume} SOL. Monitoring the situation and will adjust strategy accordingly.`;
     }
   }
@@ -592,7 +596,10 @@ export class AgentManager {
    */
   public async executeTradeForAgent(agentId: string, inputAmount: number, inputIsSol: boolean): Promise<any> {
     try {
-      console.log(`Executing bootstrap trade for agent ${agentId}: ${inputIsSol ? 'buy' : 'sell'} ${inputAmount} ${inputIsSol ? 'SOL' : 'NURO'}`);
+      const { getSelectedToken } = await import('../../config/selectedToken');
+      const selectedToken = await getSelectedToken();
+      const tokenSymbol = selectedToken.symbol || 'TOKEN';
+      console.log(`Executing bootstrap trade for agent ${agentId}: ${inputIsSol ? 'buy' : 'sell'} ${inputAmount} ${inputIsSol ? 'SOL' : tokenSymbol}`);
       
       // Get agent data
       const agent = await prisma.agent.findUnique({

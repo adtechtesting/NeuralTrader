@@ -54,10 +54,13 @@ export const messagingSystem = {
     // Generate a templated message based on agent personality and market conditions
     const messageType = marketSentiment > 0.5 ? 'MARKET_RISE' : 'MARKET_FALL';
     
+    const { getSelectedToken } = await import('../config/selectedToken');
+    const selectedToken = await getSelectedToken();
+    
     const context = {
       pctChange: Math.abs(marketSentiment - 0.5) * 10,
       price: 0.0001 + Math.random() * 0.01,
-      tokenSymbol: 'NURO'
+      tokenSymbol: selectedToken.symbol || 'TOKEN'
     };
     
     return this.generateTemplatedMessage(
@@ -332,6 +335,10 @@ export async function reactToMessage(messageId: string,agentId:string, reactionT
 }
 export async function generateGroupChat(messageCount: number): Promise<void> {
   try {
+    // Fetch selected token
+    const { getSelectedToken } = await import('../config/selectedToken');
+    const selectedToken = await getSelectedToken();
+    
     // Fetch random active agents
     const agents = await prisma.agent.findMany({
       where: { active: true },
@@ -348,8 +355,27 @@ export async function generateGroupChat(messageCount: number): Promise<void> {
       return;
     }
 
-    // Calculate market sentiment (simplified)
-    const marketSentiment = Math.random(); // Placeholder: Replace with actual market data if available
+    // Fetch real market data
+    let marketSentiment = 0.5;
+    let currentPrice = 0;
+    let priceChange = 0;
+    
+    try {
+      const { marketData } = await import('../market/data');
+      const marketInfo = await marketData.getMarketInfo();
+      
+      currentPrice = marketInfo.price || 0;
+      priceChange = marketInfo.priceChange24h || 0;
+      
+      // Calculate sentiment based on price change
+      // Positive change = bullish (>0.5), negative = bearish (<0.5)
+      marketSentiment = priceChange > 0 ? 0.7 : 0.3;
+      
+      console.log(`Market data for ${selectedToken.symbol}: Price=${currentPrice}, Change=${priceChange}%, Sentiment=${marketSentiment}`);
+    } catch (error) {
+      console.warn('Could not fetch market data, using random sentiment:', error);
+      marketSentiment = Math.random();
+    }
 
     // Generate messages for each agent
     const messagePromises = agents.slice(0, messageCount).map(async (agent) => {
@@ -379,7 +405,7 @@ export async function generateGroupChat(messageCount: number): Promise<void> {
     // Wait for all messages to be created
     await Promise.all(messagePromises);
 
-    console.log(`Generated ${Math.min(messageCount, agents.length)} group chat messages`);
+    console.log(`Generated ${Math.min(messageCount, agents.length)} group chat messages for ${selectedToken.symbol}`);
   } catch (error) {
     console.error('Error generating group chat:', error);
     throw error;

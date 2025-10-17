@@ -2,6 +2,8 @@ import { Tool } from "@langchain/core/tools";
 import { prisma } from "../../cache/dbCache";
 import { amm } from "../../blockchain/amm";
 import { marketData } from "../../market/data";
+import { getSelectedToken } from "../../config/selectedToken";
+import { getSolBalance, getSplTokenBalance } from "@/blockchain/onchain-balances";
 
 export class MarketDataTool extends Tool {
   name = "get_market_data";
@@ -33,7 +35,7 @@ export class MarketDataTool extends Tool {
 
 export class TokenSwapTool extends Tool {
   name = "execute_token_swap";
-  description = "Execute a token swap between SOL and the NURO token. Input should be a JSON object with parameters: inputAmount (number), inputIsSol (boolean), and optionally slippageTolerance (number).";
+  description = "Execute a token swap between SOL and the selected SPL token. Input should be a JSON object with parameters: inputAmount (number), inputIsSol (boolean), and optionally slippageTolerance (number).";
 
   constructor(private readonly agentId: string) {
     super();
@@ -53,9 +55,11 @@ export class TokenSwapTool extends Tool {
         args = this.parseTextInput(input);
 
         if (!args) {
+          const selectedToken = await getSelectedToken();
+          const tokenSymbol = selectedToken.symbol || 'TOKEN';
           return JSON.stringify({ 
             error: "Invalid input format", 
-            details: "Please provide input as JSON or a clear statement like 'buy 5 SOL worth of NURO'" 
+            details: `Please provide input as JSON or a clear statement like 'buy 5 SOL worth of ${tokenSymbol}'` 
           });
         }
       }
@@ -77,8 +81,9 @@ export class TokenSwapTool extends Tool {
       }
 
 
-      console.log(`[TRADE] Agent ${this.agentId} attempting to ${inputIsSol ? 'buy' : 'sell'} with ${inputAmount} ${inputIsSol ? 'SOL' : 'NURO'}`);
-
+      const selectedToken = await getSelectedToken();
+      const tokenSymbol = selectedToken.symbol || 'TOKEN';
+      console.log(`[TRADE] Agent ${this.agentId} attempting to ${inputIsSol ? 'buy' : 'sell'} with ${inputAmount} ${inputIsSol ? 'SOL' : tokenSymbol}`);
 
       const safeSlippageTolerance = Math.max(1.0, Math.min(5, slippageTolerance || 1.0));
 
@@ -88,7 +93,9 @@ export class TokenSwapTool extends Tool {
           this.agentId,
           inputAmount,
           inputIsSol,
-          safeSlippageTolerance
+          safeSlippageTolerance,
+          selectedToken.mint,
+          selectedToken.decimals
         );
 
         // Log successful trade
@@ -128,51 +135,43 @@ export class TokenSwapTool extends Tool {
   private parseTextInput(text: string): { inputAmount: number, inputIsSol: boolean } | null {
     text = text.toLowerCase().trim();
 
-    // Buy pattern (SOL -> NURO)
-    const buyPattern = /buy\s+(\d+(\.\d+)?)\s*(sol\s+worth\s+of\s+)?nuro|purchase\s+(\d+(\.\d+)?)\s*(sol\s+worth\s+of\s+)?nuro|acquire\s+(\d+(\.\d+)?)\s*(sol\s+worth\s+of\s+)?nuro/i;
-
-    // Sell pattern (NURO -> SOL)
-    const sellPattern = /sell\s+(\d+(\.\d+)?)\s*nuro|convert\s+(\d+(\.\d+)?)\s*nuro\s+to\s+sol|exchange\s+(\d+(\.\d+)?)\s*nuro\s+for\s+sol/i;
+    // Generic patterns that work with any token
+    const buyPattern = /buy\s+(\d+(\.\d+)?)\s*(sol\s+worth\s+of)?|purchase\s+(\d+(\.\d+)?)|acquire\s+(\d+(\.\d+)?)/i;
+    const sellPattern = /sell\s+(\d+(\.\d+)?)|convert\s+(\d+(\.\d+)?)\s*.*\s+to\s+sol|exchange\s+(\d+(\.\d+)?)\s*.*\s+for\s+sol/i;
 
     let match;
 
-    // Check for buy patterns
     match = text.match(buyPattern);
     if (match) {
-      // Extract the number - it could be in different capture groups depending on the pattern
-      const amount = parseFloat(match[1] || match[4] || match[7] || '5'); // Default to 5 if no amount specified
+      const amount = parseFloat(match[1] || match[4] || match[6] || '5');
       return {
         inputAmount: amount,
-        inputIsSol: true // Buying NURO with SOL
+        inputIsSol: true
       };
     }
-
 
     match = text.match(sellPattern);
     if (match) {
-     
-      const amount = parseFloat(match[1] || match[3] || match[5] || '5'); 
+      const amount = parseFloat(match[1] || match[3] || match[5] || '5');
       return {
         inputAmount: amount,
-        inputIsSol: false 
+        inputIsSol: false
       };
     }
 
-
-    if (text.includes('buy') && text.includes('nuro')) {
+    if (text.includes('buy')) {
       return {
         inputAmount: 5,
         inputIsSol: true
       };
     }
 
-    if (text.includes('sell') && text.includes('nuro')) {
+    if (text.includes('sell')) {
       return {
         inputAmount: 5,
         inputIsSol: false
       };
     }
-
 
     return null;
   }
@@ -198,9 +197,23 @@ export class GetBalanceTool extends Tool {
         return JSON.stringify({ error: "Agent not found" });
       }
 
+      const selectedToken = await getSelectedToken();
+      
+      // Fetch on-chain balances
+      let onchainSol = agent.walletBalance || 0;
+      let onchainToken = agent.tokenBalance || 0;
+      
+      try {
+        onchainSol = await getSolBalance(agent.publicKey);
+        onchainToken = await getSplTokenBalance(agent.publicKey, selectedToken.mint);
+      } catch (e) {
+        console.log(`Could not fetch on-chain balances for agent ${this.agentId}, using DB values`);
+      }
+
       return JSON.stringify({
-        solBalance: agent.walletBalance || 0,
-        tokenBalance: agent.tokenBalance || 0,
+        solBalance: onchainSol,
+        tokenBalance: onchainToken,
+        tokenSymbol: selectedToken.symbol || 'TOKEN',
         publicKey: agent.publicKey
       });
     } catch (error: any) {

@@ -55,11 +55,23 @@ interface APIData {
 export default function MarketVisualization() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tokenSymbol, setTokenSymbol] = useState<string>('TOKEN');
   const [marketData, setMarketData] = useState<MarketData[]>([]);
   const [priceHistory, setPriceHistory] = useState<PricePoint[]>([]);
   const [timeRange, setTimeRange] = useState('4h');
   const [filteredHistory, setFilteredHistory] = useState<PricePoint[]>([]);
 
+  const fetchTokenSymbol = async () => {
+    try {
+      const response = await fetch('/api/simulation/config');
+      const data = await response.json();
+      if (data.selectedToken?.symbol) {
+        setTokenSymbol(data.selectedToken.symbol);
+      }
+    } catch (err) {
+      console.log('Could not fetch token symbol, using default');
+    }
+  };
 
   const fetchMarketData = async () => {
     try {
@@ -170,13 +182,13 @@ export default function MarketVisualization() {
     setTimeRange(newRange);
   };
 
-  // Fetch market data on mount
+  // Fetch data on mount and set up polling
   useEffect(() => {
+    fetchTokenSymbol();
     fetchMarketData();
     const interval = setInterval(fetchMarketData, 10000);
     return () => clearInterval(interval);
   }, []);
-
 
   const formatSentiment = (value: number): string => `${(value * 100).toFixed(1)}%`;
 
@@ -214,7 +226,7 @@ export default function MarketVisualization() {
       ) : (
         <>
           <div className="flex justify-between items-center mb-4">
-            <div className="text-sm text-gray-400">NURO Price Chart</div>
+            <div className="text-sm text-gray-400">{tokenSymbol} Price Chart</div>
             <div className="inline-flex p-0.5 bg-gray-800 rounded-md">
               <button
                 onClick={() => handleTimeRangeChange('1h')}
