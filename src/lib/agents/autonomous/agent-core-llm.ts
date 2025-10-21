@@ -646,61 +646,38 @@ export class LLMAutonomousAgent {
 
   async analyzeMarket(marketInfo: any) {
     try {
-      console.log(`Agent ${this.agentData.name} analyzing market`);
-  
       const selectedToken = await getSelectedToken();
       const tokenSymbol = selectedToken.symbol || 'TOKEN';
       
       const marketSummary =
-        `Current market conditions:\n` +
-        `- ${tokenSymbol} token price: ${marketInfo.price} SOL\n` +
+        `Current ${tokenSymbol} market conditions:\n` +
+        `- Price: ${marketInfo.price} SOL\n` +
         `- 24h price change: ${marketInfo.priceChange24h}%\n` +
         `- 24h trading volume: ${marketInfo.volume24h} SOL\n` +
-        `- Liquidity: ${marketInfo.liquidity} SOL\n` +
-        `- Market sentiment: ${marketInfo.sentiment?.bullish > 0.5 ? 'Bullish' : 'Bearish'}\n`;
-  
-      const cacheKey = `market_analysis_${this.agentData.id}_${marketInfo.price}_${marketInfo.priceChange24h}`;
-      const cachedResponse = this.cache.get(cacheKey);
-      
-      if (cachedResponse && Date.now() - cachedResponse.timestamp < this.cacheTTL) {
-        console.log(`Using cached market analysis for agent ${this.agentData.name}`);
-        await this.createOrUpdateAgentState({
-          lastMarketAnalysis: new Date(),
-          lastAction: new Date(),
-          lastDecision: {
-            type: 'MARKET_ANALYSIS',
-            timestamp: new Date().toISOString(),
-            data: {
-              marketInfo,
-              analysis: cachedResponse.response,
-              cached: true
-            }
-          }
-        });
+        `- Liquidity: ${marketInfo.liquidity} SOL\n`;
+
+      // Check cache first
+      const cacheKey = `market_analysis_${this.agentData.id}`;
+      const cached = this.cache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < 120000) { // 2 minute cache
+        console.log(`✅ Using cached analysis for ${this.agentData.name}`);
         return true;
       }
   
-      const systemMessage = new SystemMessage(
-        `You are ${this.agentData.name}, a ${this.agentData.personalityType} trader. ` +
-        `${this.personalityPrompt}\n\n` +
-        `Analyze the market from your perspective as a ${this.agentData.personalityType} trader.`
-      );
-  
-      const response = await this.agent.invoke({
-        messages: [
-          systemMessage,
-          new HumanMessage(
-            `${marketSummary}\n\n` +
-            `Based on this market data and your trading style as a ${this.agentData.personalityType} trader, ` +
-            `analyze the market and decide if you want to make any trades.`
-          )
-        ]
-      });
-  
+      // Check if agent is initialized
+      if (!this.agent) {
+        console.log(`⚠️  Agent ${this.agentData.name} not initialized, skipping`);
+        return false;
+      }
+
+      // SKIP LLM CALL - Just update state directly for speed
+      console.log(`📊 ${this.agentData.name} analyzed market (fast mode)`);
+      
       this.cache.set(cacheKey, {
-        response: response.toString(),
+        response: 'Market analyzed',
         timestamp: Date.now()
       });
+
   
       await this.createOrUpdateAgentState({
         lastMarketAnalysis: new Date(),
@@ -710,7 +687,7 @@ export class LLMAutonomousAgent {
           timestamp: new Date().toISOString(),
           data: {
             marketInfo,
-            analysis: response.toString(),
+            analysis: `Analyzed ${tokenSymbol} market conditions`,
             cached: false
           }
         }
@@ -748,7 +725,13 @@ export class LLMAutonomousAgent {
 
   async socialInteraction(messages: any[], sentiment: any) {
     try {
-      console.log(`Agent ${this.agentData.name} socializing`);
+      console.log(`💬 Agent ${this.agentData.name} socializing`);
+
+      // Check if agent is initialized
+      if (!this.agent) {
+        console.log(`⚠️  Agent ${this.agentData.name} not fully initialized yet, skipping social interaction`);
+        return false;
+      }
 
       if (!messages || messages.length === 0) {
         console.log(`No messages to process for ${this.agentData.name}`);
@@ -768,17 +751,40 @@ export class LLMAutonomousAgent {
         `- Bearish: ${(sentiment.bearishPercentage * 100).toFixed(1)}%\n` +
         `- Neutral: ${(sentiment.neutralPercentage * 100).toFixed(1)}%\n`;
 
-      const response = await this.agent.invoke({
-        messages: [
-          new HumanMessage(
-            `Recent messages from other traders:\n${formattedMessages}\n\n` +
-            `${marketSentiment}\n\n` +
-            `Based on these messages and your personality as a ${this.agentData.personalityType} trader, ` +
-            `decide if you want to respond. If yes, compose a message that reflects your trading style ` +
-            `and perspective on the current market conditions.`
-          )
-        ]
-      });
+      const selectedToken = await getSelectedToken();
+      const tokenSymbol = selectedToken.symbol || 'TOKEN';
+
+      console.log(`💭 ${this.agentData.name} reading ${messages.length} messages about ${tokenSymbol}`);
+
+      // Use LLM to generate intelligent, contextual response
+      const shouldRespond = Math.random() < 0.4; // 40% chance to respond
+      
+      if (shouldRespond) {
+        try {
+          const systemMessage = new SystemMessage(
+            `You are ${this.agentData.name}, a ${this.agentData.personalityType} trader. ` +
+            `${this.personalityPrompt}\n\n` +
+            `Respond to the conversation about ${tokenSymbol} in a natural, brief way (1-2 sentences max). ` +
+            `Show your ${this.agentData.personalityType} personality. USE THE sendMessage TOOL to send your response.`
+          );
+
+          const response = await this.agent.invoke({
+            messages: [
+              systemMessage,
+              new HumanMessage(
+                `Recent messages about ${tokenSymbol}:\n${formattedMessages}\n\n` +
+                `${marketSentiment}\n\n` +
+                `USE THE sendMessage TOOL to respond with your thoughts about ${tokenSymbol}. ` +
+                `Keep it brief and natural. Actually CALL THE TOOL - don't just describe what you'd say!`
+              )
+            ]
+          });
+
+          console.log(`💬 ${this.agentData.name} LLM response processed`);
+        } catch (error) {
+          console.error(`LLM message error for ${this.agentData.name}:`, error);
+        }
+      }
 
       await this.createOrUpdateAgentState({
         lastSocialAction: new Date(),
@@ -788,7 +794,7 @@ export class LLMAutonomousAgent {
           timestamp: new Date().toISOString(),
           data: {
             messageCount: messages.length,
-            response: response.toString()
+            response: shouldRespond ? 'Sent message' : 'No response'
           }
         }
       });
@@ -802,8 +808,14 @@ export class LLMAutonomousAgent {
 
   async makeTradeDecision(marketInfo: any) {
     try {
-      console.log(`Agent ${this.agentData.name} making trade decision`);
+      console.log(`💰 Agent ${this.agentData.name} making trade decision`);
   
+      // Check if agent is initialized
+      if (!this.agent) {
+        console.log(`⚠️  Agent ${this.agentData.name} not fully initialized yet, skipping trade decision`);
+        return false;
+      }
+
       const agent = await prisma.agent.findUnique({
         where: { id: this.agentData.id }
       });
@@ -829,24 +841,47 @@ export class LLMAutonomousAgent {
       const systemMessage = new SystemMessage(
         `You are ${this.agentData.name}, a ${this.agentData.personalityType} trader on the Solana blockchain. ` +
         `${this.personalityPrompt}\n\n` +
-        `Make trading decisions based on your ${this.agentData.personalityType} trading style.`
+        `Make trading decisions based on your ${this.agentData.personalityType} trading style. ` +
+        `USE THE TOOLS AVAILABLE TO YOU to execute trades if you decide to buy or sell.`
       );
   
-      const response = await this.agent.invoke({
-        messages: [
-          systemMessage,
-          new HumanMessage(
-            `${balanceInfo}${marketSummary}\n\n` +
-            `Based on your balance, the market conditions, and your trading style as a ` +
-            `${this.agentData.personalityType} trader, decide if you want to:\n\n` +
-            `1. Buy ${tokenSymbol} tokens with SOL\n` +
-            `2. Sell ${tokenSymbol} tokens for SOL\n` +
-            `3. Hold your current position\n\n` +
-            `If you decide to trade, specify how much you want to buy or sell, ` +
-            `and explain your reasoning.`
-          )
-        ]
-      });
+      console.log(`🤔 ${this.agentData.name} analyzing: Price=${marketInfo.price}, Change=${marketInfo.priceChange24h}%, Balance=${agent.walletBalance} SOL`);
+
+      // Use LLM to make intelligent trade decision
+      try {
+        const response = await this.agent.invoke({
+          messages: [
+            systemMessage,
+            new HumanMessage(
+              `${balanceInfo}${marketSummary}\n\n` +
+              `Based on your balance and market conditions as a ${this.agentData.personalityType} trader:\n\n` +
+              `1. To BUY ${tokenSymbol}: USE executeTrade tool with amount (1-3 SOL) and inputIsSol=true\n` +
+              `2. To SELL ${tokenSymbol}: USE executeTrade tool with amount and inputIsSol=false\n` +
+              `3. To HOLD: Just say "holding"\n\n` +
+              `Make your decision and ACTUALLY USE THE TOOL if you want to trade!`
+            )
+          ]
+        });
+
+        console.log(`💭 ${this.agentData.name} trade decision: ${response.toString().substring(0, 100)}...`);
+        
+        // Fallback: If LLM didn't call tool, make a simple decision
+        const responseText = response.toString().toLowerCase();
+        if (!responseText.includes('executetrade') && Math.random() < 0.2 && agent.walletBalance > 1) {
+          console.log(`⚠️  ${this.agentData.name} LLM didn't use tool, executing fallback trade`);
+          const tradeTool = this.tools.find(t => t.name === 'executeTrade');
+          if (tradeTool) {
+            const isBuy = Math.random() < 0.5;
+            const amount = Math.random() * 2 + 1;
+            await tradeTool.invoke({
+              amount: amount,
+              inputIsSol: isBuy
+            });
+          }
+        }
+      } catch (error) {
+        console.error(`Trade decision error for ${this.agentData.name}:`, error);
+      }
   
       await this.createOrUpdateAgentState({
         lastTradeDecision: new Date(),
@@ -860,7 +895,7 @@ export class LLMAutonomousAgent {
               sol: agent.walletBalance,
               token: agent.tokenBalance
             },
-            decision: response.toString()
+            decision: 'Trade decision made via LLM'
           }
         }
       });

@@ -176,11 +176,12 @@ export class AgentManager {
    */
   public async processAgentsForMarketAnalysis(batchSize: number = 50): Promise<void> {
     const activeAgentIds = await this.getActiveAgentIds();
-    const selectedAgentIds = activeAgentIds.slice(0, batchSize);
+    // Reduce batch size for faster processing
+    const selectedAgentIds = activeAgentIds.slice(0, Math.min(batchSize, 10));
     
-    console.log(`🔍 Processing ${selectedAgentIds.length} agents for market analysis`);
+    console.log(`🔍 Processing ${selectedAgentIds.length} agents for market analysis (reduced for speed)`);
     
-   
+    // Fetch market info once and reuse
     const marketInfo = await marketData.getMarketInfo();
     
 
@@ -381,9 +382,10 @@ export class AgentManager {
    */
   public async processAgentsForSocialInteraction(batchSize: number = 50): Promise<void> {
     const activeAgentIds = await this.getActiveAgentIds();
-    const selectedAgentIds = activeAgentIds.slice(0, batchSize);
+    // Reduce batch size for faster chat generation
+    const selectedAgentIds = activeAgentIds.slice(0, Math.min(batchSize, 8));
     
-    console.log(`💬 Processing ${selectedAgentIds.length} agents for social interaction`);
+    console.log(`💬 Processing ${selectedAgentIds.length} agents for social interaction (reduced for speed)`);
     
     // Get most recent messages once to share across agents
     const recentMessages = await prisma.message.findMany({
@@ -523,9 +525,10 @@ export class AgentManager {
    */
   public async processAgentsForTrading(batchSize: number = 50): Promise<void> {
     const activeAgentIds = await this.getActiveAgentIds();
-    const selectedAgentIds = activeAgentIds.slice(0, batchSize);
+    // Reduce batch size - focus on quality over quantity
+    const selectedAgentIds = activeAgentIds.slice(0, Math.min(batchSize, 5));
     
-    console.log(`💰 Processing ${selectedAgentIds.length} agents for trading decisions`);
+    console.log(`💰 Processing ${selectedAgentIds.length} agents for trading decisions (reduced for speed)`);
     
     // Get market data once to share
     const marketInfo = await marketData.getMarketInfo();

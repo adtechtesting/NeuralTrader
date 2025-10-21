@@ -203,31 +203,26 @@ export const marketEvents = eventEmitter;
 export const marketData = {
   async getMarketInfo(): Promise<MarketInfo> {
     try {
+      // Use pool state as primary source (faster, no Jupiter dependency)
+      const poolState = await prisma.poolState.findFirst({
+        where: { id: 'main_pool' }
+      });
+
       const marketState = await prisma.marketState.findFirst({
         orderBy: {
           timestamp: 'desc'
         }
       });
 
-      const poolState = await prisma.poolState.findFirst({
-        where: { id: 'main_pool' }
-      });
-
-      // Fetch real price from Jupiter for selected token
-      let realPrice = marketState?.price || 0;
-      try {
-        const selectedToken = await getSelectedToken();
-        const jupiterPrice = await getPrice(selectedToken.mint);
-        if (jupiterPrice !== null) {
-          realPrice = jupiterPrice;
-        }
-      } catch (e) {
-        console.log('Could not fetch Jupiter price, using pool price');
+      // Calculate price from pool if available (constant product formula)
+      let price = marketState?.price || 0;
+      if (poolState && poolState.solAmount > 0 && poolState.tokenAmount > 0) {
+        price = poolState.solAmount / poolState.tokenAmount;
       }
 
       return {
-        price: realPrice,
-        liquidity: marketState?.liquidity || 0,
+        price,
+        liquidity: poolState?.solAmount || marketState?.liquidity || 0,
         volume24h: marketState?.volume24h || 0,
         priceChange24h: marketState?.priceChange24h || 0,
         poolState: poolState || null
