@@ -1117,7 +1117,7 @@ export default function MonitoringPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
+          className=""
         >
      
           <div className="relative group">
@@ -1127,7 +1127,7 @@ export default function MonitoringPage() {
                 <TrendingUp className="mr-2 w-5 h-5 text-purple-400" />
                 Market Activity
               </h3>
-              <div className="h-150">
+              <div className="h-full">
                 <MarketVisualization />
               </div>
             </div>

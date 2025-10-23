@@ -1,19 +1,25 @@
 "use client";
 import React from "react";
+import { motion } from "framer-motion";
 
 export const MenuItem = ({
-  setActive, // can be removed if unused elsewhere
+  setActive,
   item,
 }: {
   setActive: (item: string) => void;
   item: string;
 }) => {
   return (
-    <div onMouseEnter={() => setActive(item)} className="relative bg-transparent">
-      <p className="cursor-pointer  hover:opacity-[0.9]  text-gray-200 hover:text-purple-300 transition-colors px-5 py-2 text-lg">
+    <motion.div 
+      onMouseEnter={() => setActive(item)} 
+      className="relative"
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+    >
+      <p className="cursor-pointer text-gray-300 hover:text-white transition-colors px-6 py-3.5 text-lg font-semibold rounded-xl hover:bg-white/5">
         {item}
       </p>
-    </div>
+    </motion.div>
   );
 };
 
@@ -27,7 +33,7 @@ export const Menu = ({
   return (
     <nav
       onMouseLeave={() => setActive(null)}
-      className="relative rounded-full border border-transparent text-neutral-400 shadow-input flex justify-center space-x-4 px-8 py-6"
+      className="relative flex justify-center items-center space-x-2"
     >
       {children}
     </nav>
@@ -46,17 +52,24 @@ export const ProductItem = ({
   src: string;
 }) => {
   return (
-    <a href={href} className="flex space-x-2">
+    <a 
+      href={href} 
+      className="flex space-x-4 p-4 rounded-xl hover:bg-white/5 transition-all duration-300 group"
+    >
       <img
         src={src}
-        width={140}
-        height={70}
+        width={160}
+        height={90}
         alt={title}
-        className="shrink-0 rounded-md shadow-2xl"
+        className="shrink-0 rounded-lg shadow-lg border border-white/10 group-hover:border-white/20 transition-colors"
       />
       <div>
-        <h4 className="text-xl font-bold mb-1 text-neutral-300">{title}</h4>
-        <p className="text-neutral-white text-sm max-w-[10rem]">{description}</p>
+        <h4 className="text-md font-bold mb-2 text-white group-hover:text-gray-100">
+          {title}
+        </h4>
+        <p className="text-gray-400 text-base max-w-[12rem] leading-relaxed">
+          {description}
+        </p>
       </div>
     </a>
   );
@@ -66,7 +79,7 @@ export const HoveredLink = ({ children, ...rest }: any) => {
   return (
     <a
       {...rest}
-      className="text-neutral-700 hover:text-black"
+      className="text-gray-300 hover:text-white transition-colors duration-200 text-base font-semibold"
     >
       {children}
     </a>

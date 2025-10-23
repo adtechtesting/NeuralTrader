@@ -1,7 +1,7 @@
 
 # NeuralTrader
 
-A sophisticated simulation of an autonomous AI-powered trading ecosystem where hundreds of LLM-powered AI agents interact,communicate with each other and marketplace to trade a custom token (NURO) in the Solana environment or decentralized marketplace.
+A sophisticated simulation of an autonomous AI-powered trading ecosystem where hundreds of LLM-powered AI agents interact, communicate with each other and marketplace to trade a custom token in the Solana environment or decentralized marketplace.
 
 ---
 
@@ -13,63 +13,71 @@ This simulation demonstrates how AI agents can form emergent behaviors in financ
 
 ---
 
-## Live Demo  
+## Live Demo
 
 - https://neural-trader.vercel.app/
 
 ---
 
-## Problem ?
- 
-- Traditional simulators use hard-coded bots which do not adapt to new market conditions ,cannot communicate with other traders ,no social behaviors which results to fomo and emotional decision making in market.  
-- In the market , human traders are very limited which struggles to large amount of data ,especially across multiple assets.
-- Current AMM lacks social layers they just focus on how pool works but they fail to capture how news spread accross a market or sentiment shifts 
+## Problem Solved
+
+- **Before**: Traditional simulators used hard-coded bots that didn't adapt to market conditions, couldn't communicate, and lacked social behaviors
+- **Before**: Limited human traders struggling with large amounts of data across multiple assets
+- **Before**: AMM systems lacking social layers and sentiment analysis
+- **Before**: Repetitive template messages without personality or context
+- **Before**: Monitoring pages not updating with real-time data
 
 ---
 
-## Solution Why NeuralTrader
+## Solution - Why NeuralTrader
 
-- It not just a bot based market simulator It's ecosystem where large number of ai agents built with LangChain which will trade a NURO custom token on decentralized exchange built on on-chain AMM simulation.
-- Market decision will based on market signals ,agent communication.
-- Each agent have different personality , behavior ,risk profile and strategy 
-- Agents communicate, learn, and evolve strategies using LangChain reasoning + OpenAI LLMs, forming a dynamic, self-adjusting market. 
-- All actions happen on-chain using the Solana Agent Kit: simulated liquidity pool behavior , fast transactions ,market-sentiment-informed decision making
+- **Advanced AI Ecosystem**: Large number of AI agents built with LangChain that trade custom tokens on a decentralized exchange with on-chain AMM simulation
+- **Dynamic Market Decisions**: Based on market signals, agent communication, and personality-driven strategies
+- **Unique Agent Personalities**: Each agent has different behavior, risk profile, and communication style (Aggressive, Conservative, Contrarian, etc.)
+- **Real LLM Integration**: Agents communicate, learn, and evolve using LangChain + OpenAI/Ollama LLMs with proper tool calling
+- **Social Trading Layer**: Agents share insights, react to market movements, and influence each other's decisions
+- **Real-time Monitoring**: Live visualization of market data, trading activities, and agent interactions
+- **Configurable Everything**: Adjust agent count, personalities, simulation speed, and token selection
 
 
 NeuralTrader is more than just a simulation — it's a sandbox for the future of DeFi. A place where intelligent agents evolve, influence one another, and drive real economic behavior in a programmable financial world.
-It's a step toward AI-native trading protocols and autonomous crypto economies.
 
 ---
 
 ## Key Features
 
-- **Autonomous AI Agents**: 500+ unique agents with different personalities, risk tolerances, and trading strategies  
-- **Realistic Market Mechanism**: Automated Market Maker (AMM) that simulates a decentralized exchange with proper pricing, slippage, and liquidity dynamics  
-- **Agent Communication**: Agents share information and react to market movements through a public chat system  
-- **Real-time Monitoring**: Visualization of market data, trading activities, and agent interactions  
-- **Configurable Simulation**: Adjust parameters like number of agents, agent personalities, and simulation speed  
-- **Agent-Test/Create**:Connect Solana wallet and Create a test ai agent or request airdop in Devnet mode and  actively working on enabling agent creation using different LLM providers
+- **🤖 Autonomous AI Agents**: 500+ unique agents with different personalities, risk tolerances, and trading strategies
+- **📊 Realistic Market Mechanism**: Automated Market Maker (AMM) that simulates a decentralized exchange with proper pricing, slippage, and liquidity dynamics
+- **💬 Advanced Agent Communication**: Agents share information and react to market movements through a personality-driven chat system
+- **📈 Real-time Monitoring**: Live visualization of market data, trading activities, and agent interactions with proper data formatting
+- **⚙️ Configurable Simulation**: Adjust parameters like number of agents, agent personalities, simulation speed, and token selection
+- **🔧 Agent Creation**: Connect Solana wallet and create test AI agents or request airdrops in Devnet mode
+- **🧠 Multi-LLM Support**: Works with OpenAI API and local Ollama for cost-effective operation
+- **🎭 Personality System**: 10+ distinct personality types (Aggressive, Conservative, Contrarian, Technical, etc.) with unique communication styles
+- **🔄 Tool Integration**: Real LLM tool calling for market analysis, messaging, and trading decisions
 
 ---
 
 ## Tech Stack
 
-- **Next.js**  
-- **TypeScript**  
-- **Prisma(ORM)** 
-- **Solana Agent Kit**  
-- **SolanaWeb3.js**  
-- **PostgreSQL (Neon.tech)**  
-- **LangChain**  
-- **OpenAI API**  
-- **recharts**  
+- **Next.js** - React framework for the web interface
+- **TypeScript** - Type-safe JavaScript development
+- **Prisma(ORM)** - Database management and migrations
+- **Solana Agent Kit** - Blockchain integration and trading
+- **SolanaWeb3.js** - Solana blockchain interaction
+- **PostgreSQL (Neon.tech)** - Cloud database hosting
+- **LangChain** - LLM orchestration and tool calling
+- **OpenAI API** - Primary LLM provider for agent intelligence
+- **Ollama** - Local LLM alternative for cost-effective operation
+- **recharts** - Data visualization components
 
 ---
 
 ## Prerequisites
 
-- Node.js 
-- OpenAI API key  
+- Node.js 18+
+- OpenAI API key (for LLM features) or Ollama (for local operation)
+- PostgreSQL database (Neon.tech recommended)
 
 ---
 
@@ -80,7 +88,7 @@ It's a step toward AI-native trading protocols and autonomous crypto economies.
 ```bash
 git clone https://github.com/Anantdadhich/NeuralTrader.git
 cd NeuralTrader
-````
+```
 
 ### 2. Install dependencies
 
@@ -99,19 +107,21 @@ DATABASE_URL=postgresql://..........
 OPENAI_API_KEY=your_openai_api_key
 NEXT_PUBLIC_RPC_URL=http://localhost:8899
 RPC_URL=https://api.devnet.solana.com
-SOLANA_PRIVATE_KEY=your private key 
+SOLANA_PRIVATE_KEY=your private key
+# Optional: For local LLM operation
+OLLAMA_BASE_URL=http://localhost:11434
+USE_OLLAMA=true
 ```
 
 ---
 
 ## Database Setup with Prisma
 
-### Generate Prisma client 
+### Generate Prisma client
 
 ```bash
 npx prisma generate
-npx prisma db push   
-
+npx prisma db push
 ```
 
 ### Create initial database structure
@@ -122,11 +132,11 @@ npx prisma migrate dev --name init
 
 ---
 
-## Deploy Trading token ans Setup AI Agents
+## Deploy Trading Token and Setup AI Agents
 
 ### Deploy Trading Token
 
-This creates the NURO token on the simulated blockchain:
+This creates the custom token on the simulated blockchain:
 
 ```bash
 node deploy-token-script.js
@@ -134,50 +144,48 @@ node deploy-token-script.js
 
 ### Create LLM Agents
 
-Create 50 AI agents with various personalities:
+Create AI agents with various personalities:
 
 ```bash
-node setup-llm-agents.js 50   
+node setup-llm-agents.js 50
 ```
 
---- 
+### Configure Token Selection
 
-## ScreenShots 
-  - https://github.com/Anantdadhich/NeuralTrader/tree/main/screenshots
-
-    As you see how the market changes in the ss below, due to openai api limits and costs it caused errors now but to run(locally) you can use your openai api key and simulate with market analysis in solana environment.
-    ![alt text](screenshots/data.png)
-    ![alt text](screenshots/data2.png)
+Choose which token the agents will trade by updating the configuration:
 
 ---
 
-## Future Reference 
 
-NeuralTrader is currently running in a local simulation mode, using the Solana Agent Kit and OpenAI API to power autonomous trading of the custom NURO token  .
+## Screenshots
 
-Due to OpenAI API rate limits and associated costs, the mainnet deployment is on hold. Once better API access is available, we plan to fully deploy the simulation to Solana mainnet, enabling real token trades and deeper agent interactions and To run this project simulation, you need an OpenAI API key.
+- https://github.com/Anantdadhich/NeuralTrader/tree/main/screenshots
 
-Also users will be able to create AI agents using different LLM providers (such as OpenAI, Gemini, Claude, etc.), making the ecosystem more modular and extensible based on the user's preference or performance of the model.
+As you can see in the screenshots below, the market changes dynamically with real agent interactions:
 
-This project was built for Solana Breakout, and further development is ongoing to expand agent intelligence, real market integration, and research-grade analytics and solving so many issues still happening .
- 
+![Market Data](screenshots/data.png)
+![Agent Activity](screenshots/data2.png)
+
+---
+
+## Future Reference
+
+NeuralTrader is currently running in an enhanced simulation mode, using the Solana Agent Kit and multiple LLM providers (OpenAI + Ollama) to power autonomous trading of custom tokens.
+
+**Ongoing Development:**
+- Real market integration with Solana mainnet
+- Multi-LLM provider support (Gemini, Claude, etc.)
+- Advanced analytics and research-grade metrics
+- Enhanced agent learning and evolution systems
+
+To run this project simulation, you need an OpenAI API key or can use local Ollama for cost-free operation.
+
 ---
 
 ## Contributing
-
-Contributors are most welcome  To get started:
-
-Fork the repository
-
-Create a new branch 
-
-Install dependencies and implement your changes
-
-Submit a Pull Request 
 
 ---
 
 ## Built By
 
 - **Adtech**
-

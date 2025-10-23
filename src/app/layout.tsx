@@ -1,7 +1,6 @@
 
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Lexend_Deca } from 'next/font/google';
-import { SmoothCursor } from "@/components/ui/smooth";
 
 import "./globals.css";
 import { WalletContextProvider } from "@/components/Walletprovider";
@@ -44,7 +43,7 @@ export default function RootLayout({
     <body className={`${mainFont.variable} ${secondaryFont.variable} font-mainFont antialiased`}>
       <WalletContextProvider>
         <NavbarDemo/>
-        <SmoothCursor />
+     
         <Toaster></Toaster>
        <MobilePopupWarning></MobilePopupWarning>
         {children}

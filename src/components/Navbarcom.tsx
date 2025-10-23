@@ -67,7 +67,7 @@ function Navbar({ className }: { className?: string }) {
     >
       <div className="flex justify-between items-center bg-transparent shadow-md rounded-xl border  backdrop-blur-md  ">
         <Link href="/" className="text-2xl font-bold  px-2  tracking-tight text-white">
-          NeuralTrader
+          Neuraltrader
         </Link>
 
        
