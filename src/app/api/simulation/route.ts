@@ -79,7 +79,7 @@ async function getSimulationStatus() {
   const status = await simulationEngine.getStatus();
   
   // Try to get market data, but with fallback
-  let poolStats;
+  let poolStats: any;
   try {
     const poolStatsPromise = amm.getPoolStats();
     const timeoutPromise = new Promise((_, reject) => {
@@ -128,7 +128,18 @@ async function getSimulationStatus() {
   // Combine all data
   return {
     ...status,
-    market: poolStats,
+    market: {
+      price: poolStats.price || 0,
+      solReserve: poolStats.poolState?.solAmount || 0,
+      tokenReserve: poolStats.poolState?.tokenAmount || 0,
+      volume24h: poolStats.volume24h || 0,
+      high24h: poolStats.price || 0, // Use current price as high24h if no historical data
+      low24h: poolStats.price || 0,  // Use current price as low24h if no historical data
+      operationCount: poolStats.poolState?.operationCount || 0,
+      successRate: 0.95, // Default success rate
+      priceChange24h: poolStats.priceChange24h || 0,
+      liquidity: poolStats.liquidity || 0
+    },
     agents: agentStats,
     timestamp: Date.now()
   };

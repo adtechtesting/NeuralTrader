@@ -384,27 +384,24 @@ export class AgentManager {
     const activeAgentIds = await this.getActiveAgentIds();
     // Reduce batch size for faster chat generation
     const selectedAgentIds = activeAgentIds.slice(0, Math.min(batchSize, 8));
-    
+
     console.log(`💬 Processing ${selectedAgentIds.length} agents for social interaction (reduced for speed)`);
-    
+
     // Get most recent messages once to share across agents
     const recentMessages = await prisma.message.findMany({
       take: 30,
       orderBy: { createdAt: 'desc' },
       include: { sender: { select: { id: true, name: true, personalityType: true } } }
     }) as Message[];
-    
+
     console.log(`Found ${recentMessages.length} recent messages for agents to process`);
-    
+
     const marketSentiment = await marketData.getMarketSentiment();
-    
-    // First pass: Have agents analyze messages and decide if they want to respond
-    const responsesToGenerate: Array<{ agentId: string; response: string }> = [];
-    
+
     // Track success/failure
     let interactionCount = 0;
     let errorCount = 0;
-    
+
     // Process agents in parallel with concurrency control
     await pMap(
       selectedAgentIds,
@@ -416,24 +413,20 @@ export class AgentManager {
             const didInteract = await agent.socialInteraction(recentMessages, marketSentiment);
             this.lastAccessTime.set(agentId, Date.now());
             interactionCount++;
-            
-            // Get agent state to see if they want to send a message
-            const agentState = await prisma.agentState.findUnique({
-              where: { agentId }
+
+            // Check if the agent created any new messages by using the send_message tool
+            // Instead of parsing agent state, check for new messages in the database
+            const agentMessages = await prisma.message.findMany({
+              where: {
+                senderId: agentId,
+                createdAt: { gte: new Date(Date.now() - 30000) } // Last 30 seconds
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 1
             });
-            
-            // Check if the agent's response contains intent to send a message
-            const lastDecision = agentState?.lastDecision as { data?: { response?: string } } | null;
-            const responseText = lastDecision?.data?.response?.toString() || '';
-            
-            // For LLM agents that generate responses to messages, track if a follow-up is needed
-            if (
-              responseText.includes('I would like to respond') || 
-              responseText.includes('I will send a message') ||
-              responseText.includes('I want to share my') ||
-              responseText.includes('Here\'s what I would say')
-            ) {
-              responsesToGenerate.push({ agentId, response: responseText });
+
+            if (agentMessages.length > 0) {
+              console.log(`✅ ${agent.agentData.name} created message: "${agentMessages[0].content.substring(0, 50)}..."`);
             }
           }
         } catch (error) {
@@ -443,81 +436,8 @@ export class AgentManager {
       },
       { concurrency: this.maxConcurrent }
     );
-    
-    // Second pass: For agents who decided to respond, create actual messages
-    console.log(`📝 ${responsesToGenerate.length} agents want to respond to messages`);
-    
-    let messageCount = 0;
-    
-    if (responsesToGenerate.length > 0) {
-      await pMap(
-        responsesToGenerate,
-        async ({ agentId, response }) => {
-          try {
-            // Get agent state to extract message content
-            const agentState = await prisma.agentState.findUnique({
-              where: { agentId },
-              include: { agent: true }
-            });
-            
-            if (!agentState) return;
-            
-            // Get agent data for sending message
-            const { agent } = agentState;
-            const lastDecision = agentState.lastDecision as { data?: { response?: string } } | null;
-            const responseText = lastDecision?.data?.response?.toString() || '';
-            
-            // Extract a message from the response
-            // This is a simple heuristic - the LLM handling would be more sophisticated
-            let messageContent = '';
-            
-            // Look for content that appears to be a message
-            if (responseText.includes('"')) {
-              // Try to extract content between quotes
-              const matches = responseText.match(/"([^"]+)"/);
-              if (matches && matches.length > 1) {
-                messageContent = matches[1];
-              }
-            } else if (responseText.includes('\n\n')) {
-              // Take content after double newline as likely being the message
-              const parts = responseText.split('\n\n');
-              messageContent = parts[parts.length - 1].trim();
-            } else {
-              // Just take the last 100 characters as a fallback
-              messageContent = responseText.slice(-100).trim();
-            }
-            
-            // Clean up and verify we have a valid message
-            messageContent = messageContent.replace(/^(I would say:|I'll respond with:|My message:|Message:)/i, '').trim();
-            
-            // Only create a message if we have extracted content
-            if (messageContent.length > 10) {
-              console.log(`Agent ${agent.name} creating message: ${messageContent.slice(0, 30)}...`);
-              
-              // Create the message
-              await prisma.message.create({
-                data: {
-                  content: messageContent,
-                  senderId: agentId,
-                  type: 'CHAT',
-                  visibility: 'public',
-                  sentiment: responseText.toLowerCase().includes('bearish') ? 'negative' : 
-                             responseText.toLowerCase().includes('bullish') ? 'positive' : 'neutral',
-                  mentions: []
-                }
-              });
-              
-              messageCount++;
-            }
-          } catch (error) {
-            console.error(`Error generating message for agent ${agentId}:`, error);
-          }
-        },
-        { concurrency: this.maxConcurrent / 2 } // Use lower concurrency for message generation
-      );
-    }
-    
-    console.log(`✅ Social interaction complete: ${interactionCount} interactions, ${messageCount} messages generated, ${errorCount} errors`);
+
+    console.log(`✅ Social interaction complete: ${interactionCount} interactions processed, ${errorCount} errors`);
   }
   
   /**

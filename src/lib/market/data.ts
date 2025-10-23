@@ -203,7 +203,19 @@ export const marketEvents = eventEmitter;
 export const marketData = {
   async getMarketInfo(): Promise<MarketInfo> {
     try {
-      // Use pool state as primary source (faster, no Jupiter dependency)
+      // Get selected token for live price data
+      const selectedToken = await getSelectedToken();
+
+      // Try to get live price from Jupiter first
+      let livePrice: number | null = null;
+      let liveLiquidity: number | null = null;
+
+      if (selectedToken.mint && selectedToken.mint !== 'So11111111111111111111111111111111111111112') {
+        livePrice = await getPrice(selectedToken.mint);
+        liveLiquidity = selectedToken.liquidity || 0;
+      }
+
+      // Use pool state as fallback for calculations
       const poolState = await prisma.poolState.findFirst({
         where: { id: 'main_pool' }
       });
@@ -214,16 +226,44 @@ export const marketData = {
         }
       });
 
-      // Calculate price from pool if available (constant product formula)
-      let price = marketState?.price || 0;
-      if (poolState && poolState.solAmount > 0 && poolState.tokenAmount > 0) {
+      // Use live price if available, otherwise calculate from pool
+      let price = livePrice || marketState?.price || 0;
+      if (!livePrice && poolState && poolState.solAmount > 0 && poolState.tokenAmount > 0) {
         price = poolState.solAmount / poolState.tokenAmount;
       }
 
+      // Calculate fresh 24h volume from actual transactions
+      const oneDayAgo = new Date();
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
+      const recentTransactions = await prisma.transaction.findMany({
+        where: {
+          confirmedAt: {
+            gte: oneDayAgo
+          },
+          status: 'CONFIRMED',
+          type: { in: ['SOL_TO_TOKEN', 'TOKEN_TO_SOL'] }
+        }
+      });
+
+      // Calculate volume based on SOL amounts for more accurate volume
+      const volume24h = recentTransactions.reduce((sum: number, tx: any) => {
+        // Convert token amounts to SOL value for volume calculation
+        if (tx.type === 'SOL_TO_TOKEN' && tx.amount) {
+          return sum + tx.amount; // SOL spent on token purchases
+        } else if (tx.type === 'TOKEN_TO_SOL' && tx.tokenAmount) {
+          // For token sales, calculate SOL value received
+          return sum + (tx.tokenAmount * price);
+        }
+        return sum;
+      }, 0);
+
+      console.log(`📊 Live market data: price=${price}, volume24h=${volume24h}, transactions=${recentTransactions.length}, token=${selectedToken.symbol}`);
+
       return {
         price,
-        liquidity: poolState?.solAmount || marketState?.liquidity || 0,
-        volume24h: marketState?.volume24h || 0,
+        liquidity: liveLiquidity || poolState?.solAmount || marketState?.liquidity || 0,
+        volume24h,
         priceChange24h: marketState?.priceChange24h || 0,
         poolState: poolState || null
       };
@@ -284,6 +324,15 @@ export const marketData = {
     try {
       console.log("Updating market state from pool data...");
 
+      // Get selected token for live price data
+      const selectedToken = await getSelectedToken();
+
+      // Try to get live price from Jupiter first
+      let livePrice: number | null = null;
+      if (selectedToken.mint && selectedToken.mint !== 'So11111111111111111111111111111111111111112') {
+        livePrice = await getPrice(selectedToken.mint);
+      }
+
       const poolState = await prisma.poolState.findFirst({
         where: { id: 'main_pool' }
       });
@@ -297,7 +346,12 @@ export const marketData = {
         orderBy: { timestamp: 'desc' }
       });
 
-      const price = poolState.solAmount / poolState.tokenAmount;
+      // Use live price if available, otherwise calculate from pool
+      let price = livePrice || 0;
+      if (!livePrice && poolState.solAmount > 0 && poolState.tokenAmount > 0) {
+        price = poolState.solAmount / poolState.tokenAmount;
+      }
+
       const priceChange24h = previousState
         ? ((price - previousState.price) / previousState.price) * 100
         : 0;
@@ -310,14 +364,24 @@ export const marketData = {
           confirmedAt: {
             gte: oneDayAgo
           },
-          status: 'CONFIRMED'
+          status: 'CONFIRMED',
+          type: { in: ['SOL_TO_TOKEN', 'TOKEN_TO_SOL'] }
         }
       });
 
-      const volume24h = recentTransactions.reduce((sum, tx) => sum + (tx.amount || 0), 0);
+      // Calculate volume based on SOL amounts for more accurate volume
+      const volume24h = recentTransactions.reduce((sum: number, tx: any) => {
+        if (tx.type === 'SOL_TO_TOKEN' && tx.amount) {
+          return sum + tx.amount; // SOL spent on token purchases
+        } else if (tx.type === 'TOKEN_TO_SOL' && tx.tokenAmount) {
+          return sum + (tx.tokenAmount * price);
+        }
+        return sum;
+      }, 0);
+
       const transactions24h = recentTransactions.length;
 
-      console.log(`Updating market data: price=${price}, volume24h=${volume24h}`);
+      console.log(`Updating market data: price=${price}, volume24h=${volume24h}, transactions=${transactions24h}`);
 
       const marketState = await prisma.marketState.create({
         data: {
@@ -333,11 +397,12 @@ export const marketData = {
             solReserve: poolState.solAmount,
             tokenReserve: poolState.tokenAmount,
             price,
+            livePrice: livePrice !== null,
+            tokenSymbol: selectedToken.symbol,
             lastUpdate: new Date().toISOString()
           },
           timestamp: new Date(),
           cacheVersion: 1
-          // Not setting historicalPrices since it's not computed
         }
       });
 

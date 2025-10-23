@@ -4,11 +4,7 @@ import { prisma } from '../../cache/dbCache';
 import { marketData } from '../../market/data';
 import { amm } from '@/lib/blockchain/amm'; // New import for bootstrapping the AMM
 
-/**
- * Startup function to initialize the simulation environment.
- * This ensures that critical blockchain components (e.g. the AMM pool) are bootstrapped
- * before the simulation agents begin their activities.
- */
+
 async function initializeSimulation() {
   try {
     console.log("Initializing simulation...");
@@ -24,12 +20,7 @@ async function initializeSimulation() {
   }
 }
 
-/**
- * SimulationEngine - Core orchestrator for the autonomous agent simulation
- * 
- * Handles the main simulation loop, phases, and coordinates all agent activities.
- * Optimized for handling thousands of agents with efficient resource management.
- */
+
 export class SimulationEngine {
   private static instance: SimulationEngine;
   private agentManager: AgentManager;
@@ -203,11 +194,9 @@ export class SimulationEngine {
         });
         
         if (!systemAgent) {
-          // Create a system agent for announcements
-          // Generate a random public key for the system agent
+         
           const randomPublicKey = `sys${Date.now().toString(36)}${Math.random().toString(36).substring(2, 7)}`;
-          // Use the FUNDER_PRIVATE_KEY for the system agent
-          // This is a simplified approach - in a real system you might use a dedicated system key
+        
           const systemPrivateKey = process.env.FUNDER_PRIVATE_KEY ||
             `sys_private_${Date.now().toString(36)}${Math.random().toString(36).substring(2, 15)}`;
           
@@ -254,44 +243,9 @@ export class SimulationEngine {
         await this.logSimulationEvent('INFO', `🔍 Processing ${initialAgents.length} agents for initial market analysis`);
         await this.agentManager.processAgentsForMarketAnalysis(initialAgents.length);
         
-        // Force a few agents to create messages
-        let messageCount = 0;
-        for (const agentId of initialAgents) {
-          try {
-            // Get agent data
-            const agent = await prisma.agent.findUnique({
-              where: { id: agentId },
-              select: { id: true, name: true, personalityType: true }
-            });
-            
-            if (agent) {
-              // Get selected token
-              const { getSelectedToken } = await import('../../config/selectedToken');
-              const selectedToken = await getSelectedToken();
-              const tokenSymbol = selectedToken.symbol || 'TOKEN';
-              
-              // Create a market observation message
-              const initialPrice = await this.getInitialPrice();
-              const message = await prisma.message.create({
-                data: {
-                  content: `I'm looking at the ${tokenSymbol} token market. Initial price seems to be set at ${initialPrice} SOL.`,
-                  senderId: agentId,
-                  type: 'MARKET_UPDATE',
-                  visibility: 'public',
-                  sentiment: Math.random() > 0.5 ? 'positive' : 'neutral',
-                  createdAt: new Date()
-                }
-              });
-              
-              messageCount++;
-              console.log(`Created bootstrap message for agent ${agent.name}: "${message.content}"`);
-            }
-          } catch (error) {
-            console.error(`Error creating bootstrap message for agent ${agentId}:`, error);
-          }
-        }
-        
-        await this.logSimulationEvent('INFO', `✓ Created ${messageCount} initial messages from agents`);
+        // Use LLM agents for social interaction instead of hardcoded messages
+        await this.logSimulationEvent('INFO', `💬 Processing ${initialAgents.length} agents for initial social interaction`);
+        await this.agentManager.processAgentsForSocialInteraction(initialAgents.length);
         
         // 4. Force a couple of initial trades
         let tradeCount = 0;
@@ -319,17 +273,8 @@ export class SimulationEngine {
             const selectedToken = await getSelectedToken();
             const tokenSymbol = selectedToken.symbol || 'TOKEN';
             
-            // Create a message about the trade
-            await prisma.message.create({
-              data: {
-                content: `Just bought some ${tokenSymbol} tokens. I like the initial price point.`,
-                senderId: agentId,
-                type: 'TRADE',
-                visibility: 'public',
-                sentiment: 'positive',
-                createdAt: new Date()
-              }
-            });
+            // Note: Removed hardcoded message creation - LLM agents handle their own social interactions
+            // The agents will generate their own messages through the socialInteraction method
             
             tradeCount++;
           } catch (error) {

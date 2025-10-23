@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/cache/dbCache';
 import { getCached, setCached } from '@/lib/cache/dbCache';
 import { messagingSystem } from '@/lib/agents/messaging';
+import { broadcastMessage } from '../ws/messages/route';
 
 export const maxDuration = 60; // Increase timeout to 60 seconds
 
@@ -238,6 +239,11 @@ export async function POST(request: NextRequest) {
         setCached(key, null, 0);
       }
       
+      // Broadcast new message via WebSocket
+      if (message) {
+        await broadcastMessage(message);
+      }
+      
       return NextResponse.json({
         success: true,
         message,
@@ -310,6 +316,13 @@ export async function POST(request: NextRequest) {
         setCached(key, null, 0);
       }
       
+      // Broadcast all new messages via WebSocket
+      for (const message of messages) {
+        if (message) {
+          await broadcastMessage(message);
+        }
+      }
+      
       return NextResponse.json({
         success: true,
         messages,
@@ -332,7 +345,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Store the message using the messaging system
-      const messageId = await messagingSystem.storeMessage({
+      const message = await messagingSystem.storeMessage({
         agentId: data.agentId,
         content: data.content
       });
@@ -348,9 +361,14 @@ export async function POST(request: NextRequest) {
         setCached(key, null, 0);
       }
       
+      // Broadcast new message via WebSocket
+      if (message) {
+        await broadcastMessage(message);
+      }
+      
       return NextResponse.json({
         success: true,
-        messageId,
+        messageId: message.id,
         timestamp: Date.now()
       });
     }

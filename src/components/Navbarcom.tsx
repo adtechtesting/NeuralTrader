@@ -82,6 +82,9 @@ function Navbar({ className }: { className?: string }) {
                <Link href="/agent-test">
                <MenuItem setActive={handleHover} item="Create Agent" />
                </Link>
+                <Link href="/token-setup">
+               <MenuItem setActive={handleHover} item="Select Token" />
+               </Link>
              </Menu>
           
         <div className="ml-4 z-10">

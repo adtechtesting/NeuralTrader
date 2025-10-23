@@ -2,12 +2,13 @@
 
 import { getPersonalityBehavior } from '../agents/personalities';
 import { getPrismaClient } from '../cache/dbCache';
-import { generateGroupChat } from '../agents/messaging';
+// import { generateGroupChat } from '../agents/messaging'; // Now used only as fallback
 import pLimit from 'p-limit';
 
 import { EventEmitter } from 'events';
 import { Axe } from 'lucide-react';
 import { makeAgentAct } from '../agents/agent-factory';
+import { marketData } from '../market/data';
 
 const prisma = getPrismaClient();
 
@@ -277,17 +278,26 @@ export async function startSimulation(config = {
       }
     });
     
-    // Initial social phase - generate some chat messages
+    // Initial social phase - use LLM agents for real interactions
     if (config.enableChatMessages) {
-      addLog('info', "Generating initial chat messages");
-      
+      addLog('info', "Starting LLM agent social interactions");
+
       try {
-        // Use the messaging system to generate initial chatter
-        const messageCount = Math.min(10, Math.floor(agentCount * 0.1)); // 10% of agents or max 10
-        await generateGroupChat(messageCount);
-        addLog('info', `Generated ${messageCount} initial messages`);
+        // Use LLM agents for real social interactions instead of templates
+        const socialInteractionCount = Math.min(5, Math.floor(agentCount * 0.05)); // 5% of agents or max 5
+        await triggerLLMSocialInteractions(socialInteractionCount);
+        addLog('info', `Started ${socialInteractionCount} LLM social interactions`);
       } catch (error) {
-        addLog('error', "Failed to generate initial messages", { error });
+        addLog('error', "Failed to start LLM social interactions", { error });
+        // Fallback to template system if LLM fails
+        try {
+          const messageCount = Math.min(10, Math.floor(agentCount * 0.1));
+          const { generateGroupChat } = await import('../agents/messaging');
+          await generateGroupChat(messageCount);
+          addLog('info', `Generated ${messageCount} fallback template messages`);
+        } catch (fallbackError) {
+          addLog('error', "Fallback template messaging also failed", { fallbackError });
+        }
       }
     }
     
@@ -450,9 +460,15 @@ async function scheduleNextBatch(config:any) {
       return;
     }
     
-    addLog('debug', `Selected ${agents.length} agents for next batch`);
-    
-    // Safety check - don't create more operations if we're already overloaded
+    // Every few batches, trigger LLM social interactions
+    if (Math.random() < 0.3 && config.enableChatMessages) { // 30% chance every batch
+      addLog('debug', "Triggering periodic LLM social interactions");
+      try {
+        await triggerLLMSocialInteractions(3); // 3 agents per social round
+      } catch (error) {
+        addLog('debug', "Periodic social interactions failed, continuing simulation", { error });
+      }
+    }
     if (operationQueue.length < MAX_QUEUE_SIZE) {
       // Queue operations for each selected agent
       for (const agent of agents) {
@@ -780,5 +796,75 @@ function processQueue() {
         currentOperations--; // Ensure we decrement even on fatal errors
       });
     }
+  }
+}
+
+/**
+ * Trigger real LLM-powered social interactions between agents
+ */
+async function triggerLLMSocialInteractions(count: number): Promise<void> {
+  try {
+    // Get recent messages and market sentiment for context
+    const recentMessages = await prisma.message.findMany({
+      take: 10,
+      where: { visibility: 'public' },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true,
+            personalityType: true
+          }
+        }
+      }
+    });
+
+    const marketInfo = await marketData.getMarketInfo();
+    const sentiment = await marketData.getMarketSentiment();
+
+    // Get active agents for social interaction
+    const agents = await prisma.agent.findMany({
+      where: { active: true },
+      select: {
+        id: true,
+        name: true,
+        personalityType: true
+      },
+      take: count
+    });
+
+    if (agents.length === 0) {
+      addLog('warn', 'No active agents found for LLM social interactions');
+      return;
+    }
+
+    // Import agent pool to get LLM agents
+    const { AgentPool } = await import('../agents/agent-factory');
+
+    // Create agent pool instance
+    const agentPool = new AgentPool({ maxSize: 50, useLLM: true });
+
+    // Trigger social interactions for each agent
+    const socialPromises = agents.map(async (agent) => {
+      try {
+        const llmAgent = await agentPool.getAgent(agent.id) as any;
+
+        if (llmAgent && llmAgent.socialInteraction) {
+          // Use the LLM agent's social interaction method
+          await llmAgent.socialInteraction(recentMessages, sentiment);
+          addLog('debug', `LLM social interaction completed for agent ${agent.name}`);
+        }
+      } catch (error) {
+        addLog('error', `LLM social interaction failed for agent ${agent.name}`, { error });
+      }
+    });
+
+    await Promise.allSettled(socialPromises);
+    addLog('info', `Completed LLM social interactions for ${agents.length} agents`);
+
+  } catch (error) {
+    addLog('error', 'Error in triggerLLMSocialInteractions', { error });
+    throw error;
   }
 }
