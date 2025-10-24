@@ -1,4 +1,4 @@
-import { PersonalityType } from './manager';
+import { PersonalityType, LLMProviderType } from './manager';
 
 export interface Agent {
   id: string;
@@ -9,6 +9,8 @@ export interface Agent {
   privateKey: string;
   walletBalance: number;
   createdAt: Date;
+  occupation?: string;
+  llmProvider?: LLMProviderType;
 }
 
 // In-memory storage for agents
@@ -20,7 +22,7 @@ export function saveAgent(agentData: Omit<Agent, 'id' | 'createdAt'>): Agent {
     id: `agent_${Math.random().toString(36).substring(2, 15)}`,
     createdAt: new Date()
   };
-  
+
   agents.push(newAgent);
   return newAgent;
 }

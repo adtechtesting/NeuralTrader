@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import TokenSelector from '@/components/TokenSelector';
 import { CheckCircle, ArrowRight, TrendingUp, Activity, Users, Zap } from 'lucide-react';
+import { LightRays } from '@/components/ui/lightrays';
 
 export default function TokenSetupPage() {
   const router = useRouter();
@@ -39,11 +40,11 @@ export default function TokenSetupPage() {
   return (
     <div className="min-h-screen w-full relative text-white overflow-hidden bg-black">
     
-    
+     <LightRays></LightRays>
       
       {/* Bottom Right Blurred Circle */}
       <div className="absolute bottom-0 -right-32 w-96 h-96 rounded-full bg-white opacity-5 blur-[120px] pointer-events-none" />
-
+        
       {/* Center Top Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full bg-white opacity-3 blur-[150px] pointer-events-none" />
 
@@ -81,7 +82,7 @@ export default function TokenSetupPage() {
           {/* Header with Icon Badge */}
           <div className="text-center mb-12">
    
-            <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
               Trading Simulation Setup
             </h1>
             <p className="text-white/50 text-lg md:text-xl max-w-xl mx-auto">

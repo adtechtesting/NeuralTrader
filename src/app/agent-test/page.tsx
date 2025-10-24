@@ -1,454 +1,430 @@
 'use client';
 
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { clusterApiUrl, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { ArrowRight, Users, Bot, Wallet } from 'lucide-react';
+import { LogoTicker } from '@/components/ui/logoticker';
+
+import { toast } from 'sonner';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { clusterApiUrl, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } from '@solana/web3.js';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { Connection } from '@solana/web3.js';
-import { toast } from 'sonner';
-import { Activity, Check, InfoIcon, List } from 'lucide-react';
-import { Transaction } from '@solana/web3.js';
-import { SystemProgram } from '@solana/web3.js';
-import { PublicKey } from '@solana/web3.js';
-import MobilePopupWarning from '@/components/mobilepopup';
 
 export default function AgentTestPage() {
   const [loading, setLoading] = useState(false);
-  const [tokenLoading, setTokenLoading] = useState(true);
-  const [agentsLoading, setAgentsLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [action, setAction] = useState<'create-agent' | 'request-airdrop'>('create-agent');
-  const [tokenDetails, setTokenDetails] = useState<any>(null);
   const [agents, setAgents] = useState<any[]>([]);
-  const [agentName, setAgentName] = useState('TestAgent');
-  const [personalityType, setPersonalityType] = useState('ANALYTICAL');
-  const [publicKey, setPublicKey] = useState('');
-  const [airdropAmount, setAirdropAmount] = useState(1);
+  const [formData, setFormData] = useState({
+    name: '',
+    personalityType: 'ANALYTICAL',
+    llmProvider: 'OPENAI',
+    initialBalance: 5,
+    occupation: 'Trader'
+  });
   const router = useRouter();
 
+  // Wallet integration
   const wallet = useWallet();
-  const network = WalletAdapterNetwork.Devnet; 
-  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
-  const connection = useMemo(() => new Connection(endpoint), [endpoint]); 
-  const { connected, publicKey: walletPublicKey, sendTransaction } = wallet;
-  const [walletbalance, setwalletbalance] = useState<number|null>(null);
-  const [isAllowed, setisAllowed] = useState(false);      
+  const network = WalletAdapterNetwork.Devnet;
+  const endpoint = clusterApiUrl(network);
+  const connection = new Connection(endpoint);
+  const { connected, publicKey: walletPublicKey, signTransaction } = wallet;
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+
+  const personalityOptions = [
+    { value: 'ANALYTICAL', label: 'Analytical' },
+    { value: 'CREATIVE', label: 'Creative' },
+    { value: 'SOCIAL', label: 'Social' },
+    { value: 'STRATEGIC', label: 'Strategic' }
+  ];
+
+  const llmProviderOptions = [
+    { value: 'OPENAI', label: 'OpenAI (GPT-4)' },
+    { value: 'GEMINI', label: 'Google Gemini' },
+    { value: 'ANTHROPIC', label: 'Anthropic Claude' },
+    { value: 'MISTRAL', label: 'Mistral AI' },
+    { value: 'LOCAL', label: 'Local Ollama' }
+  ];
 
   useEffect(() => {
-    if(wallet.publicKey) {
+    if (wallet.publicKey) {
       checkBalance();
     }
-  },[wallet.publicKey]);
-
-  const checkBalance = async () => {
-    if(!wallet.publicKey) {
-      return Error("wallet not connected");
-    }
-
-    try {
-      const balance = await connection.getBalance(wallet.publicKey); 
-      const balanceinsol = balance / LAMPORTS_PER_SOL;
-      setwalletbalance(balanceinsol);  
-
-      if(balance < 0.05) {
-        return Error("At least 0.05 sol required");
-      }
-      setisAllowed(balanceinsol >= 0.05);
-    } catch (error) { 
-      console.log(error, "error in getting balanace");
-    }
-  };
+  }, [wallet.publicKey]);
 
   useEffect(() => {
-    if (!connected) {
-      router.push("/");
-      toast.warning("Connect Your Solana Wallet to see the Agent Test");
-    } else if (walletPublicKey) {
-      setPublicKey(walletPublicKey.toString());
-    }
-  }, [connected, router, walletPublicKey]);
-  
-  useEffect(() => {
-    setTokenDetails({
-      name: 'NURO',
-      symbol: '$NURO',
-      decimals: 9,
-      mintAddress: walletPublicKey ? walletPublicKey.toString() : 'ErsH1VbZrHpdsWZUAEhrgpVqQchT6QRHJHyAvdsPmyB8',
-    });
-    setTokenLoading(false);
     loadAgents();
-  }, [walletPublicKey]);
+  }, []);
 
   const loadAgents = async () => {
     try {
-      setAgentsLoading(true);
       const response = await fetch('/api/agents');
       const data = await response.json();
       setAgents(data.agents || []);
     } catch (error) {
       console.error('Error loading agents:', error);
-    } finally {
-      setAgentsLoading(false);
     }
   };
 
+  const checkBalance = async () => {
+    if (!wallet.publicKey) return;
+
+    try {
+      const balance = await connection.getBalance(wallet.publicKey);
+      const balanceInSol = balance / LAMPORTS_PER_SOL;
+      setWalletBalance(balanceInSol);
+    } catch (error) {
+      console.error('Error getting balance:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (!connected) {
+      toast.warning('Please connect your Solana wallet to create agents');
+    }
+  }, [connected]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!connected || !wallet.publicKey || !signTransaction) {
+      toast.error('Please connect your wallet to create agents');
+      return;
+    }
+
+    if (walletBalance !== null && walletBalance < 0.05) {
+      toast.error('Insufficient balance. Need at least 0.05 SOL for agent creation fee');
+      return;
+    }
+
+    setLoading(true);
+
     try {
-      setLoading(true);
-      const payload = { action };
-  
-      if (action === 'create-agent') {
-        Object.assign(payload, { agentName, personalityType });
-  
-        if (!wallet.publicKey) {
-          toast.error("Wallet not connected");
-          setLoading(false);
-          return;
-        }
-  
-        try {
-        
-          const transaction=new Transaction().add(
-            SystemProgram.transfer({
-              fromPubkey:wallet.publicKey,
-              toPubkey:new PublicKey(tokenDetails.mintAddress) ,
-              lamports:0.01* LAMPORTS_PER_SOL,
-            })
-          )
+      // Create transaction for 0.05 SOL agent creation fee
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: wallet.publicKey,
+          toPubkey: new PublicKey('11111111111111111111111111111112'), // Burn address or fee collector
+          lamports: 0.05 * LAMPORTS_PER_SOL,
+        })
+      );
 
-          const {blockhash}=await connection.getLatestBlockhash() ;
-          transaction.recentBlockhash=blockhash;
-          transaction.feePayer=wallet.publicKey ;
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = wallet.publicKey;
 
-          if(!wallet.signTransaction) {
-            return Error("wallet not connect")
-          }
+      const signedTransaction = await signTransaction(transaction);
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
 
-          const signedTransaction=await wallet.signTransaction(transaction) 
-          const transactionsignature=await connection.sendRawTransaction(signedTransaction.serialize()) 
-          console.log("Agent Creation fee paid",transactionsignature)
+      console.log('Agent creation fee paid:', signature);
+      await connection.confirmTransaction(signature);
 
-          toast.success("Transaction done agent created")
-           await connection.confirmTransaction(transactionsignature)
-
-        } catch (error) {
-          console.error("Error processing transaction:", error);
-          toast.error("Transaction failed. Please try again.");
-          setLoading(false);
-          return;
-        }
-      } else {
-        Object.assign(payload, { publicKey, airdropAmount });
-     
-      }
-    
-
-     
-      
-      const response = await fetch('/api/agent-test', {
+      // Create agent after successful transaction
+      const response = await fetch('/api/create-agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...formData,
+          walletPublicKey: wallet.publicKey.toString(),
+          walletSignature: signature
+        }),
       });
+
       const data = await response.json();
-      setResult(data);
+
       if (data.success) {
-        loadAgents(); 
+        toast.success(`${formData.name} created successfully! Fee: 0.05 SOL (transaction verified)`);
+        setFormData({
+          name: '',
+          personalityType: 'ANALYTICAL',
+          llmProvider: 'OPENAI',
+          initialBalance: 5,
+          occupation: 'Trader'
+        });
+        loadAgents();
+        checkBalance(); // Refresh balance
+      } else {
+        toast.error(data.error || 'Failed to create agent');
       }
     } catch (error) {
-      console.error('Error submitting:', error);
+      console.error('Error creating agent:', error);
+      toast.error('Transaction failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#080010] overflow-hidden relative p-20">
-      
-      {/* Background effects */}
+    <div className="min-h-screen w-full relative text-white overflow-hidden bg-black">
+      {/* Enhanced Grid Background - Primary Layer */}
+      <div
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px)
+          `,
+          backgroundSize: "60px 60px",
+        }}
+      />
 
-      <div className="absolute top-0 left-0 w-full h-full bg-gradient-radial from-[#14082f] via-[#0c0020] to-[#050008] opacity-80 z-0"></div>
-      
-     
-      <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-700/20 blur-[100px] rounded-full"></div>
-      <div className="absolute bottom-1/4 left-1/3 w-64 h-64 bg-indigo-700/20 blur-[100px] rounded-full"></div>
-      
-      
-      <div className="absolute inset-0">
-        <div className="absolute top-0 right-0 w-[1px] h-screen bg-purple-700/30 transform rotate-[15deg] origin-top-right"></div>
-        <div className="absolute top-0 right-1/3 w-[1px] h-screen bg-indigo-700/20 transform rotate-[25deg] origin-top-right"></div>
-        <div className="absolute bottom-0 left-0 w-screen h-[1px] bg-purple-700/30 transform rotate-[3deg] origin-bottom-left"></div>
-        <div className="absolute top-1/2 left-0 w-screen h-[1px] bg-indigo-700/20 transform rotate-[-3deg] origin-center-left"></div>
+      {/* Enhanced Grid Background - Fine Layer */}
+      <div
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px)
+          `,
+          backgroundSize: "20px 20px",
+        }}
+      />
+
+      {/* Enhanced Bottom Glow */}
+      <div className="absolute -bottom-40 left-1/2 -translate-x-1/2 w-full h-[500px] pointer-events-none">
+        <div
+          className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-[60%] w-[2000px] h-[2000px] rounded-full"
+          style={{
+            backgroundColor: 'black',
+            boxShadow: `
+              inset 0 0 100px 20px rgba(255, 255, 255, 0.035),
+              inset 0 0 180px 50px rgba(255, 255, 255, 0.05)
+            `,
+            backgroundImage: `
+              radial-gradient(circle, rgba(255, 255, 255, 0.5) 0.5px, transparent 0.5px),
+              radial-gradient(circle, rgba(255, 255, 255, 0.3) 0.5px, transparent 0.5px)
+            `,
+            backgroundSize: "60px 60px, 60px 60px",
+            backgroundPosition: "0 0, 30px 30px",
+          }}
+        />
       </div>
-      
-     
 
-      <main className="max-w-6xl mx-auto relative z-10">
-        <section className="relative z-10 pb-12 pt-8 md:pt-16 px-4 md:px-8">
-          <motion.div 
+      {/* Header */}
+      <div className="relative z-10 pt-16 pb-8 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">Create Agent</h1>
+              <p className="text-white/60 text-lg">Create AI trading agents with a 0.05 SOL creation fee on Solana devnet</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-5 py-3">
+                <div className="flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-white/60" />
+                  <span className="text-sm text-white/60">Balance:</span>
+                  <span className="text-white font-semibold">
+                    {walletBalance !== null ? `${walletBalance.toFixed(4)} SOL` : '0.0000 SOL'}
+                  </span>
+                </div>
+                {walletBalance !== null && walletBalance < 0.05 && (
+                  <p className="text-xs text-red-400 mt-1">Need 0.05 SOL for agent creation fee</p>
+                )}
+              </div>
+
+              {!connected && (
+                <div className="bg-red-500/20 backdrop-blur-md border border-red-500/30 rounded-xl px-5 py-3">
+                  <p className="text-sm text-red-300">Wallet not connected</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Agent Creation Form Section */}
+      <section className="relative bg-black py-16 px-6">
+        <div className="relative z-10 container mx-auto max-w-4xl">
+          {/* Form Card */}
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="mb-10"
+            className="relative group mb-16"
           >
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-4">
-              <div>
-                <h1 className="text-3xl md:text-5xl font-bold  bg-clip-text text-transparent bg-gradient-to-r from-white to-purple-300">Agent Test</h1>
-                <p className="text-gray-400 text-md mt-3 md:max-w-xl">Create an agent and request an airdrop on the Solana blockchain</p>
-              </div>
-              
-              <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/80 rounded-xl px-5 py-4 min-w-[220px] shadow-lg shadow-purple-900/10 hover:shadow-purple-800/20 transition-all duration-300 hover:scale-105 ">
-                <p className="text-sm text-gray-300 font-medium">Wallet Balance</p>
-                <div className="flex items-end gap-2">
-                  <p className="text-xl text-white font-semibold mt-1">{walletbalance !== null ? walletbalance.toFixed(4) : '0.0000'}</p>
-                  <p className="text-sm text-purple-300 mb-0.5">SOL</p>
+            <div className="absolute -inset-1 bg-white/5 rounded-2xl blur opacity-40"></div>
+            <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl px-10 py-8">
+              <form onSubmit={handleSubmit} className="space-y-8">
+                <div className="mb-6 p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                  <p className="text-sm text-yellow-200 text-center">
+                    💰 <strong>0.05 SOL transaction required!</strong> Agent creation fee will be deducted from your wallet.
+                  </p>
                 </div>
-              </div>
-            </div>
-          </motion.div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-white/80 mb-2">Agent Name</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/40 focus:border-white/20 focus:outline-none transition-colors"
+                      placeholder="Enter agent name"
+                      required
+                    />
+                  </div>
 
-          <div className="grid grid-cols-1 gap-8">
-            {/* Token Information Card */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="border border-purple-900/30 bg-black/40 backdrop-blur-md p-6 rounded-2xl shadow-lg shadow-purple-900/10 hover:shadow-purple-800/20 transition-all duration-300"
-            >
-              <h2 className="text-xl font-semibold text-white mb-5 flex items-center gap-3">
-                <div className="p-2 bg-purple-900/30 rounded-lg">
-                  <InfoIcon className='w-5 h-5 text-purple-300' />
+                  <div>
+                    <label className="block text-sm font-medium text-white/80 mb-2">Personality Type</label>
+                    <select
+                      value={formData.personalityType}
+                      onChange={(e) => setFormData({ ...formData, personalityType: e.target.value })}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:border-white/20 focus:outline-none transition-colors"
+                    >
+                      {personalityOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-white/80 mb-2">LLM Provider</label>
+                    <select
+                      value={formData.llmProvider}
+                      onChange={(e) => setFormData({ ...formData, llmProvider: e.target.value })}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:border-white/20 focus:outline-none transition-colors"
+                    >
+                      {llmProviderOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-white/80 mb-2">Initial Balance (SOL)</label>
+                    <input
+                      type="number"
+                      value={formData.initialBalance}
+                      onChange={(e) => setFormData({ ...formData, initialBalance: parseFloat(e.target.value) })}
+                      min="1"
+                      step="0.1"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/40 focus:border-white/20 focus:outline-none transition-colors"
+                      placeholder="5"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-white/80 mb-2">Occupation</label>
+                    <input
+                      type="text"
+                      value={formData.occupation}
+                      onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/40 focus:border-white/20 focus:outline-none transition-colors"
+                      placeholder="e.g., Full-time Trader, Financial Analyst"
+                    />
+                  </div>
                 </div>
-                <span>Token Information</span>
-              </h2>
-              <div className="p-5 bg-black/50 rounded-xl border border-purple-500/20 backdrop-blur-sm">
-                {tokenLoading ? (
-                  <div className="flex items-center justify-center py-4">
-                    <div className="animate-spin h-5 w-5 border-2 border-purple-400 border-t-transparent rounded-full mr-2"></div>
-                    <p className="text-sm text-gray-400">Loading token details...</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-8">
-                    <div className="min-w-[120px]">
-                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Name</p>
-                      <p className="text-sm text-white mt-1 font-medium">{tokenDetails.name}</p>
-                    </div>
-                    <div className="min-w-[120px]">
-                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Symbol</p>
-                      <p className="text-sm text-white mt-1 font-medium">{tokenDetails.symbol}</p>
-                    </div>
-                    <div className="min-w-[120px]">
-                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Decimals</p>
-                      <p className="text-sm text-white mt-1 font-medium">{tokenDetails.decimals}</p>
-                    </div>
-                    <div className="min-w-[120px] md:flex-1">
-                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Mint Address</p>
-                      <p className="text-sm text-white mt-1 font-medium truncate max-w-full md:max-w-md">{tokenDetails.mintAddress}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-
-            {/* Agent Actions Card */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="border border-purple-900/30 bg-black/40 backdrop-blur-md p-6 rounded-2xl shadow-lg shadow-purple-900/10 hover:shadow-purple-800/20 transition-all duration-300"
-            >
-              <h2 className="text-xl font-semibold text-white mb-5 flex items-center gap-3">
-                <div className="p-2 bg-purple-900/30 rounded-lg">
-                  <Activity className='w-5 h-5 text-purple-300' />
-                </div>
-                <span>Agent Actions</span>
-              </h2>
-              <form onSubmit={handleSubmit} className="p-5 bg-black/50 rounded-xl border border-purple-500/20 backdrop-blur-sm">
-                <div className="mb-6">
-                  <label className="text-xs text-gray-300 font-medium uppercase tracking-wider">Action Type</label>
-                  <select
-                    value={action}
-                    onChange={(e) => setAction(e.target.value as 'create-agent' | 'request-airdrop')}
-                    className="w-full mt-2 p-3 bg-black/80 border border-purple-500/40 rounded-lg text-white text-sm focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all duration-200 outline-none"
-                  >
-                    <option value="create-agent">Create Agent</option>
-                    <option value="request-airdrop">Request Airdrop</option>
-                  </select>
-                </div>
-
-                {action === 'create-agent' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="text-xs text-gray-300 font-medium uppercase tracking-wider block mb-2">Agent Name</label>
-                      <input
-                        type="text"
-                        value={agentName}
-                        onChange={(e) => setAgentName(e.target.value)}
-                        className="w-full p-3 bg-black/80 border border-purple-500/40 rounded-lg text-white text-sm focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all duration-200 outline-none"
-                        placeholder="Enter agent name"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-300 font-medium uppercase tracking-wider block mb-2">Personality Type</label>
-                      <select
-                        value={personalityType}
-                        onChange={(e) => setPersonalityType(e.target.value)}
-                        className="w-full p-3 bg-black/80 border border-purple-500/40 rounded-lg text-white text-sm focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all duration-200 outline-none"
-                      >
-                     <option value="ANALYTICAL">Analytical</option>
-     <option value="CREATIVE">Creative</option>
-<option value="SOCIAL">Social</option>
-<option value="STRATEGIC">Strategic</option>
-
-
-
-                       
-                      </select>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="text-xs text-gray-300 font-medium uppercase tracking-wider block mb-2">Public Key</label>
-                      <input
-                        type="text"
-                        value={publicKey}
-                        onChange={(e) => setPublicKey(e.target.value)}
-                        className="w-full p-3 bg-black/80 border border-purple-500/40 rounded-lg text-white text-sm focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all duration-200 outline-none"
-                        placeholder="Enter public key"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-300 font-medium uppercase tracking-wider block mb-2">Airdrop Amount (SOL)</label>
-                      <input
-                        type="number"
-                        value={airdropAmount}
-                        onChange={(e) => setAirdropAmount(parseFloat(e.target.value))}
-                        min={0.1}
-                        step={0.1}
-                        className="w-full p-3 bg-black/80 border border-purple-500/40 rounded-lg text-white text-sm focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all duration-200 outline-none"
-                        placeholder="Enter amount"
-                      />
-                    </div>
-                  </div>
-                )}
 
                 <button
                   type="submit"
-                  className={`mt-6 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-sm font-medium hover:from-purple-500 hover:to-indigo-500 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-purple-900/30 hover:shadow-purple-800/40 ${
-                    loading ? 'opacity-70 cursor-not-allowed' : ''
-                  }`}
                   disabled={loading}
+                  className="w-full bg-white text-black px-8 py-4 rounded-full font-medium hover:bg-white/90 transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {loading ? (
-                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                  ) : null}
-                  {action === 'create-agent' ? 'Create Agent' : 'Request Airdrop'}
+                    <div className="animate-spin h-5 w-5 border-2 border-black border-t-transparent rounded-full"></div>
+                  ) : (
+                    <>
+                      <Bot className="w-5 h-5" />
+                      Create Agent
+                    </>
+                  )}
                 </button>
               </form>
-            </motion.div>
-
-          
-{/* Agent List Card */}
-<motion.div 
-  initial={{ opacity: 0, y: 20 }}
-  animate={{ opacity: 1, y: 0 }}
-  transition={{ duration: 0.5, delay: 0.3 }}
-  className="border border-purple-900/30 bg-black/40 backdrop-blur-md p-6 rounded-2xl shadow-lg shadow-purple-900/10 hover:shadow-purple-800/20 transition-all duration-300"
->
-  <h2 className="text-xl font-semibold text-white mb-5 flex items-center gap-3">
-    <div className="p-2 bg-purple-900/30 rounded-lg">
-      <List className='w-5 h-5 text-purple-300' />
-    </div>
-    <span>Agent List</span>
-  </h2>
-  <div className="p-5 bg-black/50 rounded-xl border border-purple-500/20 backdrop-blur-sm">
-    {agentsLoading ? (
-      <div className="flex items-center justify-center py-6">
-        <div className="animate-spin h-5 w-5 border-2 border-purple-400 border-t-transparent rounded-full mr-2"></div>
-        <p className="text-sm text-gray-400">Loading agents...</p>
-      </div>
-    ) : agents.length === 0 ? (
-      <div className="py-6 text-center">
-        <p className="text-sm text-gray-400">No agents found. Create your first agent above.</p>
-      </div>
-    ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4  md:max-h-100 overflow-y-auto pr-2 custom-scrollbar">
-        {agents.map((agent) => (
-          <div 
-            key={agent.id} 
-            className="p-4 bg-black/60 border border-purple-500/20 rounded-lg hover:border-purple-500/40 transition-all duration-300 hover:shadow-md hover:shadow-purple-900/20"
-          >
-            <p className="text-md font-semibold text-white mb-2">{agent.name}</p>
-            <div className="space-y-1">
-              <p className="text-xs text-gray-300 flex items-center gap-2">
-                <span className="text-gray-500">Personality:</span>
-                <span className="py-0.5 px-2 bg-purple-900/30 rounded-full text-purple-300 font-medium">{agent.personalityType}</span>
-              </p>
-              <p className="text-xs text-gray-300 flex flex-wrap items-center gap-1">
-                <span className="text-gray-500">Public Key:</span>
-                <span className="truncate max-w-[160px] font-mono">{agent.publicKey}</span>
-              </p>
             </div>
-          </div>
-        ))}
-      </div>
-    )}
-  </div>
-</motion.div>
+          </motion.div>
 
-            {/* Result Card */}
-            {result && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="border border-purple-900/30 bg-black/40 backdrop-blur-md p-6 rounded-2xl shadow-lg shadow-purple-900/10 hover:shadow-purple-800/20 transition-all duration-300"
-              >
-                <h2 className="text-xl font-semibold text-white mb-5 flex items-center gap-3">
-                  <div className="p-2 bg-purple-900/30 rounded-lg">
-                    <Check className='w-5 h-5 text-purple-300' />
+          {/* Agents List Section */}
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">
+              Your Created Agents
+            </h2>
+            <p className="text-white/50 text-md max-w-xl mx-auto">
+              View and manage the AI agents you've created
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {agents.length === 0 ? (
+              <div className="md:col-span-2 lg:col-span-3 text-center py-12">
+                <Users className="w-16 h-16 text-white/20 mx-auto mb-4" />
+                <p className="text-white/50 text-lg">No agents created yet. Create your first agent above!</p>
+              </div>
+            ) : (
+              agents.map((agent) => (
+                <motion.div
+                  key={agent.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6 }}
+                  className="relative group"
+                >
+                  <div className="absolute -inset-1 bg-white/5 rounded-2xl blur opacity-40"></div>
+                  <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-white/5 rounded-lg">
+                        <Bot className="w-5 h-5 text-white/80" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">{agent.name}</h3>
+                        <p className="text-sm text-white/50">{agent.occupation}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-white/60">Personality:</span>
+                        <span className="text-sm text-white/80">{agent.personalityType}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-white/60">LLM Provider:</span>
+                        <span className="text-sm text-white/80">{agent.llmProvider}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-white/60">Balance:</span>
+                        <span className="text-sm text-white/80">{agent.walletBalance} SOL</span>
+                      </div>
+                    </div>
                   </div>
-                  <span>Result</span>
-                </h2>
-                <div className="p-5 bg-black/50 rounded-xl border border-purple-500/20 backdrop-blur-sm">
-                  <pre className="text-sm text-gray-100 overflow-auto font-mono p-4 bg-black/80 rounded-lg border border-purple-500/10">
-                    {JSON.stringify(result, null, 2)}
-                  </pre>
-                </div>
-              </motion.div>
+                </motion.div>
+              ))
             )}
           </div>
-        </section>
-        <div className="mb-8 p-4 rounded-xl border border-purple-700/40 bg-gradient-to-r from-purple-900/40 to-indigo-900/30 backdrop-blur-md shadow-lg shadow-purple-900/10 text-white">
-  <h3 className="text-lg font-semibold text-purple-300 mb-1">🚧 Page Under Deployment</h3>
-  <p className="text-sm text-gray-300">
-    This page is currently under deployment. Soon, you'll be able to choose  different LLM providers, create agents with the llm provider of your choice like openai, anthropic, gemini, and perform  trades .
-    <br />
-    In the meantime, you can <span className="text-purple-200 font-medium">create agents locally</span> and <span className="text-purple-200 font-medium">request an airdrop</span> 
-  </p>
-</div>
+        </div>
+      </section>
 
-      </main>
-      
-      <footer className="py-10 border-t border-purple-900/30 mt-16 relative z-10 backdrop-blur-sm">
-        <div className="container mx-auto px-6">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center mb-8 md:mb-0">
-              <div className="w-3 h-3 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 mr-2"></div>
-              <span className="text-xl font-bold text-transparent bg-clip-text  bg-gradient-to-r from-white to-purple-300">
-                NeuralTraders
-              </span>
+      {/* Logo Ticker */}
+      <LogoTicker />
+
+      {/* Footer */}
+      <footer className="relative bg-black py-16 border-t border-white/5">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <span className="text-xl font-bold text-white">ℕ𝕖𝕦𝕣𝕒𝕝𝕥𝕣𝕒𝕕𝕖𝕣</span>
             </div>
-            <div className="text-gray-400 text-sm">
-              Built by Adtech ♡
+            <p className="text-white/50 text-sm leading-relaxed max-w-md mx-auto mb-6">
+              AI-powered trading simulation platform for Solana. Experience the future of trading with intelligent agents.
+            </p>
+            <div className="flex items-center justify-center gap-4">
+              <a href="#" className="text-white/50 hover:text-white transition-colors">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"></path>
+                </svg>
+              </a>
+              <a href="#" className="text-white/50 hover:text-white transition-colors">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+              </a>
             </div>
-            
-            <div className="text-gray-400 text-sm">
-              © {new Date().getFullYear()} NeuralTraders. All rights reserved.
+            <div className="pt-8 border-t border-white/5 mt-8">
+              <div className="text-white/40 text-sm">
+                © {new Date().getFullYear()} NeuralTrader. All rights reserved.
+              </div>
             </div>
           </div>
         </div>
