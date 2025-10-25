@@ -723,73 +723,73 @@ export class LLMAutonomousAgent {
     }
   }
 
-  async socialInteraction(messages: any[], sentiment: any) {
-    try {
-      console.log(`💬 Agent ${this.agentData.name} socializing`);
+ async socialInteraction(messages: any[], sentiment: any) {
+  try {
+    console.log(`💬 Agent ${this.agentData.name} socializing`);
 
-      // Check if agent is initialized
-      if (!this.agent) {
-        console.log(`⚠️  Agent ${this.agentData.name} not fully initialized yet, skipping social interaction`);
-        return false;
-      }
+    // Check if agent is initialized
+    if (!this.agent) {
+      console.log(`⚠️  Agent ${this.agentData.name} not fully initialized yet, skipping social interaction`);
+      return false;
+    }
 
-      if (!messages || messages.length === 0) {
-        console.log(`No messages to process for ${this.agentData.name}`);
-        return true;
-      }
+    if (!messages || messages.length === 0) {
+      console.log(`No messages to process for ${this.agentData.name}`);
+      return true;
+    }
 
-      const formattedMessages = messages
-        .slice(0, 5)
-        .map(
-          (msg) => `${msg.sender?.name || 'Unknown'} (${msg.sender?.personalityType || 'Unknown'}): "${msg.content}"`
-        )
-        .join('\n');
+    const formattedMessages = messages
+      .slice(0, 5)
+      .map(
+        (msg) => `${msg.sender?.name || 'Unknown'} (${msg.sender?.personalityType || 'Unknown'}): "${msg.content}"`
+      )
+      .join('\n');
 
-      const marketSentiment =
-        `Current market sentiment:\n` +
-        `- Bullish: ${(sentiment.bullishPercentage * 100).toFixed(1)}%\n` +
-        `- Bearish: ${(sentiment.bearishPercentage * 100).toFixed(1)}%\n` +
-        `- Neutral: ${(sentiment.neutralPercentage * 100).toFixed(1)}%\n`;
+    const marketSentiment =
+      `Current market sentiment:\n` +
+      `- Bullish: ${(sentiment.bullishPercentage * 100).toFixed(1)}%\n` +
+      `- Bearish: ${(sentiment.bearishPercentage * 100).toFixed(1)}%\n` +
+      `- Neutral: ${(sentiment.neutralPercentage * 100).toFixed(1)}%\n`;
 
-      const selectedToken = await getSelectedToken();
-      const tokenSymbol = selectedToken.symbol || 'TOKEN';
+    const selectedToken = await getSelectedToken();
+    const tokenSymbol = selectedToken.symbol || 'TOKEN';
 
-      // Use LLM to generate intelligent, contextual response
-      const shouldRespond = Math.random() < 0.4; // 40% chance to respond
+    // Use LLM to generate intelligent, contextual response
+    const shouldRespond = Math.random() < 0.4; // 40% chance to respond
 
-      if (shouldRespond) {
-        try {
-          // Get recent market data and trading activity
-          const marketInfo = await marketData.getMarketInfo();
-          const recentTrades = await prisma.transaction.findMany({
-            where: { createdAt: { gte: new Date(Date.now() - 15 * 60 * 1000) } }, // Last 15 minutes
-            take: 10,
-            orderBy: { createdAt: 'desc' },
-            include: {
-              fromAgent: { select: { name: true, personalityType: true } }
-            }
-          });
-
-          const recentMessages = await prisma.message.findMany({
-            where: { createdAt: { gte: new Date(Date.now() - 10 * 60 * 1000) } }, // Last 10 minutes
-            take: 5,
-            orderBy: { createdAt: 'desc' },
-            include: { sender: { select: { name: true, personalityType: true } } }
-          });
-
-          // Analyze market sentiment from recent activity
-          const bullishTrades = recentTrades.filter(t => t.type === 'SOL_TO_TOKEN').length; // SOL_TO_TOKEN = buying tokens
-          const bearishTrades = recentTrades.filter(t => t.type === 'TOKEN_TO_SOL').length; // TOKEN_TO_SOL = selling tokens
-          const totalActivity = bullishTrades + bearishTrades;
-
-          let activitySentiment = 'neutral';
-          if (totalActivity > 0) {
-            const bullishRatio = bullishTrades / totalActivity;
-            activitySentiment = bullishRatio > 0.6 ? 'bullish' : bullishRatio < 0.4 ? 'bearish' : 'neutral';
+    if (shouldRespond) {
+      try {
+        // Get recent market data and trading activity
+        const marketInfo = await marketData.getMarketInfo();
+        const recentTrades = await prisma.transaction.findMany({
+          where: { createdAt: { gte: new Date(Date.now() - 15 * 60 * 1000) } }, // Last 15 minutes
+          take: 10,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            fromAgent: { select: { name: true, personalityType: true } }
           }
+        });
 
-          const systemMessage = new SystemMessage(
-            `You are ${this.agentData.name}, a ${this.agentData.personalityType} trader.
+        const recentMessages = await prisma.message.findMany({
+          where: { createdAt: { gte: new Date(Date.now() - 10 * 60 * 1000) } }, // Last 10 minutes
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+          include: { sender: { select: { name: true, personalityType: true } } }
+        });
+
+        // Analyze market sentiment from recent activity
+        const bullishTrades = recentTrades.filter(t => t.type === 'SOL_TO_TOKEN').length;
+        const bearishTrades = recentTrades.filter(t => t.type === 'TOKEN_TO_SOL').length;
+        const totalActivity = bullishTrades + bearishTrades;
+
+        let activitySentiment = 'neutral';
+        if (totalActivity > 0) {
+          const bullishRatio = bullishTrades / totalActivity;
+          activitySentiment = bullishRatio > 0.6 ? 'bullish' : bullishRatio < 0.4 ? 'bearish' : 'neutral';
+        }
+
+        const systemMessage = new SystemMessage(
+          `You are ${this.agentData.name}, a ${this.agentData.personalityType} trader.
 
 Current Market Analysis:
 - Price: ${marketInfo.price} SOL
@@ -815,277 +815,383 @@ IMPORTANT: You have access to tools. To send a message, you MUST use the send_me
 The send_message tool expects JSON with this format: {"content": "your message here", "sentiment": "positive|negative|neutral"}
 
 DO NOT just respond with text. Use the send_message tool to actually send your message.`
-          );
+        );
 
-          const response = await this.agent.invoke({
-            messages: [
-              systemMessage,
-              new HumanMessage(
-                `Based on the current market analysis, recent trades, and chat activity, ` +
-                `what's your take on ${tokenSymbol} right now? ` +
-                `Reference specific market conditions and recent activity in your response. ` +
-                `You MUST use the send_message tool to share your analysis with other agents. ` +
-                `Do not just respond with text - actually call the send_message tool.`
-              )
-            ]
-          });
-
-          console.log(`💬 ${this.agentData.name} LLM response received:`, response);
-
-          // Check for tool calls in different formats (OpenAI vs Ollama)
-          let toolCalls: any[] = [];
-
-          if (response && response.tool_calls && response.tool_calls.length > 0) {
-            // OpenAI format
-            toolCalls = response.tool_calls;
-            console.log(`✅ ${this.agentData.name} used ${toolCalls.length} tools (OpenAI format)`);
-          } else if (response && response.message && response.message.tool_calls) {
-            // Alternative format
-            toolCalls = response.message.tool_calls;
-            console.log(`✅ ${this.agentData.name} used ${toolCalls.length} tools (alternative format)`);
-          } else if (response && typeof response === 'object' && response.tool_call) {
-            // Single tool call format
-            toolCalls = [response.tool_call];
-            console.log(`✅ ${this.agentData.name} used 1 tool (single format)`);
-          }
-
-          if (toolCalls.length > 0) {
-            // Execute the tool calls
-            for (const toolCall of toolCalls) {
-              if (toolCall.name === 'send_message' || (toolCall.function && toolCall.function.name === 'send_message')) {
-                const messageTool = this.tools.find(t => t.name === 'send_message');
-                if (messageTool) {
-                  // Handle different argument formats
-                  let args: any = {};
-                  if (toolCall.args) {
-                    args = toolCall.args;
-                  } else if (toolCall.function && toolCall.function.arguments) {
-                    try {
-                      args = JSON.parse(toolCall.function.arguments);
-                    } catch (e) {
-                      console.error(`Error parsing tool arguments:`, toolCall.function.arguments);
-                      continue;
-                    }
-                  } else if (typeof toolCall === 'string') {
-                    try {
-                      args = JSON.parse(toolCall);
-                    } catch (e) {
-                      console.error(`Error parsing tool call:`, toolCall);
-                      continue;
-                    }
-                  }
-
-                  await messageTool.invoke(args);
-                  console.log(`✅ ${this.agentData.name} sent message via tool: "${args.content?.substring(0, 50)}..."`);
-                }
-              }
-            }
-          } else {
-            // No tool calls found, use fallback mechanisms
-            const responseText = response.toString();
-            console.log(`⚠️  ${this.agentData.name} LLM didn't use tools, response:`, responseText.substring(0, 200));
-
-            if (responseText && responseText.trim().length > 10) {
-              const messageTool = this.tools.find(t => t.name === 'send_message');
-              if (messageTool) {
-                // Try to extract a meaningful message from the LLM response
-                const extractedMessage = responseText
-                  .replace(/^(Agent|AI|Assistant|Trader)[:\s]*/i, '') // Remove prefixes
-                  .replace(/\.$/, '') // Remove trailing period
-                  .trim();
-
-                if (extractedMessage.length > 5) {
-                  await messageTool.invoke({
-                    content: extractedMessage,
-                    sentiment: activitySentiment
-                  });
-                  console.log(`✅ ${this.agentData.name} extracted and sent message:`, extractedMessage.substring(0, 100));
-                }
-              }
-            } else {
-              // Use personality-based fallback if LLM response is too short or empty
-              console.log(`⚠️  ${this.agentData.name} LLM response too short, using fallback`);
-              const messageTool = this.tools.find(t => t.name === 'send_message');
-              if (messageTool) {
-                const personalityFallbackMessages = {
-                  AGGRESSIVE: [
-                    `${tokenSymbol} showing ${activitySentiment} activity with ${totalActivity} recent trades. Time to make a move! 🚀`,
-                    `Market heating up for ${tokenSymbol}! ${bullishTrades} buys in 15 minutes - I'm getting in!`,
-                    `${tokenSymbol} momentum is building! Recent activity suggests ${activitySentiment} sentiment.`
-                  ],
-                  CONSERVATIVE: [
-                    `Carefully watching ${tokenSymbol} - ${totalActivity} trades in 15 minutes suggests ${activitySentiment} sentiment.`,
-                    `Monitoring ${tokenSymbol} activity: ${bullishTrades} buys, ${bearishTrades} sells in recent trading.`,
-                    `Analyzing ${tokenSymbol} market conditions before making any moves.`
-                  ],
-                  CONTRARIAN: [
-                    `Market seems ${activitySentiment} on ${tokenSymbol} with ${totalActivity} recent trades. Might be time to go against the crowd.`,
-                    `Everyone piling into ${tokenSymbol}? ${totalActivity} trades in 15 minutes makes me cautious.`,
-                    `Contrarian view on ${tokenSymbol}: when sentiment gets this ${activitySentiment}, I look for reversal signals.`
-                  ]
-                };
-
-                const personalityMessages = personalityFallbackMessages[this.agentData.personalityType as keyof typeof personalityFallbackMessages] || [
-                  `Interesting ${tokenSymbol} activity with ${totalActivity} recent trades.`
-                ];
-
-                const selectedMessage = personalityMessages[Math.floor(Math.random() * personalityMessages.length)];
-                await messageTool.invoke({ content: selectedMessage, sentiment: activitySentiment });
-                console.log(`✅ ${this.agentData.name} used fallback message:`, selectedMessage.substring(0, 100));
-              }
-            }
-          }
-        } catch (error) {
-          console.error(`LLM message error for ${this.agentData.name}:`, error);
-        }
-      }
-
-      await this.createOrUpdateAgentState({
-        lastSocialAction: new Date(),
-        lastAction: new Date(),
-        lastDecision: {
-          type: 'SOCIAL',
-          timestamp: new Date().toISOString(),
-          data: {
-            messageCount: messages.length,
-            response: shouldRespond ? 'Sent message' : 'No response'
-          }
-        }
-      });
-
-      return true;
-    } catch (error: any) {
-      console.error(`Error in social interaction for agent ${this.agentData.name}:`, error);
-      return false;
-    }
-  }
-
-  async makeTradeDecision(marketInfo: any) {
-    try {
-      console.log(`💰 Agent ${this.agentData.name} making trade decision`);
-  
-      // Check if agent is initialized
-      if (!this.agent) {
-        console.log(`⚠️  Agent ${this.agentData.name} not fully initialized yet, skipping trade decision`);
-        return false;
-      }
-
-      const agent = await prisma.agent.findUnique({
-        where: { id: this.agentData.id }
-      });
-      if (!agent) {
-        throw new Error(`Agent ${this.agentData.id} not found`);
-      }
-  
-      const selectedToken = await getSelectedToken();
-      const tokenSymbol = selectedToken.symbol || 'TOKEN';
-      
-      const balanceInfo =
-        `Your current balances:\n` +
-        `- SOL: ${agent.walletBalance} SOL\n` +
-        `- ${tokenSymbol} tokens: ${agent.tokenBalance} ${tokenSymbol}\n\n`;
-  
-      const marketSummary =
-        `Current market conditions:\n` +
-        `- ${tokenSymbol} token price: ${marketInfo.price} SOL\n` +
-        `- 24h price change: ${marketInfo.priceChange24h}%\n` +
-        `- 24h trading volume: ${marketInfo.volume24h} SOL\n` +
-        `- Liquidity: ${marketInfo.liquidity} SOL\n`;
-  
-      const personalityBehavior = getPersonalityBehavior(this.agentData.personalityType as PersonalityType);
-
-      const systemMessage = new SystemMessage(
-        `You are ${this.agentData.name}, a ${this.agentData.personalityType} trader on the Solana blockchain. ` +
-        `${this.personalityPrompt}\n\n` +
-        `## Trading Style Guidelines:\n` +
-        `- Risk Tolerance: ${Math.round(personalityBehavior.riskTolerance * 100)}% (how much risk you're willing to take)\n` +
-        `- Trade Frequency: ${Math.round(personalityBehavior.tradeFrequency * 100)}% (how often you make trades)\n` +
-        `- Position Size: ${Math.round(personalityBehavior.positionSize * 100)}% (how large your trades typically are)\n` +
-        `- Decision Threshold: ${Math.round(personalityBehavior.decisionThreshold * 100)}% (confidence needed to trade)\n\n` +
-        `Make trading decisions based on your ${this.agentData.personalityType} trading style. ` +
-        `USE THE TOOLS AVAILABLE TO YOU to execute trades if you decide to buy or sell.`
-      );
-
-      console.log(`🤔 ${this.agentData.name} analyzing: Price=${marketInfo.price}, Change=${marketInfo.priceChange24h}%, Balance=${agent.walletBalance} SOL`);
-
-      // Use LLM to make intelligent trade decision
-      try {
         const response = await this.agent.invoke({
           messages: [
             systemMessage,
             new HumanMessage(
-              `${balanceInfo}${marketSummary}\n\n` +
-              `Based on your balance and market conditions as a ${this.agentData.personalityType} trader:\n\n` +
-              `Consider your trading style:\n` +
-              `- Risk Tolerance: ${Math.round(personalityBehavior.riskTolerance * 100)}%\n` +
-              `- Decision Threshold: ${Math.round(personalityBehavior.decisionThreshold * 100)}%\n` +
-              `- Typical Position Size: ${Math.round(personalityBehavior.positionSize * 100)}%\n\n` +
-              `1. To BUY ${tokenSymbol}: USE executeTrade tool with amount (1-3 SOL) and inputIsSol=true\n` +
-              `2. To SELL ${tokenSymbol}: USE executeTrade tool with amount and inputIsSol=false\n` +
-              `3. To HOLD: Just say "holding"\n\n` +
-              `Make your decision and ACTUALLY USE THE TOOL if you want to trade!`
+              `Based on the current market analysis, recent trades, and chat activity, ` +
+              `what's your take on ${tokenSymbol} right now? ` +
+              `Reference specific market conditions and recent activity in your response. ` +
+              `You MUST use the send_message tool to share your analysis with other agents. ` +
+              `Do not just respond with text - actually call the send_message tool.`
             )
           ]
         });
 
-        console.log(`💭 ${this.agentData.name} trade decision: ${response.toString().substring(0, 100)}...`);
-        
-        // Fallback: If LLM didn't call tool, make a personality-aware decision
-        const responseText = response.toString().toLowerCase();
-        if (!responseText.includes('executetrade') && agent.walletBalance > 1) {
-          // Use personality behavior for fallback decision
-          const shouldTrade = Math.random() < personalityBehavior.tradeFrequency;
-          if (shouldTrade) {
-            console.log(`⚠️  ${this.agentData.name} LLM didn't use tool, executing personality-based fallback trade`);
-            const tradeTool = this.tools.find(t => t.name === 'executeTrade');
-            if (tradeTool) {
-              // Personality-based decision making
-              let isBuy = Math.random() < 0.5;
+        console.log(`💬 ${this.agentData.name} LLM response received:`, response);
 
-              // Adjust based on personality
-              if (this.agentData.personalityType === 'AGGRESSIVE' && marketInfo.priceChange24h > 1) {
-                isBuy = true; // Buy on positive momentum
-              } else if (this.agentData.personalityType === 'CONSERVATIVE' && marketInfo.priceChange24h < -1) {
-                isBuy = false; // Sell on negative momentum  
-              } else if (this.agentData.personalityType === 'CONTRARIAN') {
-                isBuy = marketInfo.priceChange24h > 0; // Go against the trend
+        // ✅ FIX: Extract message content from LLM response
+        let messageContent: string | null = null;
+        let messageSentiment = activitySentiment;
+
+        // Check for tool calls in different formats
+        let toolCalls: any[] = [];
+
+        if (response && response.tool_calls && response.tool_calls.length > 0) {
+          toolCalls = response.tool_calls;
+        } else if (response && response.message && response.message.tool_calls) {
+          toolCalls = response.message.tool_calls;
+        } else if (response && typeof response === 'object' && response.tool_call) {
+          toolCalls = [response.tool_call];
+        }
+
+        // Try to extract from tool calls first
+        if (toolCalls.length > 0) {
+          for (const toolCall of toolCalls) {
+            if (toolCall.name === 'send_message' || (toolCall.function && toolCall.function.name === 'send_message')) {
+              let args: any = {};
+              if (toolCall.args) {
+                args = toolCall.args;
+              } else if (toolCall.function && toolCall.function.arguments) {
+                try {
+                  args = JSON.parse(toolCall.function.arguments);
+                } catch (e) {
+                  console.error(`Error parsing tool arguments:`, e);
+                  continue;
+                }
               }
 
-              const baseAmount = Math.random() * 2 + 1;
-              const adjustedAmount = baseAmount * (1 + personalityBehavior.positionSize);
-
-              await tradeTool.invoke({
-                amount: Math.min(adjustedAmount, agent.walletBalance * 0.8), // Don't use more than 80% of balance
-                inputIsSol: isBuy
-              });
+              if (args.content) {
+                messageContent = args.content;
+                messageSentiment = args.sentiment || activitySentiment;
+                console.log(`✅ ${this.agentData.name} extracted from tool call`);
+                break;
+              }
             }
           }
         }
-      } catch (error) {
-        console.error(`Trade decision error for ${this.agentData.name}:`, error);
-      }
-  
-      await this.createOrUpdateAgentState({
-        lastTradeDecision: new Date(),
-        lastAction: new Date(),
-        lastDecision: {
-          type: 'TRADE',
-          timestamp: new Date().toISOString(),
-          data: {
-            marketInfo,
-            balance: {
-              sol: agent.walletBalance,
-              token: agent.tokenBalance
-            },
-            decision: 'Trade decision made via LLM'
+
+        // ✅ FIX: Fallback - extract from response content (handles Ollama's <|python_tag|> format)
+        if (!messageContent) {
+          const responseText = response.toString();
+          console.log(`⚠️  ${this.agentData.name} LLM didn't use tools properly, extracting from response`);
+
+          // Try to extract from send_message(...) call in response
+          const sendMessageMatch = responseText.match(/send_message\s*\(\s*({[^}]+}|[^)]+)\)/);
+          if (sendMessageMatch) {
+            try {
+              // Try JSON format first
+              const jsonMatch = responseText.match(/send_message\s*\(\s*({[^}]+})\s*\)/);
+              if (jsonMatch) {
+                const parsed = JSON.parse(jsonMatch[1].replace(/'/g, '"')); // Handle single quotes
+                messageContent = parsed.content;
+                messageSentiment = parsed.sentiment || activitySentiment;
+                console.log(`✅ ${this.agentData.name} extracted from JSON in response`);
+              } else {
+            
+                const contentMatch = responseText.match(/content\s*[=:]\s*["']([^"']+)["']/);
+                const sentimentMatch = responseText.match(/sentiment\s*[=:]\s*["']([^"']+)["']/);
+                if (contentMatch) {
+                  messageContent = contentMatch[1];
+                  messageSentiment = sentimentMatch?.[1] || activitySentiment;
+                  console.log(`✅ ${this.agentData.name} extracted from keyword args`);
+                }
+              }
+            } catch (e) {
+              console.error(`❌ Failed to parse send_message:`, e);
+            }
+          }
+
+        
+          if (!messageContent && responseText && responseText.trim().length > 10) {
+            messageContent = responseText
+              .replace(/<\|python_tag\|>/g, '')
+              .replace(/send_message\([^)]*\)/g, '')
+              .replace(/^(Agent|AI|Assistant|Trader)[:\s]*/i, '')
+              .trim();
+            
+           
+            if (messageContent && messageContent.length > 200) {
+              messageContent = messageContent.substring(0, 200) + '...';
+            }
+            console.log(`⚠️  ${this.agentData.name} using cleaned response as message`);
           }
         }
-      });
-  
-      return true;
-    } catch (error: any) {
-      console.error(`Error in trade decision for agent ${this.agentData.name}:`, error);
+
+     
+        if (messageContent && messageContent.length > 5) {
+          await prisma.message.create({
+            data: {
+              content: messageContent,
+              senderId: this.agentData.id,
+              type: "CHAT",
+              visibility: "public",
+              sentiment: messageSentiment
+            }
+          });
+          console.log(`💾 ${this.agentData.name} message saved: "${messageContent.substring(0, 50)}..."`);
+        } else {
+          // ✅ Use personality fallback with ALL personality types
+          console.log(`⚠️  ${this.agentData.name} no valid content, using personality fallback`);
+          const personalityFallbackMessages = {
+            AGGRESSIVE: [
+              `${tokenSymbol} showing ${activitySentiment} activity with ${totalActivity} recent trades. Time to make a move! 🚀`,
+              `Market heating up for ${tokenSymbol}! ${bullishTrades} buys in 15 minutes - I'm getting in!`,
+              `${tokenSymbol} momentum is building! Recent activity suggests ${activitySentiment} sentiment.`
+            ],
+            CONSERVATIVE: [
+              `Carefully watching ${tokenSymbol} - ${totalActivity} trades in 15 minutes suggests ${activitySentiment} sentiment.`,
+              `Monitoring ${tokenSymbol} activity: ${bullishTrades} buys, ${bearishTrades} sells in recent trading.`,
+              `Analyzing ${tokenSymbol} market conditions before making any moves.`
+            ],
+            CONTRARIAN: [
+              `Market seems ${activitySentiment} on ${tokenSymbol} with ${totalActivity} recent trades. Might be time to go against the crowd.`,
+              `Everyone piling into ${tokenSymbol}? ${totalActivity} trades in 15 minutes makes me cautious.`,
+              `Contrarian view on ${tokenSymbol}: when sentiment gets this ${activitySentiment}, I look for reversal signals.`
+            ],
+            EMOTIONAL: [
+              `${activitySentiment === 'bullish' ? '😍' : '😰'} ${tokenSymbol} with ${totalActivity} trades! ${activitySentiment === 'bullish' ? "I'm excited!" : "Getting nervous..."}`,
+              `Can't stop watching ${tokenSymbol}! ${totalActivity} trades in 15 minutes! 💓`
+            ],
+            NOVICE: [
+              `Is this ${tokenSymbol} activity normal? ${totalActivity} trades in 15 minutes... Should I do something? 🤔`,
+              `Following ${tokenSymbol} closely. Learning from the ${bullishTrades} buys and ${bearishTrades} sells!`
+            ],
+            TREND_FOLLOWER: [
+              `${tokenSymbol} trend showing ${activitySentiment} with ${totalActivity} trades. Following the momentum!`,
+              `Volume picking up on ${tokenSymbol} - ${bullishTrades} buys suggest strong trend confirmation!`
+            ],
+            TECHNICAL: [
+              `${tokenSymbol} showing ${totalActivity} trades in 15min window. Technical indicators suggest ${activitySentiment} trend.`,
+              `Analyzing ${tokenSymbol} volume patterns: ${bullishTrades} accumulation vs ${bearishTrades} distribution.`
+            ],
+            FUNDAMENTAL: [
+              `${tokenSymbol} trading activity (${totalActivity} trades) reflects underlying ${activitySentiment} fundamentals.`,
+              `Monitoring ${tokenSymbol} adoption metrics through ${bullishTrades} accumulation trades.`
+            ],
+            WHALE: [
+              `Positioned in ${tokenSymbol}. ${totalActivity} retail trades in 15min - good exit liquidity available.`,
+              `${tokenSymbol} seeing ${bullishTrades} retail buys. FOMO building - potential distribution opportunity.`
+            ],
+            MODERATE: [
+              `${tokenSymbol} showing ${activitySentiment} sentiment with ${totalActivity} recent trades. Evaluating risk/reward.`,
+              `Balanced view on ${tokenSymbol}: ${bullishTrades} buys vs ${bearishTrades} sells. Waiting for clear signal.`
+            ]
+          };
+
+          const personalityMessages = personalityFallbackMessages[this.agentData.personalityType as keyof typeof personalityFallbackMessages] || [
+            `Interesting ${tokenSymbol} activity with ${totalActivity} recent trades.`
+          ];
+
+          const selectedMessage = personalityMessages[Math.floor(Math.random() * personalityMessages.length)];
+          
+          await prisma.message.create({
+            data: {
+              content: selectedMessage,
+              senderId: this.agentData.id,
+              type: "CHAT",
+              visibility: "public",
+              sentiment: activitySentiment
+            }
+          });
+          console.log(`💾 ${this.agentData.name} fallback message saved: "${selectedMessage.substring(0, 50)}..."`);
+        }
+
+      } catch (error) {
+        console.error(`LLM message error for ${this.agentData.name}:`, error);
+      }
+    }
+
+    await this.createOrUpdateAgentState({
+      lastSocialAction: new Date(),
+      lastAction: new Date(),
+      lastDecision: {
+        type: 'SOCIAL',
+        timestamp: new Date().toISOString(),
+        data: {
+          messageCount: messages.length,
+          response: shouldRespond ? 'Sent message' : 'No response'
+        }
+      }
+    });
+
+    return true;
+  } catch (error: any) {
+    console.error(`Error in social interaction for agent ${this.agentData.name}:`, error);
+    return false;
+  }
+}
+
+
+  async makeTradeDecision(marketInfo: any) {
+  try {
+    console.log(`💰 Agent ${this.agentData.name} making trade decision`);
+
+    // Check if agent is initialized
+    if (!this.agent) {
+      console.log(`⚠️  Agent ${this.agentData.name} not fully initialized yet, skipping trade decision`);
       return false;
     }
+
+    const agent = await prisma.agent.findUnique({
+      where: { id: this.agentData.id }
+    });
+    if (!agent) {
+      throw new Error(`Agent ${this.agentData.id} not found`);
+    }
+
+    const selectedToken = await getSelectedToken();
+    const tokenSymbol = selectedToken.symbol || 'TOKEN';
+    
+    const balanceInfo =
+      `Your current balances:\n` +
+      `- SOL: ${agent.walletBalance} SOL\n` +
+      `- ${tokenSymbol} tokens: ${agent.tokenBalance} ${tokenSymbol}\n\n`;
+
+    const marketSummary =
+      `Current market conditions:\n` +
+      `- ${tokenSymbol} token price: ${marketInfo.price} SOL\n` +
+      `- 24h price change: ${marketInfo.priceChange24h}%\n` +
+      `- 24h trading volume: ${marketInfo.volume24h} SOL\n` +
+      `- Liquidity: ${marketInfo.liquidity} SOL\n`;
+
+    const personalityBehavior = getPersonalityBehavior(this.agentData.personalityType as PersonalityType);
+
+    const systemMessage = new SystemMessage(
+      `You are ${this.agentData.name}, a ${this.agentData.personalityType} trader on Solana trading ${tokenSymbol}. ` +
+      `${this.personalityPrompt}\n\n` +
+      `## Trading Style:\n` +
+      `- Risk Tolerance: ${Math.round(personalityBehavior.riskTolerance * 100)}%\n` +
+      `- Trade Frequency: ${Math.round(personalityBehavior.tradeFrequency * 100)}%\n` +
+      `- Position Size: ${Math.round(personalityBehavior.positionSize * 100)}%\n` +
+      `- Decision Threshold: ${Math.round(personalityBehavior.decisionThreshold * 100)}%\n\n` +
+      `USE execute_token_swap tool to trade if market conditions align with your strategy.`
+    );
+
+    console.log(`🤔 ${this.agentData.name} analyzing: ${tokenSymbol} @ ${marketInfo.price} SOL (${marketInfo.priceChange24h}%)`);
+
+    // Use LLM to make intelligent trade decision
+    try {
+      const response = await this.agent.invoke({
+        messages: [
+          systemMessage,
+          new HumanMessage(
+            `${balanceInfo}${marketSummary}\n\n` +
+            `As a ${this.agentData.personalityType} trader, analyze ${tokenSymbol} and decide:\n\n` +
+            `Trading guidelines:\n` +
+            `- Risk Tolerance: ${Math.round(personalityBehavior.riskTolerance * 100)}%\n` +
+            `- Decision Threshold: ${Math.round(personalityBehavior.decisionThreshold * 100)}%\n` +
+            `- Position Size: ${Math.round(personalityBehavior.positionSize * 100)}%\n\n` +
+            `To BUY: USE execute_token_swap with {inputAmount: <SOL amount>, inputIsSol: true, slippageTolerance: 1.5}\n` +
+            `To SELL: USE execute_token_swap with {inputAmount: <${tokenSymbol} amount>, inputIsSol: false, slippageTolerance: 1.5}\n` +
+            `To HOLD: Respond with your analysis but don't call the tool\n\n` +
+            `Make your decision and USE THE TOOL if trading!`
+          )
+        ]
+      });
+
+      console.log(`💭 ${this.agentData.name} decision: ${response.toString().substring(0, 100)}...`);
+      
+      // ✅ Check if tool was called
+      let toolCalled = false;
+      const responseText = response.toString().toLowerCase();
+      
+      if (responseText.includes('execute_token_swap') || 
+          responseText.includes('tool_calls') ||
+          responseText.includes('function_call')) {
+        toolCalled = true;
+        console.log(`✅ ${this.agentData.name} LLM used tool successfully`);
+      }
+
+      // ✅ Fallback: personality-based trading if LLM didn't use tool
+      if (!toolCalled && agent.walletBalance > 1) {
+        const shouldTrade = Math.random() < personalityBehavior.tradeFrequency;
+        
+        if (shouldTrade) {
+          console.log(`⚠️  ${this.agentData.name} LLM didn't use tool, executing personality-based fallback`);
+          
+          // ✅ FIX #1: Correct tool name
+          const tradeTool = this.tools.find(t => t.name === 'execute_token_swap');
+          
+          if (tradeTool) {
+            let isBuy = Math.random() < 0.5;
+
+            // Personality-based decision logic
+            if (this.agentData.personalityType === 'AGGRESSIVE' && marketInfo.priceChange24h > 1) {
+              isBuy = true; // Buy on upward momentum
+            } else if (this.agentData.personalityType === 'CONSERVATIVE' && marketInfo.priceChange24h < -1) {
+              isBuy = false; // Sell on downward momentum
+            } else if (this.agentData.personalityType === 'CONTRARIAN') {
+              // ✅ FIX #3: Correct contrarian logic
+              isBuy = marketInfo.priceChange24h < 0; // Buy dips, fade pumps
+            } else if (this.agentData.personalityType === 'TREND_FOLLOWER') {
+              isBuy = marketInfo.priceChange24h > 0; // Follow the trend
+            } else if (this.agentData.personalityType === 'EMOTIONAL') {
+              // More extreme reactions to market moves
+              if (marketInfo.priceChange24h > 3) isBuy = true;
+              if (marketInfo.priceChange24h < -3) isBuy = false;
+            }
+
+            // Calculate position size based on personality
+            const baseAmount = Math.random() * 2 + 1; // 1-3 SOL
+            const adjustedAmount = Math.min(
+              baseAmount * personalityBehavior.positionSize,
+              agent.walletBalance * 0.8 // Max 80% of balance
+            );
+
+            // Only trade if amount is meaningful
+            if (adjustedAmount > 0.1) {
+              try {
+                // ✅ FIX #2: Correct invoke format with JSON string
+                await tradeTool.invoke(JSON.stringify({
+                  inputAmount: adjustedAmount,
+                  inputIsSol: isBuy,
+                  slippageTolerance: 1.5
+                }));
+                
+                console.log(`✅ ${this.agentData.name} executed ${isBuy ? 'BUY' : 'SELL'} ${adjustedAmount.toFixed(2)} ${isBuy ? 'SOL' : tokenSymbol}`);
+              } catch (tradeError: any) {
+                console.error(`❌ ${this.agentData.name} trade execution failed:`, tradeError.message);
+              }
+            } else {
+              console.log(`⚠️  ${this.agentData.name} trade amount too small (${adjustedAmount.toFixed(3)}), skipping`);
+            }
+          } else {
+            console.error(`❌ execute_token_swap tool not found in ${this.agentData.name}'s tool list`);
+          }
+        } else {
+          console.log(`😴 ${this.agentData.name} decided to HOLD (trade frequency: ${Math.round(personalityBehavior.tradeFrequency * 100)}%)`);
+        }
+      }
+    } catch (llmError) {
+      console.error(`LLM trade decision error for ${this.agentData.name}:`, llmError);
+    }
+
+    await this.createOrUpdateAgentState({
+      lastTradeDecision: new Date(),
+      lastAction: new Date(),
+      lastDecision: {
+        type: 'TRADE',
+        timestamp: new Date().toISOString(),
+        data: {
+          marketInfo,
+          balance: {
+            sol: agent.walletBalance,
+            token: agent.tokenBalance
+          },
+          personality: this.agentData.personalityType,
+          riskTolerance: personalityBehavior.riskTolerance
+        }
+      }
+    });
+
+    return true;
+  } catch (error: any) {
+    console.error(`Error in trade decision for agent ${this.agentData.name}:`, error);
+    return false;
   }
+}
+
 }

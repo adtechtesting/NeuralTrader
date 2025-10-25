@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import TokenSelector from '@/components/TokenSelector';
-import { CheckCircle, ArrowRight, TrendingUp, Activity, Users, Zap } from 'lucide-react';
-import { LightRays } from '@/components/ui/lightrays';
+import { CheckCircle, ArrowRight, TrendingUp, Activity, Users, Zap, Sparkles } from 'lucide-react';
+import { StripedPattern } from '@/components/ui/strippedpattern';
 
 export default function TokenSetupPage() {
   const router = useRouter();
@@ -39,13 +39,9 @@ export default function TokenSetupPage() {
 
   return (
     <div className="min-h-screen w-full relative text-white overflow-hidden bg-black">
-    
-     <LightRays></LightRays>
-      
-      {/* Bottom Right Blurred Circle */}
+        <StripedPattern className="[mask-image:radial-gradient(600px_circle_at_center,white,transparent)]" />
+      {/* Background Effects - Same as Original */}
       <div className="absolute bottom-0 -right-32 w-96 h-96 rounded-full bg-white opacity-5 blur-[120px] pointer-events-none" />
-        
-      {/* Center Top Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full bg-white opacity-3 blur-[150px] pointer-events-none" />
 
       {/* Enhanced Grid Background with Fade */}
@@ -78,76 +74,74 @@ export default function TokenSetupPage() {
 
       {/* Content */}
       <div className="relative z-10 min-h-screen flex items-center justify-center p-6 pt-32 pb-20">
-        <div className="max-w-2xl w-full">
-          {/* Header with Icon Badge */}
+        <div className="max-w-3xl w-full">
+          {/* Header */}
           <div className="text-center mb-12">
-   
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              Trading Simulation Setup
-            </h1>
-            <p className="text-white/50 text-lg md:text-xl max-w-xl mx-auto">
+        
+           
+            <p className="text-white text-xl max-w-2xl mx-auto">
               Select a token to start your AI-powered trading simulation on Solana
             </p>
           </div>
 
-          {/* Current Token Display - Enhanced */}
+          {/* Current Token Display */}
           <div className="relative group mb-6">
             <div className="absolute -inset-1 bg-gradient-to-r from-gray-600/20 via-white/20 to-gray-600/20 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-500"></div>
-            <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-8 group-hover:border-white/20 transition-all">
+            <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 group-hover:border-white/20 transition-all">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex-1">
-                  <div className="text-sm text-white/50 mb-3 uppercase tracking-wider font-medium">Selected Token</div>
+                  <div className="text-xs text-white/40 mb-2 uppercase tracking-wider font-semibold">Selected Token</div>
                   {loading ? (
                     <div className="text-white/60">Loading...</div>
                   ) : currentToken ? (
                     <div>
-                      <div className="text-4xl font-bold text-white mb-2">
+                      <div className="text-3xl font-bold text-white mb-1">
                         {currentToken.symbol || 'SOL'}
                       </div>
                       {currentToken.name && (
-                        <div className="text-lg text-white/60">{currentToken.name}</div>
+                        <div className="text-sm text-white/60 mb-3">{currentToken.name}</div>
                       )}
                       {currentToken.usdPrice && (
-                        <div className="text-base text-white/50 mt-4 flex items-center gap-2">
-                          <TrendingUp size={16} />
-                          Price: ${currentToken.usdPrice.toFixed(currentToken.usdPrice < 1 ? 6 : 2)}
+                        <div className="inline-flex items-center gap-2 text-sm text-white/50 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
+                          <TrendingUp size={14} />
+                          ${currentToken.usdPrice.toFixed(currentToken.usdPrice < 1 ? 6 : 2)}
                         </div>
                       )}
                     </div>
                   ) : (
-                    <div className="text-xl text-white/50">No token selected</div>
+                    <div className="text-lg text-white/50">No token selected</div>
                   )}
                 </div>
                 <button
                   onClick={() => setShowSelector(true)}
-                  className="px-8 py-4 bg-white text-black rounded-xl hover:bg-white/90 transition-all font-semibold shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:scale-105 transform duration-300"
+                  className="px-6 py-3 bg-white text-black rounded-lg hover:bg-white/90 transition-all font-semibold text-sm shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.3)]"
                 >
                   {currentToken ? 'Change Token' : 'Select Token'}
                 </button>
               </div>
 
               {currentToken && (
-                <div className="pt-6 border-t border-white/10 grid grid-cols-3 gap-6">
+                <div className="pt-4 border-t border-white/10 grid grid-cols-3 gap-3">
                   {currentToken.mcap && (
-                    <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                      <div className="text-xs text-white/50 mb-2 uppercase tracking-wider">Market Cap</div>
-                      <div className="text-lg text-white font-bold">
+                    <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                      <div className="text-xs text-white/40 mb-1 uppercase tracking-wider">Market Cap</div>
+                      <div className="text-base text-white font-bold">
                         ${(currentToken.mcap / 1e6).toFixed(2)}M
                       </div>
                     </div>
                   )}
                   {currentToken.liquidity && (
-                    <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                      <div className="text-xs text-white/50 mb-2 uppercase tracking-wider">Liquidity</div>
-                      <div className="text-lg text-white font-bold">
+                    <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                      <div className="text-xs text-white/40 mb-1 uppercase tracking-wider">Liquidity</div>
+                      <div className="text-base text-white font-bold">
                         ${(currentToken.liquidity / 1e6).toFixed(2)}M
                       </div>
                     </div>
                   )}
                   {currentToken.holderCount && (
-                    <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                      <div className="text-xs text-white/50 mb-2 uppercase tracking-wider">Holders</div>
-                      <div className="text-lg text-white font-bold">
+                    <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                      <div className="text-xs text-white/40 mb-1 uppercase tracking-wider">Holders</div>
+                      <div className="text-base text-white font-bold">
                         {currentToken.holderCount.toLocaleString()}
                       </div>
                     </div>
@@ -157,78 +151,60 @@ export default function TokenSetupPage() {
             </div>
           </div>
 
-          {/* Features List - Enhanced */}
-          <div className="relative group mb-8">
-            <div className="absolute -inset-1 bg-gradient-to-r from-gray-600/20 via-white/20 to-gray-600/20 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-500"></div>
-            <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-8 group-hover:border-white/20 transition-all">
-              <h2 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
-                <Zap size={24} />
-                What You'll Get
-              </h2>
-              <div className="space-y-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0 border border-white/20">
-                    <Users size={20} className="text-white" />
-                  </div>
-                  <div>
-                    <div className="text-white font-semibold mb-2 text-lg">AI Trading Agents</div>
-                    <div className="text-sm text-white/60 leading-relaxed">
-                      Multiple AI agents with different trading personalities and strategies
+          {/* Features Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {[
+              {
+                icon: Users,
+                title: "AI Trading Agents",
+                desc: "Multiple AI agents with different trading strategies"
+              },
+              {
+                icon: Activity,
+                title: "Real-Time Data",
+                desc: "Live market data from Jupiter aggregator"
+              },
+              {
+                icon: TrendingUp,
+                title: "Simulated Trading",
+                desc: "Risk-free testing with no real money"
+              },
+              {
+                icon: CheckCircle,
+                title: "Social Interactions",
+                desc: "Agents share insights in real-time"
+              }
+            ].map((feature, i) => (
+              <div key={i} className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-gray-600/20 via-white/20 to-gray-600/20 rounded-xl blur opacity-30 group-hover:opacity-50 transition duration-500"></div>
+                <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-xl p-5 group-hover:border-white/20 transition-all">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0 border border-white/20">
+                      <feature.icon size={18} className="text-white" />
                     </div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0 border border-white/20">
-                    <Activity size={20} className="text-white" />
-                  </div>
-                  <div>
-                    <div className="text-white font-semibold mb-2 text-lg">Real-Time Market Data</div>
-                    <div className="text-sm text-white/60 leading-relaxed">
-                      Live prices and market data directly from Jupiter aggregator
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0 border border-white/20">
-                    <TrendingUp size={20} className="text-white" />
-                  </div>
-                  <div>
-                    <div className="text-white font-semibold mb-2 text-lg">Simulated Trading</div>
-                    <div className="text-sm text-white/60 leading-relaxed">
-                      No real money - perfect for testing strategies risk-free
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0 border border-white/20">
-                    <CheckCircle size={20} className="text-white" />
-                  </div>
-                  <div>
-                    <div className="text-white font-semibold mb-2 text-lg">Social Interactions</div>
-                    <div className="text-sm text-white/60 leading-relaxed">
-                      Agents communicate and share market insights in real-time
+                    <div>
+                      <div className="text-white font-semibold mb-1 text-sm">{feature.title}</div>
+                      <div className="text-xs text-white/50 leading-relaxed">{feature.desc}</div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
-
+          
           {/* Continue Button */}
-          {currentToken && (
+          {currentToken ? (
             <button
               onClick={handleContinue}
-              className="group w-full py-5 bg-white text-black rounded-xl hover:bg-white/90 transition-all font-bold text-lg flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:shadow-[0_0_50px_rgba(255,255,255,0.3)]  transform duration-300"
+              className="group w-full py-4 bg-white text-black rounded-xl hover:bg-white/90 transition-all font-bold text-base flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:shadow-[0_0_50px_rgba(255,255,255,0.3)]"
             >
               Continue to Simulation
-              <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+              <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
             </button>
-          )}
-
-          {!currentToken && (
-            <div className="text-center py-6">
-              <div className="inline-flex items-center gap-2 px-6 py-3 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl">
-                <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
+          ) : (
+            <div className="text-center py-4">
+              <div className="inline-flex items-center gap-2 px-5 py-3 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl">
+                <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></div>
                 <span className="text-white/60 text-sm font-medium">Please select a token to continue</span>
               </div>
             </div>

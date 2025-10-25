@@ -842,8 +842,8 @@ async function triggerLLMSocialInteractions(count: number): Promise<void> {
     // Import agent pool to get LLM agents
     const { AgentPool } = await import('../agents/agent-factory');
 
-    // Create agent pool instance
-    const agentPool = new AgentPool({ maxSize: 50, useLLM: true });
+    // Create agent pool instance with ASI features enabled
+    const agentPool = new AgentPool({ maxSize: 50, useLLM: true, useASI: true });
 
     // Trigger social interactions for each agent
     const socialPromises = agents.map(async (agent) => {

@@ -199,62 +199,58 @@ export default function MarketVisualization() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#0B0E11]">
-        <div className="flex gap-2">
-          <div className="h-3 w-3 bg-[#2EBD85] rounded-full animate-bounce"></div>
-          <div className="h-3 w-3 bg-[#2EBD85] rounded-full animate-bounce [animation-delay:0.2s]"></div>
-          <div className="h-3 w-3 bg-[#2EBD85] rounded-full animate-bounce [animation-delay:0.4s]"></div>
-        </div>
+      <div className="flex items-center justify-center h-screen bg-black">
+        <div className="w-8 h-8 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0E11] text-white">
+    <div className="min-h-screen bg-black text-white">
       {/* Top Bar */}
-      <div className="bg-[#131722] border-b border-[#2A2E39] px-6 py-3">
+      <div className="bg-black/60 backdrop-blur-xl border-b border-white/10 px-6 py-3">
         <div className="flex items-center justify-between max-w-[2000px] mx-auto">
           <div className="flex items-center gap-6">
             {/* Token Info */}
             <div className="flex items-center gap-3">
               <div>
-                <div className="text-[13px] text-[#787B86] mb-0.5">{tokenData?.name || 'Loading...'}</div>
-                <div className="text-xl font-semibold text-white">{tokenData?.symbol || 'TOKEN'}/USD</div>
+                <div className="text-[13px] text-white/40 mb-0.5">{tokenData?.name || 'Loading...'}</div>
+                <div className="text-xl font-bold text-white">{tokenData?.symbol || 'TOKEN'}/USD</div>
               </div>
             </div>
             
-            <div className="h-10 w-px bg-[#2A2E39]"></div>
+            <div className="h-10 w-px bg-white/10"></div>
             
             {/* Price & Change */}
             <div>
-              <div className="text-[13px] text-[#787B86] mb-0.5">Last Price</div>
+              <div className="text-[13px] text-white/40 mb-0.5">Last Price</div>
               <div className="flex items-center gap-2">
-                <div className={`text-xl font-bold ${isPositive ? 'text-[#2EBD85]' : 'text-[#F6465D]'}`}>
+                <div className={`text-xl font-bold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
                   ${tokenData?.usdPrice?.toFixed(6) || '0.000000'}
                 </div>
-                <div className={`flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded ${
-                  isPositive ? 'bg-[#2EBD85]/10 text-[#2EBD85]' : 'bg-[#F6465D]/10 text-[#F6465D]'
+                <div className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full ${
+                  isPositive ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'
                 }`}>
                   {isPositive ? '+' : ''}{priceChange.toFixed(2)}%
                 </div>
               </div>
             </div>
 
-            <div className="h-10 w-px bg-[#2A2E39]"></div>
+            <div className="h-10 w-px bg-white/10"></div>
 
             {/* 24h Stats */}
             <div className="flex items-center gap-8">
               <div>
-                <div className="text-[11px] text-[#787B86] mb-1">24h High</div>
-                <div className="text-sm font-medium text-[#2EBD85]">${high24h.toFixed(6)}</div>
+                <div className="text-[11px] text-white/40 mb-1 uppercase tracking-wider">24h High</div>
+                <div className="text-sm font-bold text-green-400">${high24h.toFixed(6)}</div>
               </div>
               <div>
-                <div className="text-[11px] text-[#787B86] mb-1">24h Low</div>
-                <div className="text-sm font-medium text-[#F6465D]">${low24h.toFixed(6)}</div>
+                <div className="text-[11px] text-white/40 mb-1 uppercase tracking-wider">24h Low</div>
+                <div className="text-sm font-bold text-red-400">${low24h.toFixed(6)}</div>
               </div>
               <div>
-                <div className="text-[11px] text-[#787B86] mb-1">24h Volume</div>
-                <div className="text-sm font-medium text-white">
+                <div className="text-[11px] text-white/40 mb-1 uppercase tracking-wider">24h Volume</div>
+                <div className="text-sm font-bold text-white">
                   {tokenData?.volume24h 
                     ? `$${(tokenData.volume24h / 1e6).toFixed(2)}M` 
                     : `$${((tokenData?.mcap || 0) * 0.1 / 1e6).toFixed(2)}M`}
@@ -265,9 +261,9 @@ export default function MarketVisualization() {
 
           <button 
             onClick={fetchData} 
-            className="p-2 hover:bg-[#2A2E39] rounded transition-colors"
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
           >
-            <RefreshCw size={16} className="text-[#787B86]" />
+            <RefreshCw size={16} className="text-white/60" />
           </button>
         </div>
       </div>
@@ -275,14 +271,14 @@ export default function MarketVisualization() {
       {/* Main Content */}
       <div className="flex h-[calc(100vh-60px)]">
         {/* Order Book */}
-        <div className="w-[280px] bg-[#131722] border-r border-[#2A2E39]">
-          <div className="p-3 border-b border-[#2A2E39]">
-            <div className="text-sm font-medium text-white">Order Book</div>
+        <div className="w-[280px] bg-black/60 backdrop-blur-xl border-r border-white/10">
+          <div className="p-3 border-b border-white/10">
+            <div className="text-sm font-bold text-white">Order Book</div>
           </div>
           
           <div className="p-3">
             {/* Headers */}
-            <div className="grid grid-cols-3 text-[10px] text-[#787B86] mb-2 pb-1">
+            <div className="grid grid-cols-3 text-[10px] text-white/40 mb-2 pb-1 uppercase tracking-wider font-semibold">
               <div>Price(USD)</div>
               <div className="text-right">Amount</div>
               <div className="text-right">Total</div>
@@ -293,25 +289,25 @@ export default function MarketVisualization() {
               {asks.slice().reverse().slice(0, 14).map((ask, i) => (
                 <div 
                   key={i} 
-                  className="grid grid-cols-3 text-[11px] py-[2px] px-1 hover:bg-[#F6465D]/5 cursor-pointer relative rounded-sm"
+                  className="grid grid-cols-3 text-[11px] py-[2px] px-1 hover:bg-red-500/5 cursor-pointer relative rounded-sm"
                 >
                   <div 
-                    className="absolute right-0 top-0 bottom-0 bg-[#F6465D]/8 rounded-sm"
+                    className="absolute right-0 top-0 bottom-0 bg-red-500/10 rounded-sm"
                     style={{ width: `${(ask.total / asks[asks.length - 1]?.total) * 100}%` }}
                   />
-                  <div className="text-[#F6465D] font-mono relative z-10">{ask.price.toFixed(6)}</div>
+                  <div className="text-red-400 font-mono relative z-10 font-semibold">{ask.price.toFixed(6)}</div>
                   <div className="text-right text-white/80 relative z-10">{ask.amount.toFixed(1)}</div>
-                  <div className="text-right text-[#787B86] relative z-10 text-[10px]">{ask.total.toFixed(0)}</div>
+                  <div className="text-right text-white/40 relative z-10 text-[10px]">{ask.total.toFixed(0)}</div>
                 </div>
               ))}
             </div>
 
             {/* Current Price */}
-            <div className={`flex items-center justify-center py-2 mb-2 ${isPositive ? 'bg-[#2EBD85]/10' : 'bg-[#F6465D]/10'} rounded`}>
-              <div className={`text-lg font-bold ${isPositive ? 'text-[#2EBD85]' : 'text-[#F6465D]'}`}>
+            <div className={`flex items-center justify-center py-2 mb-2 rounded-lg ${isPositive ? 'bg-green-500/10 border border-green-500/30' : 'bg-red-500/10 border border-red-500/30'}`}>
+              <div className={`text-lg font-bold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
                 ${tokenData?.usdPrice?.toFixed(6)}
               </div>
-              <div className="text-[10px] text-[#787B86] ml-2">↔ {spread}%</div>
+              <div className="text-[10px] text-white/40 ml-2">↔ {spread}%</div>
             </div>
 
             {/* Bids */}
@@ -319,15 +315,15 @@ export default function MarketVisualization() {
               {bids.slice(0, 14).map((bid, i) => (
                 <div 
                   key={i} 
-                  className="grid grid-cols-3 text-[11px] py-[2px] px-1 hover:bg-[#2EBD85]/5 cursor-pointer relative rounded-sm"
+                  className="grid grid-cols-3 text-[11px] py-[2px] px-1 hover:bg-green-500/5 cursor-pointer relative rounded-sm"
                 >
                   <div 
-                    className="absolute right-0 top-0 bottom-0 bg-[#2EBD85]/8 rounded-sm"
+                    className="absolute right-0 top-0 bottom-0 bg-green-500/10 rounded-sm"
                     style={{ width: `${(bid.total / bids[bids.length - 1]?.total) * 100}%` }}
                   />
-                  <div className="text-[#2EBD85] font-mono relative z-10">{bid.price.toFixed(6)}</div>
+                  <div className="text-green-400 font-mono relative z-10 font-semibold">{bid.price.toFixed(6)}</div>
                   <div className="text-right text-white/80 relative z-10">{bid.amount.toFixed(1)}</div>
-                  <div className="text-right text-[#787B86] relative z-10 text-[10px]">{bid.total.toFixed(0)}</div>
+                  <div className="text-right text-white/40 relative z-10 text-[10px]">{bid.total.toFixed(0)}</div>
                 </div>
               ))}
             </div>
@@ -335,20 +331,20 @@ export default function MarketVisualization() {
         </div>
 
         {/* Chart Area */}
-        <div className="flex-1 bg-[#131722] flex flex-col">
+        <div className="flex-1 bg-black/60 backdrop-blur-xl flex flex-col">
           {/* Chart Toolbar */}
-          <div className="flex items-center justify-between px-4 py-2 border-b border-[#2A2E39]">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
             <div className="flex items-center gap-3">
               {/* Time Range */}
-              <div className="flex items-center gap-1 bg-[#1C2030] rounded p-0.5">
+              <div className="flex items-center gap-1 bg-white/5 rounded-lg p-0.5">
                 {['15M', '1H', '4H', '24H', '7D'].map((range) => (
                   <button
                     key={range}
                     onClick={() => setTimeRange(range)}
-                    className={`px-3 py-1 text-xs font-medium rounded transition-all ${
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                       timeRange === range 
-                        ? 'bg-[#2962FF] text-white' 
-                        : 'text-[#787B86] hover:text-white'
+                        ? 'bg-white text-black' 
+                        : 'text-white/60 hover:text-white'
                     }`}
                   >
                     {range}
@@ -357,39 +353,26 @@ export default function MarketVisualization() {
               </div>
 
               {/* Chart Type */}
-              <div className="h-6 w-px bg-[#2A2E39]"></div>
+              <div className="h-6 w-px bg-white/10"></div>
               <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setChartType('area')}
-                  className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-                    chartType === 'area' ? 'bg-[#2A2E39] text-white' : 'text-[#787B86] hover:text-white'
-                  }`}
-                >
-                  Area
-                </button>
-                <button
-                  onClick={() => setChartType('line')}
-                  className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-                    chartType === 'line' ? 'bg-[#2A2E39] text-white' : 'text-[#787B86] hover:text-white'
-                  }`}
-                >
-                  Line
-                </button>
-                <button
-                  onClick={() => setChartType('candles')}
-                  className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-                    chartType === 'candles' ? 'bg-[#2A2E39] text-white' : 'text-[#787B86] hover:text-white'
-                  }`}
-                >
-                  Candles
-                </button>
+                {['area', 'line', 'candles'].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setChartType(type as typeof chartType)}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors capitalize ${
+                      chartType === type ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
               </div>
 
-              <div className="h-6 w-px bg-[#2A2E39]"></div>
+              <div className="h-6 w-px bg-white/10"></div>
               <button
                 onClick={() => setShowVolume(!showVolume)}
-                className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-                  showVolume ? 'bg-[#2A2E39] text-white' : 'text-[#787B86] hover:text-white'
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                  showVolume ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white'
                 }`}
               >
                 Volume
@@ -397,11 +380,11 @@ export default function MarketVisualization() {
             </div>
 
             <div className="flex items-center gap-2">
-              <button className="p-1.5 hover:bg-[#2A2E39] rounded transition-colors">
-                <Settings size={14} className="text-[#787B86]" />
+              <button className="p-1.5 hover:bg-white/10 rounded-lg transition-colors">
+                <Settings size={14} className="text-white/60" />
               </button>
-              <button className="p-1.5 hover:bg-[#2A2E39] rounded transition-colors">
-                <Maximize2 size={14} className="text-[#787B86]" />
+              <button className="p-1.5 hover:bg-white/10 rounded-lg transition-colors">
+                <Maximize2 size={14} className="text-white/60" />
               </button>
             </div>
           </div>
@@ -412,8 +395,8 @@ export default function MarketVisualization() {
               <ComposedChart data={priceHistory} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#2EBD85" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="#2EBD85" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#ffffff" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 
@@ -421,15 +404,15 @@ export default function MarketVisualization() {
                   strokeDasharray="0" 
                   vertical={false}
                   horizontal={true}
-                  stroke="#2A2E39" 
+                  stroke="rgba(255,255,255,0.1)" 
                   strokeWidth={0.5}
                 />
                 
                 <XAxis 
                   dataKey="formattedTime" 
-                  tick={{ fill: '#787B86', fontSize: 11 }}
+                  tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
                   tickLine={false}
-                  axisLine={{ stroke: '#2A2E39', strokeWidth: 0.5 }}
+                  axisLine={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 0.5 }}
                   dy={8}
                   tickFormatter={(value, index) => {
                     const step = Math.ceil(priceHistory.length / 10);
@@ -438,9 +421,9 @@ export default function MarketVisualization() {
                 />
                 
                 <YAxis 
-                  tick={{ fill: '#787B86', fontSize: 11 }}
+                  tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
                   tickLine={false}
-                  axisLine={{ stroke: '#2A2E39', strokeWidth: 0.5 }}
+                  axisLine={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 0.5 }}
                   tickFormatter={(value) => `$${typeof value === 'number' ? value.toFixed(6) : '0'}`}
                   domain={['dataMin * 0.9998', 'dataMax * 1.0002']}
                   width={90}
@@ -453,38 +436,38 @@ export default function MarketVisualization() {
                     if (active && payload?.length) {
                       const data = payload[0].payload;
                       return (
-                        <div className="bg-[#1C2030] border border-[#2A2E39] p-3 rounded shadow-xl">
-                          <div className="text-[10px] text-[#787B86] mb-2">{data.formattedTime}</div>
+                        <div className="bg-black/90 backdrop-blur-xl border border-white/20 p-3 rounded-lg shadow-xl">
+                          <div className="text-[10px] text-white/40 mb-2 uppercase tracking-wider">{data.formattedTime}</div>
                           <div className="space-y-1">
                             {chartType === 'candles' && (
                               <>
                                 <div className="flex justify-between gap-4 text-xs">
-                                  <span className="text-[#787B86]">O:</span>
+                                  <span className="text-white/60">O:</span>
                                   <span className="text-white font-mono">${data.open?.toFixed(8)}</span>
                                 </div>
                                 <div className="flex justify-between gap-4 text-xs">
-                                  <span className="text-[#787B86]">H:</span>
-                                  <span className="text-[#2EBD85] font-mono">${data.high?.toFixed(8)}</span>
+                                  <span className="text-white/60">H:</span>
+                                  <span className="text-green-400 font-mono">${data.high?.toFixed(8)}</span>
                                 </div>
                                 <div className="flex justify-between gap-4 text-xs">
-                                  <span className="text-[#787B86]">L:</span>
-                                  <span className="text-[#F6465D] font-mono">${data.low?.toFixed(8)}</span>
+                                  <span className="text-white/60">L:</span>
+                                  <span className="text-red-400 font-mono">${data.low?.toFixed(8)}</span>
                                 </div>
                                 <div className="flex justify-between gap-4 text-xs">
-                                  <span className="text-[#787B86]">C:</span>
+                                  <span className="text-white/60">C:</span>
                                   <span className="text-white font-mono font-bold">${data.close?.toFixed(8)}</span>
                                 </div>
                               </>
                             )}
                             {chartType !== 'candles' && (
                               <div className="flex justify-between gap-4 text-xs">
-                                <span className="text-[#787B86]">Price:</span>
+                                <span className="text-white/60">Price:</span>
                                 <span className="text-white font-mono font-bold">${data.price?.toFixed(8)}</span>
                               </div>
                             )}
                             {showVolume && (
-                              <div className="flex justify-between gap-4 text-xs pt-1 border-t border-[#2A2E39]">
-                                <span className="text-[#787B86]">Vol:</span>
+                              <div className="flex justify-between gap-4 text-xs pt-1 border-t border-white/10">
+                                <span className="text-white/60">Vol:</span>
                                 <span className="text-white">${(data.volume / 1e6).toFixed(2)}M</span>
                               </div>
                             )}
@@ -494,13 +477,13 @@ export default function MarketVisualization() {
                     }
                     return null;
                   }}
-                  cursor={{ stroke: '#787B86', strokeWidth: 0.5, strokeDasharray: '3 3' }}
+                  cursor={{ stroke: 'rgba(255,255,255,0.4)', strokeWidth: 0.5, strokeDasharray: '3 3' }}
                 />
                 
                 {showVolume && (
                   <Bar 
                     dataKey="volume" 
-                    fill="#2962FF"
+                    fill="rgba(255,255,255,0.2)"
                     fillOpacity={0.3}
                     yAxisId="volume"
                   />
@@ -510,11 +493,11 @@ export default function MarketVisualization() {
                   <Area 
                     type="monotone"
                     dataKey="price" 
-                    stroke="#2EBD85" 
+                    stroke="#ffffff" 
                     strokeWidth={2}
                     fill="url(#chartGradient)" 
                     dot={false}
-                    activeDot={{ r: 4, fill: '#2EBD85', stroke: '#131722', strokeWidth: 2 }}
+                    activeDot={{ r: 4, fill: '#ffffff', stroke: '#000000', strokeWidth: 2 }}
                   />
                 )}
                 
@@ -522,10 +505,10 @@ export default function MarketVisualization() {
                   <Line 
                     type="monotone"
                     dataKey="price" 
-                    stroke="#2EBD85" 
+                    stroke="#ffffff" 
                     strokeWidth={1.5}
                     dot={false}
-                    activeDot={{ r: 4, fill: '#2EBD85', stroke: '#131722', strokeWidth: 2 }}
+                    activeDot={{ r: 4, fill: '#ffffff', stroke: '#000000', strokeWidth: 2 }}
                   />
                 )}
 

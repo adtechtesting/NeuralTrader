@@ -2,36 +2,49 @@
 
 import { useState, useEffect } from 'react';
 import {
-  ArrowRight,
+  Play,
   Pause,
-  CircleStop,
-  RefreshCw,
+  Square,
   Settings,
-  FastForward,
-  Expand,
-  ArrowBigDown,
+  ChevronDown,
   AlertCircle,
+  CheckCircle2,
+  XCircle,
+  Users,
+  Clock,
+  Layers,
+  Zap,
+  Activity,
+  TrendingUp,
+  MessageSquare,
+  Brain,
 } from 'lucide-react';
 
-/**
- * SimulationControls - UI for controlling the autonomous agent simulation
- *
- * Features:
- * - Start/pause/stop simulation
- * - Configure simulation parameters
- * - View simulation logs
- * - Monitor performance metrics
- * - Control simulation speed
- */
+interface LogEntry {
+  timestamp: number;
+  level: 'error' | 'warning' | 'info';
+  message: string;
+  data?: any;
+}
+
+type LogLevel = 'error' | 'warning' | 'info';
+
+interface SimulationPhase {
+  name: string;
+  status: 'pending' | 'active' | 'completed';
+  icon: any;
+}
+
 export default function SimulationControls({ onDataRefresh }: { onDataRefresh: () => void }) {
   const [loading, setLoading] = useState<boolean>(false);
   const [simulationStatus, setSimulationStatus] = useState<string>('STOPPED');
-  const [simulationLogs, setSimulationLogs] = useState<any[]>([]);
+  const [simulationLogs, setSimulationLogs] = useState<LogEntry[]>([]);
   const [expandedLogs, setExpandedLogs] = useState<boolean>(false);
   const [expandedSettings, setExpandedSettings] = useState<boolean>(false);
   const [simulationSpeed, setSimulationSpeed] = useState<number>(1);
+  const [currentPhase, setCurrentPhase] = useState<string>('');
+  const [phases, setPhases] = useState<SimulationPhase[]>([]);
 
-  // Configuration state
   const [config, setConfig] = useState<{
     agentCount: number;
     maxAgentsPerPhase: number;
@@ -50,7 +63,13 @@ export default function SimulationControls({ onDataRefresh }: { onDataRefresh: (
     },
   });
 
-  // Ensure all config values have defaults to prevent NaN errors
+  const phaseIcons: Record<string, any> = {
+    'MARKET_ANALYSIS': TrendingUp,
+    'SOCIAL': MessageSquare,
+    'DECISION': Brain,
+    'EXECUTION': Activity,
+  };
+
   useEffect(() => {
     setConfig((prev) => ({
       agentCount: prev.agentCount || 50,
@@ -66,15 +85,13 @@ export default function SimulationControls({ onDataRefresh }: { onDataRefresh: (
     }));
   }, []);
 
-  // Update when config changes
-  const handleConfigChange = (field: string, value: any) => {
+  const handleConfigChange = (field: string, value: number) => {
     setConfig((prev) => ({
       ...prev,
       [field]: value,
     }));
   };
 
-  // Update personality distribution
   const handlePersonalityChange = (personality: string, value: number) => {
     setConfig((prev) => ({
       ...prev,
@@ -85,7 +102,6 @@ export default function SimulationControls({ onDataRefresh }: { onDataRefresh: (
     }));
   };
 
-  // Normalize personality distribution to ensure it adds up to 100%
   const getNormalizedDistribution = () => {
     const distribution = config.personalityDistribution;
     const total = Object.values(distribution).reduce((sum, val) => sum + val, 0);
@@ -98,10 +114,8 @@ export default function SimulationControls({ onDataRefresh }: { onDataRefresh: (
     return normalized;
   };
 
-  // Get simulation status
   useEffect(() => {
     checkSimulationStatus();
-
     const interval = setInterval(() => {
       checkSimulationStatus();
     }, 3000);
@@ -109,7 +123,6 @@ export default function SimulationControls({ onDataRefresh }: { onDataRefresh: (
     return () => clearInterval(interval);
   }, []);
 
-  // Check the current simulation status
   const checkSimulationStatus = async () => {
     try {
       const response = await fetch('/api/simulation');
@@ -117,8 +130,13 @@ export default function SimulationControls({ onDataRefresh }: { onDataRefresh: (
         const data = await response.json();
         setSimulationStatus(data.status || 'UNKNOWN');
         setSimulationSpeed(data.simulationSpeed || 1);
+        setCurrentPhase(data.currentPhase || '');
+        
+        // Set phases with status
+        if (data.phases && Array.isArray(data.phases)) {
+          setPhases(data.phases);
+        }
 
-        // Update logs if available
         if (data.logs && Array.isArray(data.logs)) {
           setSimulationLogs(data.logs);
         }
@@ -129,8 +147,7 @@ export default function SimulationControls({ onDataRefresh }: { onDataRefresh: (
     }
   };
 
-  // Add a log entry
-  const addLog = (level: string, message: string, data: any = null) => {
+  const addLog = (level: LogLevel, message: string, data: any = null) => {
     setSimulationLogs((prev) => [
       {
         timestamp: Date.now(),
@@ -138,11 +155,10 @@ export default function SimulationControls({ onDataRefresh }: { onDataRefresh: (
         message,
         data,
       },
-      ...prev.slice(0, 99), // Keep only the most recent 100 logs
+      ...prev.slice(0, 99),
     ]);
   };
 
-  // Control the simulation (start, stop, pause)
   const controlSimulation = async (action: 'start' | 'stop' | 'pause' | 'resume' | 'setSpeed') => {
     try {
       setLoading(true);
@@ -150,12 +166,11 @@ export default function SimulationControls({ onDataRefresh }: { onDataRefresh: (
 
       let requestBody: any = { action };
 
-      // Add configuration for start action
       if (action === 'start') {
         requestBody.config = {
           agentCount: config.agentCount,
           maxAgentsPerPhase: config.maxAgentsPerPhase,
-          phaseDuration: config.phaseDuration * 1000, // Convert to milliseconds
+          phaseDuration: config.phaseDuration * 1000,
           personalityDistribution: getNormalizedDistribution(),
           speed: simulationSpeed,
         };
@@ -176,7 +191,6 @@ export default function SimulationControls({ onDataRefresh }: { onDataRefresh: (
           addLog('info', data.message);
         }
 
-        // Refresh simulation status and data
         await checkSimulationStatus();
         if (onDataRefresh) onDataRefresh();
       } else {
@@ -191,306 +205,361 @@ export default function SimulationControls({ onDataRefresh }: { onDataRefresh: (
     }
   };
 
-  // Handle speed change
-  const handleSpeedChange = (_event: any, newValue: number | number[]) => {
-    const speed = newValue as number;
-    setSimulationSpeed(speed);
+  const applySpeedChange = async () => {
+    await controlSimulation('setSpeed');
   };
 
-  // Apply speed change to simulation
-  const applySpeedChange = () => {
-    controlSimulation('setSpeed');
-  };
-
-  // Format log timestamp
   const formatTimestamp = (timestamp: number) => {
     return new Date(timestamp).toLocaleTimeString();
   };
 
-  // Get color for log level
-  const getLogLevelColor = (level: string) => {
-    switch (level.toLowerCase()) {
-      case 'error':
-        return 'bg-red-500 text-white';
-      case 'warning':
-        return 'bg-yellow-500 text-black';
-      case 'info':
-        return 'bg-blue-500 text-white';
+  const formatPhaseName = (name: string) => {
+    return name.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const getStatusConfig = () => {
+    switch (simulationStatus) {
+      case 'RUNNING':
+        return {
+          bg: 'bg-emerald-500/10',
+          border: 'border-emerald-500/30',
+          text: 'text-emerald-400',
+          icon: CheckCircle2,
+        };
+      case 'PAUSED':
+        return {
+          bg: 'bg-amber-500/10',
+          border: 'border-amber-500/30',
+          text: 'text-amber-400',
+          icon: AlertCircle,
+        };
+      case 'STOPPED':
+      case 'ERROR':
+        return {
+          bg: 'bg-rose-500/10',
+          border: 'border-rose-500/30',
+          text: 'text-rose-400',
+          icon: XCircle,
+        };
       default:
-        return 'bg-gray-500 text-white';
+        return {
+          bg: 'bg-gray-500/10',
+          border: 'border-gray-500/30',
+          text: 'text-gray-400',
+          icon: AlertCircle,
+        };
     }
   };
 
-  // Get the appropriate action button based on simulation status
-  const renderActionButton = () => {
-    switch (simulationStatus) {
-      case 'RUNNING':
-        return (
-          <>
-            <button
-              className={`px-4 py-2 rounded-md text-sm font-medium text-white bg-yellow-600 hover:bg-yellow-700 flex items-center gap-2 mr-2 ${
-                loading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-              onClick={() => controlSimulation('pause')}
-              disabled={loading}
-            >
-              {loading ? (
-                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-              ) : (
-                <Pause className="w-4 h-4" />
-              )}
-              Pause
-            </button>
-            <button
-              className={`px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 flex items-center gap-2 mr-2 ${
-                loading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-              onClick={() => controlSimulation('stop')}
-              disabled={loading}
-            >
-              {loading ? (
-                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-              ) : (
-                <CircleStop className="w-4 h-4" />
-              )}
-              Stop
-            </button>
-          </>
-        );
-      case 'PAUSED':
-        return (
-          <>
-            <button
-              className={`px-4 py-2 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 flex items-center gap-2 mr-2 ${
-                loading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-              onClick={() => controlSimulation('resume')}
-              disabled={loading}
-            >
-              {loading ? (
-                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-              ) : (
-                <ArrowRight className="w-4 h-4" />
-              )}
-              Resume
-            </button>
-            <button
-              className={`px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 flex items-center gap-2 mr-2 ${
-                loading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-              onClick={() => controlSimulation('stop')}
-              disabled={loading}
-            >
-              {loading ? (
-                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-              ) : (
-                <CircleStop className="w-4 h-4" />
-              )}
-              Stop
-            </button>
-          </>
-        );
-      case 'STOPPED':
-      case 'ERROR':
-      default:
-        return (
-          <button
-            className={`px-4 py-2 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 flex items-center gap-2 mr-2 ${
-              loading ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-            onClick={() => controlSimulation('start')}
-            disabled={loading}
-          >
-            {loading ? (
-              <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-            ) : (
-              <FastForward className="w-4 h-4" />
-            )}
-            Start Simulation
-          </button>
-        );
-    }
+  const getLogLevelConfig = (level: string): { bg: string; text: string; border: string } => {
+    const levelLower = level.toLowerCase() as LogLevel;
+    const configs: Record<LogLevel, { bg: string; text: string; border: string }> = {
+      error: { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/30' },
+      warning: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30' },
+      info: { bg: 'bg-gray-500/10', text: 'text-gray-400', border: 'border-gray-500/30' }
+    };
+    
+    return configs[levelLower] || configs.info;
   };
 
-  // Get status chip
-  const getStatusChip = () => {
-    let bgColor: string;
-    switch (simulationStatus) {
-      case 'RUNNING':
-        bgColor = 'bg-green-600';
-        break;
-      case 'PAUSED':
-        bgColor = 'bg-yellow-600';
-        break;
-      case 'STOPPED':
-      case 'ERROR':
-        bgColor = 'bg-red-600';
-        break;
-      default:
-        bgColor = 'bg-gray-600';
-    }
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium text-white ${bgColor}`}>
-        {simulationStatus}
-      </span>
-    );
-  };
+  const statusConfig = getStatusConfig();
+  const StatusIcon = statusConfig.icon;
 
   return (
-    <div className="w-full bg-gray-950 rounded-lg p-6 mb-6 text-gray-100">
-      {/* Main controls */}
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-4">
-          <h2 className="text-lg font-semibold text-white">Simulation Status:</h2>
-          {getStatusChip()}
+    <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
+      {/* Header Section */}
+      <div className="p-5 border-b border-neutral-800">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
+          {/* Status Badge */}
+          <div className="flex items-center gap-3">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${statusConfig.bg} border ${statusConfig.border}`}>
+              <StatusIcon className={`w-3.5 h-3.5 ${statusConfig.text}`} />
+              <span className={`text-xs font-semibold ${statusConfig.text} uppercase tracking-wider`}>
+                {simulationStatus}
+              </span>
+            </div>
+
+            {/* Current Phase */}
+            {currentPhase && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                <Activity className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-xs font-semibold text-blue-400">
+                  {formatPhaseName(currentPhase)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            {simulationStatus === 'RUNNING' && (
+              <>
+                <button
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => controlSimulation('pause')}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <div className="w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <Pause className="w-3.5 h-3.5" />
+                  )}
+                  Pause
+                </button>
+                <button
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => controlSimulation('stop')}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <div className="w-3.5 h-3.5 border-2 border-rose-400 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <Square className="w-3.5 h-3.5" />
+                  )}
+                  Stop
+                </button>
+              </>
+            )}
+
+            {simulationStatus === 'PAUSED' && (
+              <>
+                <button
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => controlSimulation('resume')}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <div className="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <Play className="w-3.5 h-3.5" />
+                  )}
+                  Resume
+                </button>
+                <button
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => controlSimulation('stop')}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <div className="w-3.5 h-3.5 border-2 border-rose-400 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <Square className="w-3.5 h-3.5" />
+                  )}
+                  Stop
+                </button>
+              </>
+            )}
+
+            {(simulationStatus === 'STOPPED' || simulationStatus === 'ERROR') && (
+              <button
+                className="px-5 py-2 rounded-lg text-xs font-semibold bg-white text-black hover:bg-gray-200 flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => controlSimulation('start')}
+                disabled={loading}
+              >
+                {loading ? (
+                  <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <Play className="w-3.5 h-3.5" />
+                )}
+                Start Simulation
+              </button>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {renderActionButton()}
-          <button
-            className="p-2 rounded-full bg-purple-900/30 text-purple-400 hover:bg-purple-800/30 transition-all"
-            onClick={() => setExpandedSettings(!expandedSettings)}
-            title="Simulation settings"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
-          <button
-            className="p-2 rounded-full bg-purple-900/30 text-purple-400 hover:bg-purple-800/30 transition-all"
-            onClick={() => setExpandedLogs(!expandedLogs)}
-            title="View logs"
-          >
-            {expandedLogs ? <ArrowBigDown className="w-5 h-5" /> : <Expand className="w-5 h-5" />}
-          </button>
-        </div>
+
+        {/* Phase Progress Indicators */}
+        {phases.length > 0 && (
+          <div className="flex items-center gap-2">
+            {phases.map((phase, index) => {
+              const PhaseIcon = phaseIcons[phase.name] || Activity;
+              return (
+                <div
+                  key={index}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    phase.status === 'completed'
+                      ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+                      : phase.status === 'active'
+                      ? 'bg-blue-500/10 border border-blue-500/30 text-blue-400'
+                      : 'bg-neutral-800 border border-neutral-700 text-gray-500'
+                  }`}
+                >
+                  <PhaseIcon className="w-3 h-3" />
+                  <span>{formatPhaseName(phase.name)}</span>
+                  {phase.status === 'completed' && <CheckCircle2 className="w-3 h-3" />}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Speed control */}
-      <div className="mt-4 mb-4">
-        <h3 className="text-sm text-gray-400 mb-2">Simulation Speed: {simulationSpeed}x</h3>
-        <div className="flex items-center gap-3">
-          <FastForward className="w-5 h-5 text-purple-400" />
+      {/* Speed Control Section */}
+      <div className="p-5 bg-neutral-900/50 border-b border-neutral-800">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-gray-400" />
+            <h3 className="text-sm text-gray-300 font-medium">Speed</h3>
+          </div>
+          <div className="px-3 py-1 bg-neutral-800 rounded-lg border border-neutral-700">
+            <span className="text-lg font-bold text-white">{simulationSpeed}</span>
+            <span className="text-sm text-gray-400 ml-0.5">x</span>
+          </div>
+        </div>
+        
+        <div className="relative">
           <input
             type="range"
-            min="0.5"
+            min="1"
             max="5"
-            step="0.5"
+            step="1"
             value={simulationSpeed}
-            onChange={(e) => handleSpeedChange(e, parseFloat(e.target.value))}
+            onChange={(e) => setSimulationSpeed(parseInt(e.target.value))}
             onMouseUp={applySpeedChange}
             onTouchEnd={applySpeedChange}
-            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
+            className="w-full h-2 bg-neutral-800 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:active:cursor-grabbing [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-neutral-700 [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:hover:scale-110 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-neutral-700 [&::-moz-range-thumb]:cursor-grab [&::-moz-range-thumb]:active:cursor-grabbing"
           />
-        </div>
-      </div>
-
-      {/* Configuration settings */}
-      {expandedSettings && (
-        <div className="mt-4">
-          <hr className="border-gray-700 mb-4" />
-          <h2 className="text-lg font-semibold text-white mb-4">Simulation Configuration</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="text-xs text-gray-400">Number of Agents</label>
-              <input
-                type="number"
-                value={config.agentCount || 10}
-                onChange={(e) => handleConfigChange('agentCount', parseInt(e.target.value) || 10)}
-                min={10}
-                max={5000}
-                disabled={simulationStatus === 'RUNNING' || simulationStatus === 'PAUSED'}
-                className="w-full mt-1 p-2 bg-gray-700 border border-gray-600 rounded-md text-white text-sm disabled:opacity-50"
-              />
-              <p className="text-xs text-gray-500 mt-1">Total agents to create (10-5000)</p>
-            </div>
-            <div>
-              <label className="text-xs text-gray-400">Active Agents Per Phase</label>
-              <input
-                type="number"
-                value={config.maxAgentsPerPhase || 10}
-                onChange={(e) => handleConfigChange('maxAgentsPerPhase', parseInt(e.target.value) || 10)}
-                min={10}
-                max={1000}
-                disabled={simulationStatus === 'RUNNING' || simulationStatus === 'PAUSED'}
-                className="w-full mt-1 p-2 bg-gray-700 border border-gray-600 rounded-md text-white text-sm disabled:opacity-50"
-              />
-              <p className="text-xs text-gray-500 mt-1">Agents processed per phase (10-1000)</p>
-            </div>
-            <div>
-              <label className="text-xs text-gray-400">Phase Duration (seconds)</label>
-              <input
-                type="number"
-                value={config.phaseDuration || 60}
-                onChange={(e) => handleConfigChange('phaseDuration', parseInt(e.target.value) || 60)}
-                min={5}
-                max={120}
-                disabled={simulationStatus === 'RUNNING' || simulationStatus === 'PAUSED'}
-                className="w-full mt-1 p-2 bg-gray-700 border border-gray-600 rounded-md text-white text-sm disabled:opacity-50"
-              />
-              <p className="text-xs text-gray-500 mt-1">Time per simulation phase (5-120 seconds)</p>
+          
+          <div className="relative mt-3">
+            <div className="flex justify-between items-center">
+              {[1, 2, 3, 4, 5].map((speed) => (
+                <div key={speed} className="flex flex-col items-center">
+                  <div className={`w-1.5 h-1.5 rounded-full mb-1.5 transition-all ${simulationSpeed === speed ? 'bg-white scale-125' : 'bg-gray-600'}`}></div>
+                  <span className={`text-xs font-medium transition-colors ${simulationSpeed === speed ? 'text-white' : 'text-gray-500'}`}>
+                    {speed}x
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
-          <h3 className="text-sm text-gray-400 mb-2">Agent Personality Distribution</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
-            {Object.entries(config.personalityDistribution).map(([personality, value]) => (
-              <div key={personality}>
-                <p className="text-sm text-white">
-                  {personality.charAt(0) + personality.slice(1).toLowerCase()}: {value}%
-                </p>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={value}
-                  onChange={(e) => handlePersonalityChange(personality, parseInt(e.target.value))}
-                  disabled={simulationStatus === 'RUNNING' || simulationStatus === 'PAUSED'}
-                  className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-600 disabled:opacity-50"
-                />
-              </div>
-            ))}
+        </div>
+        
+        <p className="text-xs text-gray-500 mt-3 text-center">
+          Drag slider to adjust simulation speed (1x - 5x)
+        </p>
+      </div>
+
+      {/* Settings Toggle */}
+      <button
+        onClick={() => setExpandedSettings(!expandedSettings)}
+        className="w-full p-4 flex items-center justify-between hover:bg-neutral-800/50 transition-colors border-b border-neutral-800"
+      >
+        <div className="flex items-center gap-2">
+          <Settings className="w-4 h-4 text-gray-400" />
+          <span className="text-sm font-medium text-gray-300">Advanced Settings</span>
+        </div>
+        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${expandedSettings ? 'rotate-180' : ''}`} />
+      </button>
+
+      {/* Configuration Settings */}
+      {expandedSettings && (
+        <div className="p-5 bg-black/20 space-y-6 border-b border-neutral-800">
+          <div>
+            <h3 className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-3">Simulation Parameters</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {[
+                { label: 'Total Agents', field: 'agentCount', min: 10, max: 5000, icon: Users },
+                { label: 'Active/Phase', field: 'maxAgentsPerPhase', min: 10, max: 1000, icon: Layers },
+                { label: 'Phase Time', field: 'phaseDuration', min: 5, max: 120, icon: Clock, suffix: 's' }
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.field} className="bg-neutral-800/50 rounded-lg p-3 border border-neutral-700">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Icon className="w-3.5 h-3.5 text-gray-400" />
+                      <label className="text-xs text-gray-300 font-medium">{item.label}</label>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={config[item.field as keyof typeof config] as number || item.min}
+                        onChange={(e) => handleConfigChange(item.field, parseInt(e.target.value) || item.min)}
+                        min={item.min}
+                        max={item.max}
+                        disabled={simulationStatus === 'RUNNING' || simulationStatus === 'PAUSED'}
+                        className="w-full p-2 pr-8 bg-black/50 border border-neutral-700 rounded text-white text-base font-semibold disabled:opacity-50 focus:outline-none focus:border-neutral-500 transition-colors"
+                      />
+                      {item.suffix && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">
+                          {item.suffix}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1.5">{item.min}-{item.max}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-3">Agent Personalities</h3>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {Object.entries(config.personalityDistribution).map(([personality, value]) => (
+                <div key={personality} className="bg-neutral-800/50 rounded-lg p-3 border border-neutral-700">
+                  <div className="flex items-baseline justify-between mb-2">
+                    <span className="text-xs text-gray-300 font-medium capitalize">
+                      {personality.toLowerCase().replace('_', ' ')}
+                    </span>
+                    <span className="text-base font-bold text-white">{value}<span className="text-xs text-gray-400">%</span></span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={value}
+                    onChange={(e) => handlePersonalityChange(personality, parseInt(e.target.value))}
+                    disabled={simulationStatus === 'RUNNING' || simulationStatus === 'PAUSED'}
+                    className="w-full h-1.5 bg-neutral-700 rounded-full appearance-none cursor-pointer disabled:opacity-50 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Logs */}
+      {/* Logs Toggle */}
+      <button
+        onClick={() => setExpandedLogs(!expandedLogs)}
+        className="w-full p-4 flex items-center justify-between hover:bg-neutral-800/50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
+          <span className="text-sm font-medium text-gray-300">System Logs</span>
+          <span className="text-xs text-gray-500">({simulationLogs.length})</span>
+        </div>
+        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${expandedLogs ? 'rotate-180' : ''}`} />
+      </button>
+
+      {/* Logs Section */}
       {expandedLogs && (
-        <div className="mt-4">
-          <hr className="border-gray-700 mb-4" />
-          <h2 className="text-lg font-semibold text-white mb-4">Simulation Logs</h2>
-          <div className="max-h-72 overflow-y-auto rounded-md bg-gray-900/50">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-gray-800">
-                <tr>
-                  <th className="px-4 py-2 text-left text-gray-400">Time</th>
-                  <th className="px-4 py-2 text-left text-gray-400">Level</th>
-                  <th className="px-4 py-2 text-left text-gray-400">Message</th>
-                </tr>
-              </thead>
-              <tbody>
-                {simulationLogs.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="px-4 py-2 text-center text-gray-500">
-                      No logs available
-                    </td>
-                  </tr>
-                ) : (
-                  simulationLogs.map((log, index) => (
-                    <tr key={index} className="border-t border-gray-700">
-                      <td className="px-4 py-2">{formatTimestamp(log.timestamp)}</td>
-                      <td className="px-4 py-2">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${getLogLevelColor(
-                            log.level
-                          )}`}
-                        >
-                          {log.level.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2">{log.message}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+        <div className="max-h-72 overflow-y-auto border-t border-neutral-800">
+          {simulationLogs.length === 0 ? (
+            <div className="p-10 text-center">
+              <AlertCircle className="w-10 h-10 text-gray-600 mx-auto mb-2" />
+              <p className="text-gray-500 text-sm">No logs available</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-neutral-800">
+              {simulationLogs.map((log, index) => {
+                const levelConfig = getLogLevelConfig(log.level);
+
+                return (
+                  <div key={index} className="p-3 hover:bg-neutral-800/30 transition-colors">
+                    <div className="flex items-start gap-2">
+                      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${levelConfig.bg} ${levelConfig.text} border ${levelConfig.border} shrink-0`}>
+                        {log.level.toUpperCase()}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-300">{log.message}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{formatTimestamp(log.timestamp)}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>

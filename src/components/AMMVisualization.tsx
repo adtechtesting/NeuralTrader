@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { RefreshCw, AlertCircle } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { RefreshCw, AlertCircle, TrendingUp, Droplets, Activity, Clock } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 interface AMMData {
   solAmount: number;
@@ -143,9 +143,7 @@ export default function AMMVisualization() {
     const total = ammData.solAmount + tokenValueInSol;
     
     if (total === 0) {
-      return [
-        { name: 'No Data', value: 1 }
-      ];
+      return [{ name: 'No Data', value: 1 }];
     }
     
     return [
@@ -154,17 +152,19 @@ export default function AMMVisualization() {
     ];
   };
 
-  const COLORS = ['#ffffff', '#888888'];
+  const COLORS = ['#10b981', '#6366f1'];
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0];
-      const percentage = ((data.value / (ammData.solAmount + ammData.tokenAmount * ammData.currentPrice)) * 100).toFixed(1);
+      const total = ammData.solAmount + ammData.tokenAmount * ammData.currentPrice;
+      const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0';
       
       return (
-        <div className="bg-white/10 backdrop-blur-md p-3 rounded-lg border border-white/20 shadow-lg text-sm">
-          <p className="font-medium text-white">{`${data.name}: ${formatNumber(data.value, 2)} SOL`}</p>
-          <p className="text-white/60">{`${percentage}% of pool`}</p>
+        <div className="bg-neutral-900 border border-neutral-700 p-3 rounded-lg shadow-xl">
+          <p className="font-semibold text-white text-sm mb-1">{data.name}</p>
+          <p className="text-white/80 text-sm">{formatNumber(data.value, 4)} SOL</p>
+          <p className="text-white/60 text-xs mt-1">{percentage}% of pool</p>
         </div>
       );
     }
@@ -175,142 +175,229 @@ export default function AMMVisualization() {
     fetchAmmData();
   };
 
+  const totalPoolValue = ammData.solAmount + (ammData.tokenAmount * ammData.currentPrice);
+
   return (
-    <div className="w-full h-full text-white">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-medium text-white">AMM Pool Statistics</h2>
+    <div className="w-full text-white space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Liquidity Pool</h2>
+          <p className="text-sm text-white/50 mt-1">Real-time pool analytics and distribution</p>
+        </div>
         <button 
           onClick={handleRefresh}
-          className="flex items-center gap-2 text-sm bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white py-2 px-4 rounded-full transition-all"
+          disabled={loading}
+          className="flex items-center gap-2 text-sm bg-neutral-800 hover:bg-neutral-750 border border-neutral-700 text-white py-2 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <RefreshCw className="w-4 h-4" /> Refresh
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
         </button>
       </div>
 
+      {/* Error Display */}
       {error && (
-        <div className="mb-6 p-4 rounded-2xl bg-white/5 border border-white/10 text-white/80 text-sm flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-white/60 flex-shrink-0 mt-0.5" />
+        <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-sm flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
       )}
 
+      {/* Loading State */}
       {loading ? (
-        <div className="flex items-center justify-center p-12 h-64 bg-white/5 rounded-2xl border border-white/10">
-          <div className="flex flex-col items-center space-y-4">
-            <div className="flex space-x-2">
-              <div className="h-3 w-3 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-              <div className="h-3 w-3 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-              <div className="h-3 w-3 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+        <div className="flex items-center justify-center p-16 bg-neutral-900 rounded-xl border border-neutral-800">
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex gap-2">
+              <div className="w-2.5 h-2.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-2.5 h-2.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-2.5 h-2.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
             </div>
-            <div className="text-sm text-white/60">Loading pool data...</div>
+            <p className="text-sm text-white/60">Loading pool data...</p>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Left side - Chart */}
-          <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-6 hover:border-white/20 transition-all">
-            <div className="text-sm text-white/60 mb-4 font-medium">Pool Distribution</div>
-            <div className="h-56 relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={preparePieChartData()}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    paddingAngle={4}
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    labelLine={true}
-                  >
-                    {preparePieChartData().map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-                <div className="text-white font-medium text-lg">
-                  {formatNumber(ammData.solAmount + ammData.tokenAmount * ammData.currentPrice, 2)}
-                </div>
-                <div className="text-white/60 text-xs">Total SOL</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right side - Stats */}
-          <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-6 hover:border-white/20 transition-all">
-            <div className="text-sm text-white/60 mb-4 font-medium">Pool Statistics</div>
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-                <div className="text-xs text-white/50 mb-1">SOL Reserve</div>
-                <div className="text-white font-medium">{formatNumber(ammData.solAmount, 4)} SOL</div>
-              </div>
-              <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-                <div className="text-xs text-white/50 mb-1">{tokenSymbol} Reserve</div>
-                <div className="text-white font-medium">{formatNumber(ammData.tokenAmount, 0)} {tokenSymbol}</div>
-              </div>
-              <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-                <div className="text-xs text-white/50 mb-1">Current Price</div>
-                <div className="text-white font-medium">{formatNumber(ammData.currentPrice, 8)} SOL</div>
-              </div>
-              <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-                <div className="text-xs text-white/50 mb-1">24h Volume</div>
-                <div className="text-white font-medium">{formatNumber(ammData.tradingVolume24h, 2)} SOL</div>
-              </div>
-              <div className="col-span-2 bg-white/5 p-4 rounded-xl border border-white/10">
-                <div className="text-xs text-white/50 mb-1">Last Traded</div>
-                <div className="text-white font-medium">{ammData.lastTradedAt ? formatDate(ammData.lastTradedAt) : 'N/A'}</div>
-              </div>
-            </div>
-          </div>
-       
-          <div className="md:col-span-2 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent space-y-3">
-            <div className="text-sm text-white/60 mb-4 font-medium">Recent Transactions</div>
-
-            {transactions.length === 0 ? (
-              <div className="text-white/50 text-sm italic bg-white/5 p-4 rounded-xl text-center border border-white/10">
-                No recent transactions
-              </div>
-            ) : (
-              transactions.map((txn, index) => (
-                <div
-                  key={index}
-                  className="bg-white/5 backdrop-blur-md rounded-xl p-4 text-sm border border-white/10 hover:border-white/20 transition-all"
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="text-white/50 mb-1 text-xs">Signature</div>
-                      <div className="text-white font-mono bg-white/5 px-3 py-1 rounded-lg text-xs">
-                        {shortenSignature(txn.signature)}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-white/50 mb-1 text-xs">Amount</div>
-                      <div className="text-white text-sm">
-                        <span className="text-white">
-                          {formatNumber(txn.amount, 2)} SOL
-                        </span>
-                        {' / '}
-                        <span className="text-white/70 ml-1">
-                          {formatNumber(txn.tokenAmount, 0)} {tokenSymbol}
-                        </span>
-                      </div>
-                    </div>
+        <>
+          {/* Top Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[
+              { 
+                icon: Droplets, 
+                label: "Total Liquidity", 
+                value: `${formatNumber(totalPoolValue, 2)} SOL`,
+                color: "text-blue-400"
+              },
+              { 
+                icon: Activity, 
+                label: "24h Volume", 
+                value: `${formatNumber(ammData.tradingVolume24h, 2)} SOL`,
+                color: "text-green-400"
+              },
+              { 
+                icon: TrendingUp, 
+                label: "Current Price", 
+                value: `${formatNumber(ammData.currentPrice, 8)} SOL`,
+                color: "text-purple-400"
+              },
+              { 
+                icon: Clock, 
+                label: "Last Trade", 
+                value: ammData.lastTradedAt ? new Date(ammData.lastTradedAt).toLocaleTimeString() : 'N/A',
+                color: "text-orange-400"
+              }
+            ].map((stat, i) => (
+              <div key={i} className="bg-neutral-900 border border-neutral-800 rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className={`w-8 h-8 rounded-lg bg-neutral-800 flex items-center justify-center ${stat.color}`}>
+                    <stat.icon className="w-4 h-4" />
                   </div>
-                  <div className="mt-3 text-white/50 text-xs flex items-center">
-                    <span className="bg-white/5 px-3 py-1 rounded-full">
-                      Confirmed: {formatDate(txn.confirmedAt)}
+                  <span className="text-xs text-white/50 font-medium uppercase tracking-wider">{stat.label}</span>
+                </div>
+                <p className="text-lg font-bold text-white">{stat.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Pool Distribution & Reserves */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Pool Distribution Chart */}
+            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+              <h3 className="text-sm font-semibold text-white/80 mb-4 uppercase tracking-wider">Pool Distribution</h3>
+              <div className="h-64 relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={preparePieChartData()}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={70}
+                      outerRadius={90}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {preparePieChartData().map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                  <div className="text-2xl font-bold text-white">{formatNumber(totalPoolValue, 2)}</div>
+                  <div className="text-xs text-white/50">Total Value</div>
+                </div>
+              </div>
+              
+              {/* Legend */}
+              <div className="flex justify-center gap-6 mt-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  <span className="text-sm text-white/70">SOL ({formatNumber((ammData.solAmount / totalPoolValue) * 100, 1)}%)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-indigo-500"></div>
+                  <span className="text-sm text-white/70">{tokenSymbol} ({formatNumber(((ammData.tokenAmount * ammData.currentPrice) / totalPoolValue) * 100, 1)}%)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Pool Reserves */}
+            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+              <h3 className="text-sm font-semibold text-white/80 mb-4 uppercase tracking-wider">Pool Reserves</h3>
+              <div className="space-y-4">
+                {/* SOL Reserve */}
+                <div className="bg-neutral-800/50 rounded-lg p-4 border border-neutral-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-white/60">SOL Reserve</span>
+                    <span className="text-xs text-green-400 font-semibold">
+                      {formatNumber((ammData.solAmount / totalPoolValue) * 100, 1)}%
                     </span>
                   </div>
+                  <div className="text-2xl font-bold text-white mb-2">{formatNumber(ammData.solAmount, 4)} SOL</div>
+                  <div className="h-2 bg-neutral-700 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-green-500 rounded-full transition-all duration-500"
+                      style={{ width: `${(ammData.solAmount / totalPoolValue) * 100}%` }}
+                    ></div>
+                  </div>
                 </div>
-              ))
-            )}
+
+                {/* Token Reserve */}
+                <div className="bg-neutral-800/50 rounded-lg p-4 border border-neutral-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-white/60">{tokenSymbol} Reserve</span>
+                    <span className="text-xs text-indigo-400 font-semibold">
+                      {formatNumber(((ammData.tokenAmount * ammData.currentPrice) / totalPoolValue) * 100, 1)}%
+                    </span>
+                  </div>
+                  <div className="text-2xl font-bold text-white mb-2">{formatNumber(ammData.tokenAmount, 0)}</div>
+                  <div className="h-2 bg-neutral-700 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                      style={{ width: `${((ammData.tokenAmount * ammData.currentPrice) / totalPoolValue) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* K Constant */}
+                <div className="bg-neutral-800/50 rounded-lg p-4 border border-neutral-700">
+                  <div className="text-sm text-white/60 mb-1">Constant Product (K)</div>
+                  <div className="text-lg font-bold text-white font-mono">
+                    {formatNumber(ammData.solAmount * ammData.tokenAmount, 0)}
+                  </div>
+                  <p className="text-xs text-white/40 mt-1">x * y = k (AMM formula)</p>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+
+          {/* Recent Transactions */}
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
+            <div className="p-6 border-b border-neutral-800">
+              <h3 className="text-sm font-semibold text-white/80 uppercase tracking-wider">Recent Transactions</h3>
+            </div>
+            
+            <div className="max-h-96 overflow-y-auto">
+              {transactions.length === 0 ? (
+                <div className="p-12 text-center">
+                  <Activity className="w-12 h-12 text-white/20 mx-auto mb-3" />
+                  <p className="text-white/40 text-sm">No recent transactions</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-neutral-800">
+                  {transactions.map((txn, index) => (
+                    <div key={index} className="p-4 hover:bg-neutral-800/30 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs text-white/40">Signature:</span>
+                            <code className="text-xs font-mono bg-neutral-800 px-2 py-1 rounded text-white/80">
+                              {shortenSignature(txn.signature)}
+                            </code>
+                          </div>
+                          <div className="flex items-center gap-4 text-sm">
+                            <div>
+                              <span className="text-white/60">SOL: </span>
+                              <span className="font-semibold text-white">{formatNumber(txn.amount, 4)}</span>
+                            </div>
+                            <div className="text-white/40">⇄</div>
+                            <div>
+                              <span className="text-white/60">{tokenSymbol}: </span>
+                              <span className="font-semibold text-white">{formatNumber(txn.tokenAmount, 2)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xs text-white/40 mb-1">Confirmed</div>
+                          <div className="text-xs font-mono text-white/70">{new Date(txn.confirmedAt).toLocaleTimeString()}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

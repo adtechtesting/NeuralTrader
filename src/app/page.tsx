@@ -18,6 +18,33 @@ import { LightRays } from '@/components/ui/lightrays';
 export default function Home() {
   const [mounted, setMounted] = useState(true);
   const router = useRouter();
+  const avatars = [
+  {
+    imageUrl: "https://avatars.githubusercontent.com/u/16860528",
+    profileUrl: "https://github.com/dillionverma",
+  },
+  {
+    imageUrl: "https://avatars.githubusercontent.com/u/20110627",
+    profileUrl: "https://github.com/tomonarifeehan",
+  },
+  {
+    imageUrl: "https://avatars.githubusercontent.com/u/106103625",
+    profileUrl: "https://github.com/BankkRoll",
+  },
+  {
+    imageUrl: "https://avatars.githubusercontent.com/u/59228569",
+    profileUrl: "https://github.com/safethecode",
+  },
+  {
+    imageUrl: "https://avatars.githubusercontent.com/u/59442788",
+    profileUrl: "https://github.com/sanjay-mali",
+  },
+  {
+    imageUrl: "https://avatars.githubusercontent.com/u/89768406",
+    profileUrl: "https://github.com/itsarghyadas",
+  },
+]
+
 
   return (
     <div className="min-h-screen w-full relative text-white overflow-hidden bg-black">
@@ -116,12 +143,12 @@ export default function Home() {
 <div className="w-full max-w-4xl mt-auto">
   <div className="text-center mb-6">
     <p className="text-sm text-white/40 uppercase tracking-wider font-medium">
-      Powered by Industry-Leading Technology
+     Powered by Advanced AI & Real-Time Solana Data
     </p>
   </div>
   <div className="relative group">
     <div className="absolute -inset-1 bg-white/5 rounded-2xl blur opacity-40"></div>
-    <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl px-10 py-6">
+    <div className="relative  px-10 py-6">
       <div className="flex items-center justify-center gap-12 flex-wrap">
         {/* Trump */}
         <div className="flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity cursor-pointer">
@@ -178,7 +205,7 @@ export default function Home() {
       <FAQsSection />
 
       {/* Footer */}
-   <footer className="relative bg-black py-16 border-t border-white/5">
+   <footer className="relative bg-black/90 py-16 border-t-2 border-white/10 ">
   <div className="max-w-7xl mx-auto px-6">
     {/* Main Footer Content */}
     <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
@@ -197,22 +224,18 @@ export default function Home() {
               <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"></path>
             </svg>
           </a>
-          <a href="#" className="text-white/50 hover:text-white transition-colors">
+          <a href="" className="text-white/50 hover:text-white transition-colors">
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
             </svg>
           </a>
-          <a href="#" className="text-white/50 hover:text-white transition-colors">
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
-            </svg>
-          </a>
+        
         </div>
       </div>
 
       {/* Quick Links */}
       <div>
-        <h3 className="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Product</h3>
+      
         <ul className="space-y-3">
           <li><a href="/token-setup" className="text-white/50 hover:text-white transition-colors text-sm">Token Setup</a></li>
           <li><a href="/monitoring" className="text-white/50 hover:text-white transition-colors text-sm">Simulation</a></li>
@@ -223,7 +246,7 @@ export default function Home() {
 
       {/* Resources */}
       <div>
-        <h3 className="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Resources</h3>
+       
         <ul className="space-y-3">
           <li><a href="#" className="text-white/50 hover:text-white transition-colors text-sm">Documentation</a></li>
           <li><a href="#" className="text-white/50 hover:text-white transition-colors text-sm">API Reference</a></li>
@@ -331,7 +354,7 @@ const features = [
 
 function FeaturesSection() {
   return (
-    <section className="relative bg-black py-[72px] sm:py-32 px-6">
+    <section className="relative bg-black/6 py-[72px] sm:py-32 px-6">
       {/* Gradient background */}
       <div className="absolute inset-0 bg-gradient-to-b from-black via-zinc-950 to-black opacity-50"></div>
       
@@ -391,7 +414,7 @@ const FAQ = [
 
 function FAQsSection() {
   return (
-    <div className="bg-black text-white bg-gradient-to-b from-black to-zinc-950 py-[72px] sm:py-24">
+    <div className="bg-black/7 text-white bg-gradient-to-b from-black to-zinc-950 py-[72px] sm:py-24">
       <div className="container mx-auto px-4 text-center">
         <h2 className="text-5xl font-bold tracking-tight">Frequently Asked Questions</h2>
         <div className="mt-12 max-w-4xl mx-auto text-left">

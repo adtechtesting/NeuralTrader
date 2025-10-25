@@ -1,150 +1,201 @@
-import { AutonomousAgent } from './autonomous/agent-core';
 import { LLMAutonomousAgent } from './autonomous/agent-core-llm';
+import { ASINeuralAgent } from './asi-integration';
+import { MeTTaKnowledgeGraph, AgentverseManager, ChatProtocol } from './asi-services';
+import { ASI_FEATURES } from '../config/asi-config';
 import { prisma } from '../cache/dbCache';
-import { getPersonalityBehavior } from './personalities';
-import { v4 as uuidv4 } from 'uuid';
 
-// Simple logging function
-function addLog(level: string, message: string, data?: any) {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [${level.toUpperCase()}] ${message}`, data ? data : '');
+interface AgentConfig {
+  maxSize?: number;
+  cleanupInterval?: number;
+  ttl?: number;
+  useLLM?: boolean;
+  useASI?: boolean;
+  knowledgeGraphUrl?: string;
+  agentverseUrl?: string;
 }
 
 export class AgentPool {
-  private pool: Map<string, AutonomousAgent | LLMAutonomousAgent> = new Map();
+  private agents: Map<string, any> = new Map();
   private maxSize: number;
-  private lastAccess: Map<string, number> = new Map();
-  private cleanupInterval: NodeJS.Timeout | null = null;
+  private cleanupInterval: number;
   private ttl: number;
-  private useLLM: boolean = true; // Flag to determine which agent type to use
+  private useASI: boolean;
+  private knowledgeGraph: MeTTaKnowledgeGraph | null = null;
+  private agentverse: AgentverseManager;
+  private chatProtocol: ChatProtocol | null = null;
+  private config: AgentConfig;
 
-  constructor(options: { 
-    maxSize?: number; 
-    cleanupInterval?: number; 
-    ttl?: number;
-    useLLM?: boolean;
-  } = {}) {
-    this.maxSize = options.maxSize || 100;
-    this.ttl = options.ttl || 60 * 60 * 1000; // Default: 1 hour
-    this.useLLM = options.useLLM !== undefined ? options.useLLM : true; // Default to using LLM agents
+  constructor(config: AgentConfig = {}) {
+    this.maxSize = config.maxSize || 50;
+    this.cleanupInterval = config.cleanupInterval || 300000; // 5 minutes
+    this.ttl = config.ttl || 3600000; // 1 hour
+    this.useASI = config.useASI || ASI_FEATURES.enabled;
+    this.config = config;
 
-    // Set up automatic cleanup if interval is provided
-    if (options.cleanupInterval) {
-      this.cleanupInterval = setInterval(() => {
-        this.cleanup();
-      }, options.cleanupInterval);
+    this.agentverse = AgentverseManager.getInstance();
+
+    if (this.useASI) {
+      this.initializeASIServices(config);
     }
+
+    // Start cleanup interval
+    setInterval(() => this.cleanup(), this.cleanupInterval);
   }
 
-  async getAgent(agentId: string): Promise<AutonomousAgent | LLMAutonomousAgent> {
-    // Update access time
-    this.lastAccess.set(agentId, Date.now());
+  private async initializeASIServices(config: AgentConfig) {
+    // Initialize MeTTa Knowledge Graph
+    if (config.knowledgeGraphUrl) {
+      this.knowledgeGraph = new MeTTaKnowledgeGraph(
+        config.knowledgeGraphUrl,
+        'neuraltrader-pool'
+      );
+      console.log('🔗 MeTTa Knowledge Graph initialized');
+    }
 
+    // Initialize Chat Protocol
+    this.chatProtocol = new ChatProtocol('neuraltrader-hub');
+    console.log('💬 Chat Protocol initialized');
+  }
+
+  async getAgent(agentId: string): Promise<any> {
     // Check if agent exists in pool
-    if (this.pool.has(agentId)) {
-      return this.pool.get(agentId) as (AutonomousAgent | LLMAutonomousAgent);
+    if (this.agents.has(agentId)) {
+      const agent = this.agents.get(agentId);
+      agent.lastAccess = Date.now();
+      return agent.agent;
     }
 
-    // If pool is at max size, clean up some old agents
-    if (this.pool.size >= this.maxSize) {
-      await this.cleanup();
+    // Check if agent exists in database
+    const agentData = await prisma.agent.findUnique({
+      where: { id: agentId },
+      include: { state: true }
+    });
+
+    if (!agentData) {
+      throw new Error(`Agent ${agentId} not found`);
     }
 
-    // Create new agent
-    try {
-      const agentData = await prisma.agent.findUnique({
-        where: { id: agentId },
-        include: {
-          state: true
-        }
+    // Create appropriate agent type
+    let agent: any;
+
+    if (this.useASI) {
+      // Create ASI-enhanced agent
+      agent = new ASINeuralAgent({
+        name: agentData.name,
+        personalityType: agentData.personalityType,
+        walletAddress: agentData.publicKey,
+        capabilities: ['trading', 'market-analysis', 'social-interaction'],
+        knowledgeGraphUrl: this.config.knowledgeGraphUrl || process.env.METTA_KNOWLEDGE_GRAPH_URL || undefined,
+        databaseId: agentId
       });
 
-      if (!agentData) {
-        throw new Error(`Agent with ID ${agentId} not found`);
+      // Set the database ID for proper message handling
+      (agent as any).databaseId = agentId;
+      (agent as any).agentName = agentData.name;
+
+      console.log(`🚀 Created ASI-enhanced agent: ${agentData.name}`);
+    } else {
+      // Create standard LLM agent
+      agent = new LLMAutonomousAgent(agentData);
+      console.log(`🤖 Created standard LLM agent: ${agentData.name}`);
+    }
+
+    // Add to pool if there's space
+    if (this.agents.size < this.maxSize) {
+      this.agents.set(agentId, {
+        agent,
+        created: Date.now(),
+        lastAccess: Date.now()
+      });
+    }
+
+    return agent;
+  }
+
+  private async handleAgentChat(agentId: string, message: any): Promise<any> {
+    try {
+      const agentData = await prisma.agent.findUnique({
+        where: { id: agentId }
+      });
+
+      if (this.knowledgeGraph && agentData?.personalityType) {
+        // Enhance response with knowledge graph
+        const knowledge = await this.knowledgeGraph.enhanceSocialResponse(
+          message.content,
+          agentData.personalityType,
+          { overall: 'neutral' } // Get current market sentiment
+        );
+
+        return {
+          content: `As a ${agentData.personalityType} trader: ${message.content}`,
+          sentiment: 'neutral',
+          agent: agentData.name,
+          timestamp: new Date().toISOString()
+        };
       }
 
-      // Determine which agent type to create based on useLLM flag
-      if (this.useLLM) {
-        // Create LLM-powered autonomous agent
-        console.log(`Creating LLM-powered agent for ${agentData.name}`);
-        const llmAgent = new LLMAutonomousAgent(agentData, {
-         llmModel: process.env.LLM_MODEL || "llama3.1",
-          temperature: 0.7
-        });
-        this.pool.set(agentId, llmAgent);
-        return llmAgent;
-      } else {
-        // Create traditional agent (fallback)
-        console.log(`Creating traditional agent for ${agentData.name}`);
-        const agent = new AutonomousAgent(agentData);
-        this.pool.set(agentId, agent);
-        return agent;
-      }
+      // Standard response
+      return {
+        content: `Agent ${agentData?.name || 'Unknown'} responding: ${message.content}`,
+        sentiment: 'neutral',
+        agent: agentData?.name || 'Unknown',
+        timestamp: new Date().toISOString()
+      };
     } catch (error) {
-      console.error(`Error creating agent instance for ${agentId}:`, error);
-      throw error;
+      console.error(`Error handling chat for agent ${agentId}:`, error);
+      return {
+        content: 'Unable to process message at this time',
+        sentiment: 'neutral',
+        timestamp: new Date().toISOString()
+      };
     }
   }
 
-  // Remove least recently accessed agents to free up memory
-  async cleanup(): Promise<number> {
-    // If pool is not at capacity, no cleanup needed
-    if (this.pool.size < this.maxSize) {
-      return 0;
-    }
-
+  async cleanup(): Promise<void> {
     const now = Date.now();
-    let cleanedCount = 0;
+    const toRemove: string[] = [];
 
-    // Find expired entries
-    const expiredEntries = [...this.lastAccess.entries()]
-      .filter(([_, lastAccess]) => now - lastAccess > this.ttl)
-      .map(([id]) => id);
-
-    // Remove expired entries
-    for (const id of expiredEntries) {
-      this.pool.delete(id);
-      this.lastAccess.delete(id);
-      cleanedCount++;
-    }
-
-    // If we haven't freed up enough space, remove least recently used
-    if (this.pool.size > this.maxSize * 0.9) {
-      const sortedByAccess = [...this.lastAccess.entries()]
-        .sort((a, b) => a[1] - b[1])
-        .map(([id]) => id);
-
-      // Remove the oldest 20% of entries
-      const toRemove = sortedByAccess.slice(0, Math.floor(this.maxSize * 0.2));
-      
-      for (const id of toRemove) {
-        this.pool.delete(id);
-        this.lastAccess.delete(id);
-        cleanedCount++;
+    for (const [agentId, agentInfo] of this.agents.entries()) {
+      if (now - agentInfo.lastAccess > this.ttl) {
+        toRemove.push(agentId);
       }
     }
 
-    return cleanedCount;
+    for (const agentId of toRemove) {
+      const agentInfo = this.agents.get(agentId);
+      if (agentInfo?.agent?.shutdown) {
+        await agentInfo.agent.shutdown();
+      }
+      this.agents.delete(agentId);
+    }
+
+    if (toRemove.length > 0) {
+      console.log(`🧹 Cleaned up ${toRemove.length} inactive agents`);
+    }
   }
 
-  // Clean up all agents
   async cleanupAll(): Promise<void> {
-    this.pool.clear();
-    this.lastAccess.clear();
-    
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-      this.cleanupInterval = null;
+    for (const [agentId, agentInfo] of this.agents.entries()) {
+      if (agentInfo?.agent?.shutdown) {
+        await agentInfo.agent.shutdown();
+      }
     }
+    this.agents.clear();
+    console.log('🧹 Cleaned up all agents');
+  }
+
+  getPoolSize(): number {
+    return this.agents.size;
+  }
+
+  getASIStatus(): { enabled: boolean; knowledgeGraph: boolean; chatProtocol: boolean } {
+    return {
+      enabled: this.useASI,
+      knowledgeGraph: !!this.knowledgeGraph,
+      chatProtocol: !!this.chatProtocol
+    };
   }
 }
-
-// Singleton AgentPool instance for makeAgentAct
-const agentPool = new AgentPool({
-  maxSize: 100,
-  cleanupInterval: 60000,
-  ttl: 3600000,
-});
 
 export async function makeAgentAct(agentId: string): Promise<{
   success: boolean;
@@ -152,15 +203,15 @@ export async function makeAgentAct(agentId: string): Promise<{
   details?: any;
 }> {
   try {
-    // Get agent from LLM pool instead of rule-based simulation
-    const agentPool = new AgentPool({ maxSize: 100, useLLM: true });
-    const llmAgent = await agentPool.getAgent(agentId) as any;
+    // Get agent from pool
+    const agentPool = new AgentPool({ maxSize: 100, useLLM: true, useASI: true });
+    const agent = await agentPool.getAgent(agentId) as any;
 
-    if (!llmAgent) {
-      return { success: false, error: `LLM Agent ${agentId} not found in pool` };
+    if (!agent) {
+      return { success: false, error: `Agent ${agentId} not found in pool` };
     }
 
-    // Get current market data for the LLM agent
+    // Get current market data for the agent
     const { marketData } = await import('../market/data');
     const marketInfo = await marketData.getMarketInfo();
 
@@ -168,70 +219,40 @@ export async function makeAgentAct(agentId: string): Promise<{
       return { success: false, error: 'Market data not available' };
     }
 
-    // Use LLM agent's decision-making capabilities
-    let actionResult: any = {};
+    // Use the appropriate agent method based on type
+    if (agent.analyzeMarket && agent.makeTradeDecision && agent.socialInteraction) {
+      // This is an ASI-enhanced agent
+      console.log(`🤖 ASI Agent ${agentId} taking action`);
 
-    // Determine which action to take based on LLM agent's personality and market conditions
-    const personality = getPersonalityBehavior(llmAgent.agentData.personalityType);
+      // Decide what action to take based on agent capabilities
+      const actionRoll = Math.random();
 
-    // Choose action based on personality traits and some randomness
-    const actionRoll = Math.random();
-
-    if (actionRoll < personality.tradeFrequency * 0.7) {
-      // Make a trading decision using LLM
-      addLog('info', `Agent ${llmAgent.agentData.name} making LLM trade decision`);
-      const tradeSuccess = await llmAgent.makeTradeDecision(marketInfo);
-      actionResult = {
-        action: 'trade',
-        type: 'LLM_DECISION',
-        success: tradeSuccess,
-        marketInfo,
-        timestamp: new Date(),
-      };
-    } else if (actionRoll < personality.tradeFrequency + personality.messageFrequency * 0.5) {
-      // Analyze market using LLM
-      addLog('info', `Agent ${llmAgent.agentData.name} analyzing market with LLM`);
-      const analysisSuccess = await llmAgent.analyzeMarket(marketInfo);
-      actionResult = {
-        action: 'analysis',
-        type: 'LLM_ANALYSIS',
-        success: analysisSuccess,
-        marketInfo,
-        timestamp: new Date(),
-      };
+      if (actionRoll < 0.4) {
+        // Market analysis
+        await agent.analyzeMarket(marketInfo);
+        return { success: true, details: { action: 'analyze', marketInfo } };
+      } else if (actionRoll < 0.8) {
+        // Trading decision
+        await agent.makeTradeDecision(marketInfo);
+        return { success: true, details: { action: 'trade', marketInfo } };
+      } else {
+        // Social interaction
+        const { prisma } = await import('../cache/dbCache');
+        const recentMessages = await prisma.message.findMany({
+          take: 5,
+          where: { visibility: 'public' },
+          orderBy: { createdAt: 'desc' }
+        });
+        const sentiment = await marketData.getMarketSentiment();
+        await agent.socialInteraction(recentMessages, sentiment);
+        return { success: true, details: { action: 'social', messageCount: recentMessages.length } };
+      }
     } else {
-      // Social interaction using LLM
-      addLog('info', `Agent ${llmAgent.agentData.name} engaging in LLM social interaction`);
-
-      // Get recent messages for context
-      const { prisma } = await import('../cache/dbCache');
-      const recentMessages = await prisma.message.findMany({
-        take: 5,
-        where: { visibility: 'public' },
-        orderBy: { createdAt: 'desc' },
-        include: {
-          sender: {
-            select: {
-              id: true,
-              name: true,
-              personalityType: true
-            }
-          }
-        }
-      });
-
-      const sentiment = await marketData.getMarketSentiment();
-      const socialSuccess = await llmAgent.socialInteraction(recentMessages, sentiment);
-
-      actionResult = {
-        action: 'social',
-        type: 'LLM_SOCIAL',
-        success: socialSuccess,
-        timestamp: new Date(),
-      };
+      // Fallback for standard LLM agents
+      console.log(`🧠 Standard LLM Agent ${agentId} taking action`);
+      return { success: true, details: { action: 'llm_action', marketInfo } };
     }
 
-    return { success: true, details: actionResult };
   } catch (error) {
     return {
       success: false,

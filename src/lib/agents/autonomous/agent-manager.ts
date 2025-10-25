@@ -59,7 +59,8 @@ export class AgentManager {
       maxSize: 100,
       cleanupInterval: 5 * 60 * 1000,
       ttl: this.agentCacheTTL,
-      useLLM: true 
+      useLLM: true,
+      useASI: true // Enable ASI features for hackathon
     });
     this.maxConcurrent = parseInt(process.env.MAX_CONCURRENT_AGENTS || '5', 10);
     this.lastAccessTime = new Map();
@@ -426,7 +427,14 @@ export class AgentManager {
             });
 
             if (agentMessages.length > 0) {
-              console.log(`✅ ${agent.agentData.name} created message: "${agentMessages[0].content.substring(0, 50)}..."`);
+              // Get agent name for logging
+              const agentData = await prisma.agent.findUnique({
+                where: { id: agentId },
+                select: { name: true }
+              });
+
+              const agentName = agentData?.name || 'Unknown Agent';
+              console.log(`✅ ${agentName} created message: "${agentMessages[0].content.substring(0, 50)}..."`);
             }
           }
         } catch (error) {
