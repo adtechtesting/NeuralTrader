@@ -434,7 +434,8 @@ export default function SimulationControls({ onDataRefresh }: { onDataRefresh: (
         </div>
         
         <p className="text-xs text-gray-500 mt-3 text-center">
-          Drag slider to adjust simulation speed (1x - 5x)
+          Drag slider to adjust simulation speed (1x - 5x)<br/>
+        
         </p>
       </div>
 

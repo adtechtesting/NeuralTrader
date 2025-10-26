@@ -14,7 +14,8 @@ import {
   Activity,
   List,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  TrendingDown
 } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useRouter } from 'next/navigation';
@@ -67,6 +68,8 @@ interface SimulationStatus {
     low24h: number;
     operationCount: number;
     successRate: number;
+    error?: string;
+    message?: string;
   };
   simulationSpeed: number;
   timestamp: number;
@@ -101,14 +104,24 @@ const ChatSection = dynamic(
   { ssr: false }
 );
 
+interface TokenData {
+  symbol: string;
+  name: string;
+  usdPrice?: number;
+  priceChange24h?: number;
+  volume24h?: number;
+  mcap?: number;
+}
+
 type TabType = 'home' | 'amm' | 'trades';
 
 export default function MonitoringPage() {
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [simulationStatus, setSimulationStatus] = useState<SimulationStatus | null>(null);
+  const [tokenData, setTokenData] = useState<TokenData | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [refreshRate, setRefreshRate] = useState(3000);
+  const [refreshRate, setRefreshRate] = useState(2000);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tokenSymbol, setTokenSymbol] = useState<string>('TOKEN');
@@ -155,16 +168,32 @@ export default function MonitoringPage() {
       setLoading(true);
       setError(null);
 
+      // Fetch real token data
       try {
         const tokenResponse = await fetch('/api/simulation/config');
         if (tokenResponse.ok) {
-          const tokenData = await tokenResponse.json();
-          if (tokenData.selectedToken?.symbol) {
-            setTokenSymbol(tokenData.selectedToken.symbol);
+          const tokenConfig = await tokenResponse.json();
+          if (tokenConfig.selectedToken) {
+            setTokenData(tokenConfig.selectedToken);
+            setTokenSymbol(tokenConfig.selectedToken.symbol || 'TOKEN');
           }
         }
       } catch (err) {
-        console.log('Could not fetch token symbol');
+        console.log('Could not fetch token config');
+      }
+
+      // Fetch pool state for real-time market data
+      let poolState = null;
+      try {
+        const poolResponse = await fetch('/api/pool/state');
+        if (poolResponse.ok) {
+          const poolData = await poolResponse.json();
+          if (poolData.success) {
+            poolState = poolData.poolState.current;
+          }
+        }
+      } catch (err) {
+        console.log('Could not fetch pool state');
       }
 
       const statusResponse = await fetch('/api/simulation');
@@ -172,6 +201,30 @@ export default function MonitoringPage() {
         throw new Error(`Failed to fetch simulation status`);
       }
       const statusData = await statusResponse.json();
+
+      // ✅ STRICT: Use pool state data for market stats if available, otherwise show error
+      if (poolState && !poolState.error) {
+        statusData.market = {
+          ...statusData.market,
+          solReserve: poolState.solReserve,
+          tokenReserve: poolState.tokenReserve,
+          volume24h: poolState.volume24h,
+          price: poolState.lastPrice,
+          totalLiquidity: poolState.totalLiquidity
+        };
+      } else if (poolState && poolState.error) {
+        // Show error state when no token selected
+        statusData.market = {
+          error: poolState.error,
+          message: poolState.message,
+          solReserve: 0,
+          tokenReserve: 0,
+          volume24h: 0,
+          price: 0,
+          totalLiquidity: 0
+        };
+      }
+
       setSimulationStatus(statusData);
 
       const tradesResponse = await fetch('/api/transactions?limit=50');
@@ -380,45 +433,75 @@ export default function MonitoringPage() {
                     className="space-y-8"
                   >
                     {/* Page Header */}
-                    <div>
-                      <h1 className="text-4xl font-bold mb-2">Simulation Overview</h1>
-                      <p className="text-white/50">Monitor AI trading simulation in real-time</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h1 className="text-4xl font-bold mb-2">Simulation Overview</h1>
+                        <p className="text-white/50">Monitor AI trading simulation in real-time</p>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm">
+                        <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${
+                          loading ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'
+                        }`}>
+                          <div className={`w-2 h-2 rounded-full ${loading ? 'bg-blue-400 animate-pulse' : 'bg-green-400'}`}></div>
+                          <span className="font-medium">
+                            {loading ? 'Updating...' : 'Live'}
+                          </span>
+                        </div>
+                        <div className="text-white/40 text-xs">
+                          Last updated: {lastUpdate?.toLocaleTimeString() || '--:--:--'}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Simulation Controls */}
                     <SimulationControls onDataRefresh={loadData} />
 
                     {/* Market Stats Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                      {[
-                        { icon: Users, label: "Active Agents", value: `${simulationStatus?.activeAgentCount || 0} / ${simulationStatus?.agentCount || 0}`, subtitle: "Currently trading" },
-                        { icon: TrendingUp, label: "Token Price", value: `${formatNumber(simulationStatus?.market?.price || 0, 8)} SOL`, subtitle: "Current market price", color: "green" },
-                        { icon: Zap, label: "24h Volume", value: `${formatNumber(simulationStatus?.market?.volume24h || 0, 2)} SOL`, subtitle: "Total traded volume" },
-                        { icon: MemoryStick, label: "Liquidity Pool", value: `${formatNumber(simulationStatus?.market?.solReserve || 0, 2)} SOL`, subtitle: "Available liquidity" }
-                      ].map((stat, i) => (
-                        <motion.div
-                          key={i}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.1 }}
-                          className="relative group"
-                        >
-                          <div className="absolute -inset-0.5 bg-white/5 rounded-2xl blur opacity-0 group-hover:opacity-100 transition duration-500"></div>
-                          <div className="relative bg-neutral-950/80 backdrop-blur-xl border border-white/10 p-5 rounded-xl hover:border-white/20 transition-colors">
-                            <div className="flex items-start justify-between mb-4">
-                              <div className="w-11 h-11 bg-white/5 rounded-xl flex items-center justify-center border border-white/10">
-                                <stat.icon className="text-white w-5 h-5" />
-                              </div>
-                            </div>
-                            <p className="text-white/40 text-xs uppercase tracking-wider mb-1 font-semibold">{stat.label}</p>
-                            <h3 className={`text-2xl font-bold mb-1 ${stat.color === 'green' ? 'text-green-400' : 'text-white'}`}>
-                              {stat.value}
-                            </h3>
-                            <p className="text-white/40 text-xs">{stat.subtitle}</p>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+  {[
+    { icon: Users, label: "Active Agents", value: `${simulationStatus?.activeAgentCount || 0} / ${simulationStatus?.agentCount || 0}`, subtitle: "Currently trading" },
+    { icon: TrendingUp, label: `${tokenData?.symbol || (simulationStatus?.market?.error ? 'No Token Selected' : 'TOKEN')} Price`, value: simulationStatus?.market?.error ? 'Select Token' : `$${formatNumber(tokenData?.usdPrice || 0, 6)}`, subtitle: simulationStatus?.market?.error ? simulationStatus.market.message : `24h: ${tokenData?.priceChange24h ? (tokenData.priceChange24h >= 0 ? '+' : '') + tokenData.priceChange24h.toFixed(2) + '%' : '0.00%'}`, color: simulationStatus?.market?.error ? "red" : (tokenData?.priceChange24h && tokenData.priceChange24h >= 0 ? "green" : "red"), showChange: !simulationStatus?.market?.error },
+    { icon: Zap, label: "24h Volume", value: simulationStatus?.market?.error ? 'N/A' : `${formatNumber(simulationStatus?.market?.volume24h || 0, 2)} SOL`, subtitle: simulationStatus?.market?.error ? 'Select a token first' : "Total traded volume", color: simulationStatus?.market?.error ? "white" : (simulationStatus?.market?.volume24h && simulationStatus?.market?.volume24h > 0 ? "green" : "white") },
+    { icon: MemoryStick, label: "Liquidity Pool", value: simulationStatus?.market?.error ? 'N/A' : `${formatNumber(simulationStatus?.market?.solReserve || 0, 2)} SOL`, subtitle: simulationStatus?.market?.error ? 'Select a token first' : "Available liquidity", color: simulationStatus?.market?.error ? "white" : (simulationStatus?.market?.solReserve && simulationStatus?.market?.solReserve > 0 ? "green" : "white") },
+    { icon: Activity, label: "Success Rate", value: simulationStatus?.market?.error ? 'N/A' : `${formatNumber((simulationStatus?.market?.successRate || 0) * 100, 1)}%`, subtitle: simulationStatus?.market?.error ? 'Select a token first' : "Trade success rate", color: simulationStatus?.market?.error ? "white" : (simulationStatus?.market?.successRate && simulationStatus?.market?.successRate > 0.5 ? "green" : "red") }
+  ].map((stat, i) => (
+    <motion.div
+      key={i}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: i * 0.1 }}
+      className="relative group"
+    >
+      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 hover:border-neutral-700 transition-colors">
+        <div className="flex items-start justify-between mb-3">
+          <div className="w-10 h-10 bg-neutral-800 rounded-lg flex items-center justify-center">
+            <stat.icon className="text-white w-5 h-5" />
+          </div>
+          {stat.showChange && tokenData?.priceChange24h !== undefined && (
+            <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold ${
+              tokenData.priceChange24h >= 0
+                ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                : 'bg-red-500/10 text-red-400 border border-red-500/20'
+            }`}>
+              {tokenData.priceChange24h >= 0 ? (
+                <TrendingUp className="w-3 h-3" />
+              ) : (
+                <TrendingDown className="w-3 h-3" />
+              )}
+              {Math.abs(tokenData.priceChange24h).toFixed(2)}%
+            </div>
+          )}
+        </div>
+        <p className="text-white/50 text-xs uppercase tracking-wider mb-2 font-medium">{stat.label}</p>
+        <h3 className={`text-2xl font-bold mb-1 ${stat.color === 'green' ? 'text-green-400' : stat.color === 'red' ? 'text-red-400' : 'text-white'}`}>
+          {stat.value}
+        </h3>
+        <p className="text-white/40 text-xs">{stat.subtitle}</p>
+      </div>
+    </motion.div>
+  ))}
+</div>
+
 
                     {/* Trading Chart */}
                     <motion.div

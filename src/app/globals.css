@@ -32,4 +32,9 @@
     z-index: 9999; 
     position: fixed; 
   }
+
+  /* Enhanced animations for loading states */
+  .animation-delay-75 {
+    animation-delay: 0.075s;
+  }
   

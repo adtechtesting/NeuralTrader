@@ -60,7 +60,7 @@ function Navbar({ className }: { className?: string }) {
           className="flex items-center group"
         >
           <span className=" font-bold text-xl tracking-tight text-white group-hover:text-white/90 transition-colors underline">
-            ℕ𝕖𝕦𝕣𝕒𝕝𝕥𝕣𝕒𝕕𝕖𝕣
+         𝗡𝗲𝘂𝗿𝗮𝗹𝘁𝗿𝗮𝗱𝗲𝗿
           </span>
         </Link>
 

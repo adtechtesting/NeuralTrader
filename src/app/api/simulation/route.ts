@@ -81,12 +81,47 @@ async function getSimulationStatus() {
   // Try to get market data, but with fallback
   let poolStats: any;
   try {
-    const poolStatsPromise = amm.getPoolStats();
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Pool stats query timed out')), 1000);
-    });
-    
-    poolStats = await Promise.race([poolStatsPromise, timeoutPromise]);
+   
+    const memoryPoolState = amm.getPoolStateMemory();
+    const dbPoolState = await amm.getPoolState();
+
+   
+    const { getSelectedToken } = await import('../../../lib/config/selectedToken');
+    const selectedToken = await getSelectedToken();
+
+    if (!selectedToken) {
+      console.log('⚠️ No token selected for simulation - returning error state');
+      poolStats = {
+        error: 'No token selected',
+        message: 'Please select a token in the simulation setup',
+        solAmount: 0,
+        tokenAmount: 0,
+        currentPrice: 0,
+        tradingVolume: 0,
+        tradingVolume24h: 0
+      };
+    } else {
+     
+      poolStats = memoryPoolState && memoryPoolState.lastUpdate > 0
+        ? {
+            solReserve: memoryPoolState.solReserve,
+            tokenReserve: memoryPoolState.tokenReserve,
+            price: memoryPoolState.lastPrice,
+            volume24h: memoryPoolState.volume24h,
+            totalLiquidity: memoryPoolState.totalLiquidity,
+            lastPrice: memoryPoolState.lastPrice,
+            lastUpdate: memoryPoolState.lastUpdate,
+            tokenSymbol: selectedToken.symbol || 'TOKEN'
+          }
+        : {
+            solAmount: dbPoolState?.solAmount || 0,
+            tokenAmount: dbPoolState?.tokenAmount || 0,
+            currentPrice: dbPoolState?.currentPrice || 0,
+            tradingVolume: dbPoolState?.tradingVolume || 0,
+            tradingVolume24h: dbPoolState?.tradingVolume24h || 0,
+            tokenSymbol: selectedToken.symbol || 'TOKEN'
+          };
+    }
   } catch (error) {
     console.error('Error fetching pool stats, using fallback');
     poolStats = {

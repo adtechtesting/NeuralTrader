@@ -69,7 +69,7 @@ export default function AgentDashboardPage() {
   useEffect(() => {
     if (mounted && !connected) {
       router.push("/");
-      toast.warning("Connect Your Solana Wallet to see the Agent Dashboard");
+      toast.warning("Connect Your Solana Wallet to Simulate tokens ");
     }
   }, [mounted, connected, router]);
 

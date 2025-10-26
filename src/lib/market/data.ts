@@ -206,15 +206,6 @@ export const marketData = {
       // Get selected token for live price data
       const selectedToken = await getSelectedToken();
 
-      // Try to get live price from Jupiter first
-      let livePrice: number | null = null;
-      let liveLiquidity: number | null = null;
-
-      if (selectedToken.mint && selectedToken.mint !== 'So11111111111111111111111111111111111111112') {
-        livePrice = await getPrice(selectedToken.mint);
-        liveLiquidity = selectedToken.liquidity || 0;
-      }
-
       // Use pool state as fallback for calculations
       const poolState = await prisma.poolState.findFirst({
         where: { id: 'main_pool' }
@@ -227,8 +218,8 @@ export const marketData = {
       });
 
       // Use live price if available, otherwise calculate from pool
-      let price = livePrice || marketState?.price || 0;
-      if (!livePrice && poolState && poolState.solAmount > 0 && poolState.tokenAmount > 0) {
+      let price = marketState?.price || 0;
+      if (poolState && poolState.solAmount > 0 && poolState.tokenAmount > 0) {
         price = poolState.solAmount / poolState.tokenAmount;
       }
 
@@ -258,11 +249,11 @@ export const marketData = {
         return sum;
       }, 0);
 
-      console.log(`📊 Live market data: price=${price}, volume24h=${volume24h}, transactions=${recentTransactions.length}, token=${selectedToken.symbol}`);
+      console.log(`📊 Market data: price=${price}, volume24h=${volume24h}, transactions=${recentTransactions.length}, token=${selectedToken?.symbol || 'None'}`);
 
       return {
         price,
-        liquidity: liveLiquidity || poolState?.solAmount || marketState?.liquidity || 0,
+        liquidity: poolState?.solAmount || marketState?.liquidity || 0,
         volume24h,
         priceChange24h: marketState?.priceChange24h || 0,
         poolState: poolState || null
@@ -329,7 +320,7 @@ export const marketData = {
 
       // Try to get live price from Jupiter first
       let livePrice: number | null = null;
-      if (selectedToken.mint && selectedToken.mint !== 'So11111111111111111111111111111111111111112') {
+      if (selectedToken && selectedToken.mint && selectedToken.mint !== 'So11111111111111111111111111111111111111112') {
         livePrice = await getPrice(selectedToken.mint);
       }
 
@@ -398,7 +389,7 @@ export const marketData = {
             tokenReserve: poolState.tokenAmount,
             price,
             livePrice: livePrice !== null,
-            tokenSymbol: selectedToken.symbol,
+            tokenSymbol: selectedToken?.symbol || 'SOL',
             lastUpdate: new Date().toISOString()
           },
           timestamp: new Date(),

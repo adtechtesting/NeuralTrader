@@ -22,9 +22,19 @@ interface Transaction {
 
 interface APIData {
   success: boolean;
-  data: AMMData;
-  message?: string;
-  transactions?: Transaction[];
+  poolState: {
+    current: {
+      solReserve: number;
+      tokenReserve: number;
+      lastPrice: number;
+      totalLiquidity: number;
+      volume24h: number;
+      lastUpdate: number;
+    };
+    memory?: any;
+    db?: any;
+  };
+  error?: string;
 }
 
 export default function AMMVisualization() {
@@ -64,33 +74,53 @@ export default function AMMVisualization() {
   const fetchAmmData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/amm-stats', {
+      const response = await fetch('/api/pool/state', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       });
 
-      const data: APIData = await response.json();
+      const data = await response.json();
 
       if (data.success) {
-        setAmmData({
-          solAmount: data.data.solAmount || 0,
-          tokenAmount: data.data.tokenAmount || 0,
-          currentPrice: data.data.currentPrice || 0,
-          tradingVolume: data.data.tradingVolume || 0,
-          tradingVolume24h: data.data.tradingVolume24h || 0,
-          lastTradedAt: data.data.lastTradedAt || null,
-        });
-        setTransactions(data.transactions || []);
-        setError(null);
+        // Use the current state from the API response
+        const poolState = data.poolState.current;
+
+        // ✅ Check if there's an error (no token selected)
+        if (poolState.error) {
+          setAmmData({
+            solAmount: 0,
+            tokenAmount: 0,
+            currentPrice: 0,
+            tradingVolume: 0,
+            tradingVolume24h: 0,
+            lastTradedAt: null,
+          });
+          setError(poolState.message || 'No token selected');
+          console.log('⚠️ No token selected for AMM visualization');
+        } else {
+          setAmmData({
+            solAmount: poolState.solReserve || 0,
+            tokenAmount: poolState.tokenReserve || 0,
+            currentPrice: poolState.lastPrice || 0,
+            tradingVolume: poolState.totalLiquidity || 0,
+            tradingVolume24h: poolState.volume24h || 0,
+            lastTradedAt: poolState.lastUpdate ? new Date(poolState.lastUpdate).toISOString() : null,
+          });
+
+          setTransactions([]); // Clear transactions for now, can be enhanced later
+          setError(null);
+
+          console.log('🔄 Pool UI updated:', poolState.lastPrice);
+        }
       } else {
-        setError(data.message || 'Failed to load AMM data');
+        setError(data.error || 'Failed to load pool data');
         useSampleData();
       }
     } catch (err) {
-      console.error('Error fetching AMM data:', err);
-      setError('Failed to fetch AMM data. Using sample data.');
+      console.error('Error fetching pool data:', err);
+      setError('Failed to fetch pool data. Using sample data.');
       useSampleData();
     } finally {
       setLoading(false);
@@ -122,7 +152,7 @@ export default function AMMVisualization() {
   useEffect(() => {
     fetchTokenSymbol();
     fetchAmmData();
-    const interval = setInterval(fetchAmmData, 10000);
+    const interval = setInterval(fetchAmmData, 2000); // Poll every 2 seconds
     return () => clearInterval(interval);
   }, []);
 

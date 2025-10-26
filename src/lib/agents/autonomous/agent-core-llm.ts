@@ -102,10 +102,16 @@ class TokenSwapTool extends Tool {
 
         if (!args) {
           const selectedToken = await getSelectedToken();
+          if (!selectedToken) {
+            return JSON.stringify({
+              error: "No token selected",
+              details: "Please select a token in the simulation setup"
+            });
+          }
           const tokenSymbol = selectedToken.symbol || 'TOKEN';
-          return JSON.stringify({ 
-            error: "Invalid input format", 
-            details: `Please provide input as JSON or a clear statement like 'buy 5 SOL worth of ${tokenSymbol}'` 
+          return JSON.stringify({
+            error: "Invalid input format",
+            details: `Please provide input as JSON or a clear statement like 'buy 5 SOL worth of ${tokenSymbol}'`
           });
         }
       }
@@ -127,6 +133,12 @@ class TokenSwapTool extends Tool {
       }
 
       const selectedToken = await getSelectedToken();
+      if (!selectedToken) {
+        return JSON.stringify({
+          error: "No token selected",
+          details: "Please select a token in the simulation setup"
+        });
+      }
       const tokenSymbol = selectedToken.symbol || 'TOKEN';
       console.log(`[TRADE] Agent ${this.agentId} attempting to ${inputIsSol ? 'buy' : 'sell'} with ${inputAmount} ${inputIsSol ? 'SOL' : tokenSymbol}`);
 
@@ -242,11 +254,17 @@ class GetBalanceTool extends Tool {
       }
 
       const selectedToken = await getSelectedToken();
-      
+      if (!selectedToken) {
+        return JSON.stringify({
+          error: "No token selected",
+          details: "Please select a token in the simulation setup"
+        });
+      }
+
       // Fetch on-chain balances
       let onchainSol = agent.walletBalance || 0;
       let onchainToken = agent.tokenBalance || 0;
-      
+
       try {
         onchainSol = await getSolBalance(agent.publicKey);
         onchainToken = await getSplTokenBalance(agent.publicKey, selectedToken.mint);
@@ -518,6 +536,10 @@ export class LLMAutonomousAgent {
       };
 
       const selectedToken = await getSelectedToken();
+      if (!selectedToken) {
+        console.error(`No token selected for agent ${this.agentData.name} initialization`);
+        throw new Error("No token selected for simulation");
+      }
       const tokenSymbol = selectedToken.symbol || 'TOKEN';
       
       const systemPrompt = new SystemMessage(
@@ -647,6 +669,10 @@ export class LLMAutonomousAgent {
   async analyzeMarket(marketInfo: any) {
     try {
       const selectedToken = await getSelectedToken();
+      if (!selectedToken) {
+        console.error(`No token selected for market analysis by agent ${this.agentData.name}`);
+        return false;
+      }
       const tokenSymbol = selectedToken.symbol || 'TOKEN';
       
       const marketSummary =
@@ -752,6 +778,10 @@ export class LLMAutonomousAgent {
       `- Neutral: ${(sentiment.neutralPercentage * 100).toFixed(1)}%\n`;
 
     const selectedToken = await getSelectedToken();
+    if (!selectedToken) {
+      console.error(`No token selected for social interaction by agent ${this.agentData.name}`);
+      return false;
+    }
     const tokenSymbol = selectedToken.symbol || 'TOKEN';
 
     // Use LLM to generate intelligent, contextual response
@@ -832,7 +862,7 @@ DO NOT just respond with text. Use the send_message tool to actually send your m
 
         console.log(`💬 ${this.agentData.name} LLM response received:`, response);
 
-        // ✅ FIX: Extract message content from LLM response
+      
         let messageContent: string | null = null;
         let messageSentiment = activitySentiment;
 
@@ -873,7 +903,7 @@ DO NOT just respond with text. Use the send_message tool to actually send your m
           }
         }
 
-        // ✅ FIX: Fallback - extract from response content (handles Ollama's <|python_tag|> format)
+      
         if (!messageContent) {
           const responseText = response.toString();
           console.log(`⚠️  ${this.agentData.name} LLM didn't use tools properly, extracting from response`);
@@ -933,7 +963,7 @@ DO NOT just respond with text. Use the send_message tool to actually send your m
           });
           console.log(`💾 ${this.agentData.name} message saved: "${messageContent.substring(0, 50)}..."`);
         } else {
-          // ✅ Use personality fallback with ALL personality types
+        
           console.log(`⚠️  ${this.agentData.name} no valid content, using personality fallback`);
           const personalityFallbackMessages = {
             AGGRESSIVE: [
@@ -1043,6 +1073,10 @@ DO NOT just respond with text. Use the send_message tool to actually send your m
     }
 
     const selectedToken = await getSelectedToken();
+    if (!selectedToken) {
+      console.error(`No token selected for trade decision by agent ${this.agentData.name}`);
+      return false;
+    }
     const tokenSymbol = selectedToken.symbol || 'TOKEN';
     
     const balanceInfo =
@@ -1094,7 +1128,7 @@ DO NOT just respond with text. Use the send_message tool to actually send your m
 
       console.log(`💭 ${this.agentData.name} decision: ${response.toString().substring(0, 100)}...`);
       
-      // ✅ Check if tool was called
+    
       let toolCalled = false;
       const responseText = response.toString().toLowerCase();
       
@@ -1105,33 +1139,38 @@ DO NOT just respond with text. Use the send_message tool to actually send your m
         console.log(`✅ ${this.agentData.name} LLM used tool successfully`);
       }
 
-      // ✅ Fallback: personality-based trading if LLM didn't use tool
+      
       if (!toolCalled && agent.walletBalance > 1) {
         const shouldTrade = Math.random() < personalityBehavior.tradeFrequency;
         
         if (shouldTrade) {
           console.log(`⚠️  ${this.agentData.name} LLM didn't use tool, executing personality-based fallback`);
           
-          // ✅ FIX #1: Correct tool name
+      
           const tradeTool = this.tools.find(t => t.name === 'execute_token_swap');
           
           if (tradeTool) {
             let isBuy = Math.random() < 0.5;
 
-            // Personality-based decision logic
-            if (this.agentData.personalityType === 'AGGRESSIVE' && marketInfo.priceChange24h > 1) {
+           
+            console.log(`🤖 ${this.agentData.name} (${this.agentData.personalityType}) analyzing market:`);
+            console.log(`   Price: ${marketInfo.price} SOL (${marketInfo.priceChange24h}%)`);
+            console.log(`   Volume: ${marketInfo.volume24h} SOL`);
+
+         
+            if (this.agentData.personalityType === 'CONTRARIAN') {
+              console.log(`   Contrarian logic: Price change ${marketInfo.priceChange24h}%`);
+              isBuy = marketInfo.priceChange24h < 0; // Buy when price is down (negative change)
+              console.log(`   Contrarian decision: ${isBuy ? 'BUY (buying the dip)' : 'SELL (fading the pump)'}`);
+            } else if (this.agentData.personalityType === 'AGGRESSIVE' && marketInfo.priceChange24h > 1) {
               isBuy = true; // Buy on upward momentum
+              console.log(`   Aggressive decision: BUY (following momentum up ${marketInfo.priceChange24h}%)`);
             } else if (this.agentData.personalityType === 'CONSERVATIVE' && marketInfo.priceChange24h < -1) {
               isBuy = false; // Sell on downward momentum
-            } else if (this.agentData.personalityType === 'CONTRARIAN') {
-              // ✅ FIX #3: Correct contrarian logic
-              isBuy = marketInfo.priceChange24h < 0; // Buy dips, fade pumps
+              console.log(`   Conservative decision: SELL (cutting losses down ${marketInfo.priceChange24h}%)`);
             } else if (this.agentData.personalityType === 'TREND_FOLLOWER') {
               isBuy = marketInfo.priceChange24h > 0; // Follow the trend
-            } else if (this.agentData.personalityType === 'EMOTIONAL') {
-              // More extreme reactions to market moves
-              if (marketInfo.priceChange24h > 3) isBuy = true;
-              if (marketInfo.priceChange24h < -3) isBuy = false;
+              console.log(`   Trend follower decision: ${isBuy ? 'BUY' : 'SELL'} (following ${marketInfo.priceChange24h > 0 ? 'up' : 'down'} trend)`);
             }
 
             // Calculate position size based on personality
@@ -1144,19 +1183,26 @@ DO NOT just respond with text. Use the send_message tool to actually send your m
             // Only trade if amount is meaningful
             if (adjustedAmount > 0.1) {
               try {
-                // ✅ FIX #2: Correct invoke format with JSON string
-                await tradeTool.invoke(JSON.stringify({
+                console.log(`💰 ${this.agentData.name} executing ${isBuy ? 'BUY' : 'SELL'} of ${adjustedAmount.toFixed(2)} ${isBuy ? 'SOL worth of tokens' : 'tokens for SOL'}`);
+
+             
+                const tradeParams = {
                   inputAmount: adjustedAmount,
                   inputIsSol: isBuy,
                   slippageTolerance: 1.5
-                }));
-                
-                console.log(`✅ ${this.agentData.name} executed ${isBuy ? 'BUY' : 'SELL'} ${adjustedAmount.toFixed(2)} ${isBuy ? 'SOL' : tokenSymbol}`);
+                };
+
+                console.log(`🔧 Trade tool params:`, tradeParams);
+
+                await tradeTool.invoke(JSON.stringify(tradeParams));
+
+                console.log(`✅ Agent ${this.agentData.name} executed ${isBuy ? 'BUY' : 'SELL'} ${adjustedAmount.toFixed(2)} ${isBuy ? 'SOL' : 'TOKEN'}`);
               } catch (tradeError: any) {
                 console.error(`❌ ${this.agentData.name} trade execution failed:`, tradeError.message);
+                console.error(`   Error details:`, tradeError);
               }
             } else {
-              console.log(`⚠️  ${this.agentData.name} trade amount too small (${adjustedAmount.toFixed(3)}), skipping`);
+              console.log(`⚠️  ${this.agentData.name} trade amount too small (${adjustedAmount.toFixed(3)} SOL), skipping`);
             }
           } else {
             console.error(`❌ execute_token_swap tool not found in ${this.agentData.name}'s tool list`);

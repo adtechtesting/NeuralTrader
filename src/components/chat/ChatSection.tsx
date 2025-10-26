@@ -153,12 +153,12 @@ export default function ChatSection() {
   };
 
   const getSentimentColor = (sentiment: string | null) => {
-    if (!sentiment) return 'border-white/10';
+    if (!sentiment) return 'border-neutral-700';
     switch (sentiment.toLowerCase()) {
-      case 'positive': return 'border-green-400/30';
-      case 'negative': return 'border-red-400/30';
-      case 'neutral': return 'border-white/20';
-      default: return 'border-white/10';
+      case 'positive': return 'border-green-500/30';
+      case 'negative': return 'border-red-500/30';
+      case 'neutral': return 'border-neutral-700';
+      default: return 'border-neutral-700';
     }
   };
 
@@ -186,15 +186,14 @@ export default function ChatSection() {
     <>
       {/* Floating Button */}
       <button
-        className="fixed bottom-6 right-6 p-4 bg-white text-black rounded-full shadow-lg transition-all
-                  hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50
-                  z-50"
+        className="fixed bottom-6 right-6 p-4 bg-white text-black rounded-full shadow-2xl transition-all
+                  hover:scale-105 active:scale-95 focus:outline-none z-50"
         onClick={() => setOpen(true)}
         aria-label="Open chat"
       >
         <MessageCircle className="w-6 h-6" />
         {messages.length > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
             {messages.length > 9 ? '9+' : messages.length}
           </span>
         )}
@@ -202,24 +201,23 @@ export default function ChatSection() {
 
       {/* Chat Panel */}
       {open && (
-        <div className="fixed bottom-0 right-0 w-full sm:w-96 h-[70vh] sm:h-[80vh] bg-black/60 backdrop-blur-2xl text-white shadow-2xl flex flex-col
-                       rounded-tl-2xl border border-white/10 overflow-hidden z-50">
+        <div className="fixed bottom-0 right-0 w-full sm:w-96 h-[70vh] sm:h-[80vh] bg-neutral-900 text-white shadow-2xl flex flex-col
+                       rounded-tl-xl border border-neutral-800 overflow-hidden z-50">
           {/* Header */}
-          <div className="p-4 bg-white/5 border-b border-white/10 flex items-center justify-between backdrop-blur-sm">
+          <div className="p-4 bg-neutral-900 border-b border-neutral-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
-            
-              <h2 className="text-lg font-bold text-white">Agent Chat</h2>
+              <h2 className="text-base font-bold text-white">Agent Chat</h2>
               {loading && (
-                <span className="text-xs bg-white/10 text-white/80 px-2 py-1 rounded-full border border-white/10">
+                <span className="text-xs bg-neutral-800 text-gray-400 px-2 py-1 rounded border border-neutral-700">
                   Loading...
                 </span>
               )}
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2">
               <button
                 onClick={loadMessages}
                 disabled={loading}
-                className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
+                className={`p-2 rounded-lg hover:bg-neutral-800 transition-colors ${
                   loading ? 'opacity-50 cursor-not-allowed' : 'text-white'
                 }`}
                 aria-label="Refresh messages"
@@ -228,7 +226,7 @@ export default function ChatSection() {
               </button>
               <button
                 onClick={() => setOpen(false)}
-                className="p-2 rounded-lg text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+                className="p-2 rounded-lg text-gray-400 hover:bg-neutral-800 hover:text-white transition-colors"
                 aria-label="Close chat"
               >
                 <X className="w-4 h-4" />
@@ -248,13 +246,13 @@ export default function ChatSection() {
           <div
             ref={messagesContainerRef}
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto p-4 space-y-4 bg-black/40"
+            className="flex-1 overflow-y-auto p-4 space-y-4 bg-black"
           >
             {messages.length === 0 && !loading ? (
-              <div className="flex flex-col items-center justify-center h-full text-white/40">
+              <div className="flex flex-col items-center justify-center h-full text-gray-500">
                 <MessageCircle className="w-12 h-12 mb-3 opacity-30" />
                 <p className="text-sm font-medium">No messages yet</p>
-                <p className="text-xs mt-1 text-white/30">Agents will appear here when they chat</p>
+                <p className="text-xs mt-1">Agents will appear here when they chat</p>
               </div>
             ) : (
               <>
@@ -271,7 +269,7 @@ export default function ChatSection() {
                           <span className="font-semibold text-sm text-white">
                             {group.sender.name}
                           </span>
-                          <span className="ml-2 text-xs text-white/40">
+                          <span className="ml-2 text-xs text-gray-500">
                             {formatTimestamp(group.messages[0].createdAt)}
                           </span>
                         </div>
@@ -279,16 +277,16 @@ export default function ChatSection() {
                           {group.messages.map((message) => (
                             <div
                               key={message.id}
-                              className={`p-3 rounded-xl max-w-[85%] sm:max-w-[80%] bg-white/5 backdrop-blur-sm border ${
+                              className={`p-3 rounded-lg max-w-[85%] bg-neutral-900 border ${
                                 getSentimentColor(message.sentiment)
-                              } hover:bg-white/10 transition-colors`}
+                              } hover:bg-neutral-800 transition-colors`}
                             >
                               <p className="text-sm text-white leading-relaxed">{message.content}</p>
                               {message.sentiment && (
-                                <span className={`text-xs mt-2 inline-block px-2 py-1 rounded-full ${
-                                  message.sentiment === 'positive' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
-                                  message.sentiment === 'negative' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
-                                  'bg-white/10 text-white/70 border border-white/20'
+                                <span className={`text-xs mt-2 inline-block px-2 py-1 rounded ${
+                                  message.sentiment === 'positive' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
+                                  message.sentiment === 'negative' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                                  'bg-neutral-800 text-gray-400 border border-neutral-700'
                                 }`}>
                                   {message.sentiment}
                                 </span>
@@ -309,8 +307,8 @@ export default function ChatSection() {
           {!isAtBottom && (
             <button
               onClick={scrollToBottom}
-              className="absolute bottom-20 right-4 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white p-2 rounded-full shadow-lg border border-white/10
-                       transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-white/50"
+              className="absolute bottom-20 right-4 bg-neutral-800 hover:bg-neutral-700 text-white p-2 rounded-full shadow-lg border border-neutral-700
+                       transition-all duration-200 focus:outline-none"
               aria-label="Scroll to bottom"
             >
               <svg
@@ -331,25 +329,25 @@ export default function ChatSection() {
           )}
 
           {/* Input area */}
-          <div className="p-4 border-t border-white/10 bg-white/5 backdrop-blur-sm">
+          <div className="p-4 border-t border-neutral-800 bg-neutral-900">
             <div className="flex items-center">
               <input
                 type="text"
                 placeholder="Type a message..."
-                className="flex-1 bg-black/50 text-white text-sm rounded-l-xl px-4 py-3 border border-white/10 focus:outline-none focus:border-white/30 transition-colors placeholder-white/40"
+                className="flex-1 bg-neutral-800 text-white text-sm rounded-l-lg px-4 py-3 border border-neutral-700 focus:outline-none focus:border-neutral-600 transition-colors placeholder-gray-500"
                 disabled
                 aria-label="Message input"
               />
               <button
-                className="bg-white text-black px-4 py-3 rounded-r-xl font-semibold
-                          transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/90"
+                className="bg-white text-black px-4 py-3 rounded-r-lg font-semibold
+                          transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200"
                 disabled
                 aria-label="Send message"
               >
                 <Send className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-xs text-white/40 mt-3 text-center">
+            <p className="text-xs text-gray-500 mt-3 text-center">
               Agents will chat automatically during simulation
             </p>
           </div>

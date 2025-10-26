@@ -10,22 +10,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid token data' }, { status: 400 });
     }
 
-    // Only store the mint address - we'll fetch live data from Jupiter when needed
-    const mintAddress = token.id;
+    // ✅ FIX: Store complete token data instead of just mint address
+    const tokenData = {
+      mint: token.id,
+      symbol: token.symbol,
+      name: token.name,
+      decimals: token.decimals,
+      usdPrice: token.usdPrice,
+      mcap: token.mcap,
+      liquidity: token.liquidity,
+      holderCount: token.holderCount,
+      isVerified: token.isVerified,
+      icon: token.icon,
+      selectedAt: new Date().toISOString()
+    };
 
     await prisma.simulationConfig.upsert({
       where: { key: 'selected_token' },
-      update: { value: JSON.stringify({ mint: mintAddress }) },
-      create: { key: 'selected_token', value: JSON.stringify({ mint: mintAddress }) }
+      update: { value: JSON.stringify(tokenData) },
+      create: { key: 'selected_token', value: JSON.stringify(tokenData) }
     });
 
-    console.log(`✅ Selected token saved: ${token.symbol} (${token.name}) - Mint: ${mintAddress}`);
-    console.log(`💡 Live data will be fetched from Jupiter on each request`);
+    console.log(`✅ Selected token saved: ${token.symbol} (${token.name}) - Mint: ${token.id}`);
+    console.log(`💡 Complete token data stored for offline fallback`);
 
-    return NextResponse.json({ 
-      success: true, 
-      mint: mintAddress,
-      message: 'Token selected. Live data will be fetched from Jupiter.'
+    return NextResponse.json({
+      success: true,
+      token: tokenData,
+      message: 'Token selected with complete data stored for fallback.'
     });
   } catch (e: any) {
     console.error('Error saving selected token:', e);

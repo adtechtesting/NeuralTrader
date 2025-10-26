@@ -5,13 +5,27 @@ import { useRouter } from 'next/navigation';
 import TokenSelector from '@/components/TokenSelector';
 import { CheckCircle, ArrowRight, TrendingUp, Activity, Users, Zap, Sparkles } from 'lucide-react';
 import { StripedPattern } from '@/components/ui/strippedpattern';
-
+import { useWallet } from '@solana/wallet-adapter-react';
+import { toast } from "sonner";
 export default function TokenSetupPage() {
+   const {connected} = useWallet();
   const router = useRouter();
   const [showSelector, setShowSelector] = useState(false);
   const [currentToken, setCurrentToken] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+    const [mounted, setMounted] = useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && !connected) {
+      router.push("/");
+      toast.warning("Connect Your Solana Wallet to see the Agent Dashboard");
+    }
+  }, [mounted, connected, router]);
+  
   useEffect(() => {
     fetchCurrentToken();
   }, []);

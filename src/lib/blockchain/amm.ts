@@ -3,6 +3,7 @@ import { MarketState } from '@prisma/client';
 import { marketData } from '../market/data'; // For market state update in executeSwap
 import { getSolBalance, getSplTokenBalance } from '@/blockchain/onchain-balances';
 import { getQuote } from '@/services/market';
+import { randomUUID } from 'crypto';
 
 /**
  * AMM (Automated Market Maker) implementation
@@ -10,6 +11,15 @@ import { getQuote } from '@/services/market';
  * Implements a constant product market maker (x*y=k) for the token swap pool
  */
 export const amm = {
+  // In-memory pool state for immediate updates
+  poolState: {
+    solReserve: 0,
+    tokenReserve: 0,
+    lastPrice: 0,
+    totalLiquidity: 0,
+    volume24h: 0,
+    lastUpdate: 0
+  },
   /**
    * Ensure market data and pool data are synchronized.
    * Call this periodically to keep the UI data in sync.
@@ -26,13 +36,15 @@ export const amm = {
         return;
       }
 
-      // Update the pool state with the latest price and timestamp
-      const poolUpdates = {
-        currentPrice: pool.solAmount / pool.tokenAmount,
-        lastUpdated: new Date()
+     
+      this.poolState = {
+        solReserve: pool.solAmount,
+        tokenReserve: pool.tokenAmount,
+        lastPrice: pool.solAmount / pool.tokenAmount,
+        totalLiquidity: pool.solAmount + (pool.tokenAmount * (pool.solAmount / pool.tokenAmount)),
+        volume24h: pool.tradingVolume24h,
+        lastUpdate: Date.now()
       };
-
-      await this.updatePoolState(poolUpdates);
 
       // Force market data update for UI
       const { marketData } = await import('../market/data');
@@ -49,6 +61,17 @@ export const amm = {
   async bootstrapPool() {
     try {
       console.log("Checking if pool needs initialization...");
+
+      // ✅ FIX 2: Load pool state from database first
+      const savedState = await prisma.marketState.findFirst({
+        where: { type: 'POOL_STATE' },
+        orderBy: { timestamp: 'desc' }
+      });
+
+      if (savedState?.data) {
+        this.poolState = savedState.data as any;
+        console.log('✅ Loaded pool state from DB:', this.poolState);
+      }
 
       // Check if pool exists
       const pool = await this.getPoolState();
@@ -104,6 +127,37 @@ export const amm = {
         }
       });
 
+     
+      await prisma.marketState.create({
+        data: {
+          id: randomUUID(),
+          price: initialPrice,
+          liquidity: initialSolAmount + (initialTokenAmount * initialPrice),
+          volume24h: 0,
+          transactions24h: 0,
+          priceChange24h: 0,
+          type: 'POOL_STATE',
+          data: {
+            solReserve: initialSolAmount,
+            tokenReserve: initialTokenAmount,
+            lastPrice: initialPrice,
+            totalLiquidity: initialSolAmount + (initialTokenAmount * initialPrice),
+            volume24h: 0,
+            lastUpdate: new Date()
+          }
+        }
+      });
+
+     
+      this.poolState = {
+        solReserve: initialSolAmount,
+        tokenReserve: initialTokenAmount,
+        lastPrice: initialPrice,
+        totalLiquidity: initialSolAmount + (initialTokenAmount * initialPrice),
+        volume24h: 0,
+        lastUpdate: Date.now()
+      };
+
       console.log("Pool initialized successfully with price:", initialPrice);
       return newPool;
     } catch (error) {
@@ -113,9 +167,28 @@ export const amm = {
   },
 
   async getPoolState() {
-    return prisma.poolState.findFirst({
+    const pool = await prisma.poolState.findFirst({
       where: { id: 'main_pool' }
     });
+
+   
+    if (pool) {
+      this.poolState = {
+        solReserve: pool.solAmount,
+        tokenReserve: pool.tokenAmount,
+        lastPrice: pool.currentPrice,
+        totalLiquidity: pool.solAmount + (pool.tokenAmount * pool.currentPrice),
+        volume24h: pool.tradingVolume24h,
+        lastUpdate: pool.lastUpdated?.getTime() || Date.now()
+      };
+    }
+
+    return pool;
+  },
+
+ 
+  getPoolStateMemory() {
+    return this.poolState;
   },
 
   async getPoolStats() {
@@ -291,21 +364,58 @@ export const amm = {
         throw new Error('Pool not initialized');
       }
 
+      // Calculate new reserves
+      const newSolReserve = inputIsSol
+        ? pool.solAmount + inputAmount
+        : pool.solAmount - swapResult.outputAmount;
+      const newTokenReserve = inputIsSol
+        ? pool.tokenAmount - swapResult.outputAmount
+        : pool.tokenAmount + inputAmount;
+
       // Update pool reserves based on the swap direction
       const newPool = await this.updatePoolState({
-        solAmount: inputIsSol
-          ? pool.solAmount + inputAmount
-          : pool.solAmount - swapResult.outputAmount,
-        tokenAmount: inputIsSol
-          ? pool.tokenAmount - swapResult.outputAmount
-          : pool.tokenAmount + inputAmount,
+        solAmount: newSolReserve,
+        tokenAmount: newTokenReserve,
         tradingVolume: pool.tradingVolume + (inputIsSol ? inputAmount : swapResult.outputAmount),
         tradingVolume24h: pool.tradingVolume24h + (inputIsSol ? inputAmount : swapResult.outputAmount),
         lastTradedAt: new Date(),
-        currentPrice: inputIsSol
-          ? (pool.solAmount + inputAmount) / (pool.tokenAmount - swapResult.outputAmount)
-          : (pool.solAmount - swapResult.outputAmount) / (pool.tokenAmount + inputAmount)
+        currentPrice: newSolReserve / newTokenReserve
       });
+
+      // ✅ FIX: Add missing poolState in-memory updates
+      this.poolState = {
+        solReserve: newSolReserve,
+        tokenReserve: newTokenReserve,
+        lastPrice: newSolReserve / newTokenReserve,
+        totalLiquidity: newSolReserve + (newTokenReserve * (newSolReserve / newTokenReserve)),
+        volume24h: pool.tradingVolume24h + (inputIsSol ? inputAmount : swapResult.outputAmount),
+        lastUpdate: Date.now()
+      };
+
+      console.log(`🔄 Pool: SOL ${pool.solAmount} → ${newSolReserve}, Token ${pool.tokenAmount} → ${newTokenReserve}`);
+
+      // ✅ FIX 1: Save pool state to database for persistence
+      await prisma.marketState.create({
+        data: {
+          id: randomUUID(),
+          price: newSolReserve / newTokenReserve,
+          liquidity: newSolReserve + (newTokenReserve * (newSolReserve / newTokenReserve)),
+          volume24h: pool.tradingVolume24h + (inputIsSol ? inputAmount : swapResult.outputAmount),
+          transactions24h: 1,
+          priceChange24h: 0,
+          type: 'POOL_STATE',
+          data: {
+            solReserve: newSolReserve,
+            tokenReserve: newTokenReserve,
+            lastPrice: newSolReserve / newTokenReserve,
+            totalLiquidity: newSolReserve + (newTokenReserve * (newSolReserve / newTokenReserve)),
+            volume24h: pool.tradingVolume24h + (inputIsSol ? inputAmount : swapResult.outputAmount),
+            lastUpdate: new Date()
+          }
+        }
+      });
+
+      console.log(`💾 Pool state saved to DB: SOL ${newSolReserve}, Token ${newTokenReserve}`);
 
       // Update agent balances accordingly
       await prisma.agent.update({

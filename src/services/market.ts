@@ -20,31 +20,31 @@ export async function getPrice(mint: string): Promise<number | null> {
       priceCache.set(mint, { price: tokenInfo.usdPrice, timestamp: Date.now() });
       return tokenInfo.usdPrice;
     }
-    
+
     // Fallback to price API with timeout
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000); // 3 second timeout
-    
+
     const url = `${JUP_PRICE}?ids=${encodeURIComponent(mint)}`;
-    const res = await fetch(url, { 
+    const res = await fetch(url, {
       cache: 'no-store',
-      signal: controller.signal 
+      signal: controller.signal
     });
     clearTimeout(timeout);
-    
+
     if (!res.ok) return null;
     const json = await res.json();
     const p = json.data?.[mint]?.price;
-    
+
     if (typeof p === 'number') {
       priceCache.set(mint, { price: p, timestamp: Date.now() });
       return p;
     }
     return null;
   } catch (e) {
-    // Don't log every error - too noisy
+    // Don't log every error - too noisy, just return null
     if ((e as Error).name !== 'AbortError') {
-      console.log('Jupiter API unavailable, using cached/pool price');
+      console.log(`⚠️ Jupiter price API unavailable for ${mint}, using cached/pool price`);
     }
     return null;
   }
@@ -72,12 +72,17 @@ export async function getQuote(inputMint: string, outputMint: string, amountLamp
 export async function searchToken(query: string): Promise<any | null> {
   try {
     const url = `${JUP_TOKENS_V2}/search?query=${encodeURIComponent(query)}`;
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await fetch(url, {
+      cache: 'no-store',
+      // Add timeout to prevent hanging
+      signal: AbortSignal.timeout(5000) // 5 second timeout
+    });
     if (!res.ok) return null;
     const tokens = await res.json();
     return tokens && tokens.length > 0 ? tokens[0] : null;
   } catch (e) {
-    console.error('Error searching token:', e);
+    // ✅ FIX: Better error handling - log but don't throw
+    console.log(`⚠️ Jupiter token search failed for ${query}, will use stored data`);
     return null;
   }
 }
