@@ -314,10 +314,10 @@ function FeatureCard({ title, description }: FeatureProps) {
         />
 
         {/* Title */}
-        <h3 className="text-2xl font-semibold text-white mb-4">{title}</h3>
+        <h3 className="text-xl font-semibold text-white mb-4">{title}</h3>
 
         {/* Description */}
-        <p className="text-white/60 mb-8 leading-relaxed text-lg">
+        <p className="text-white/60 mb-8 leading-relaxed text-md">
           {description}
         </p>
       </div>
@@ -327,30 +327,31 @@ function FeatureCard({ title, description }: FeatureProps) {
 
 const features = [
   {
-    title: "Agent Dashboard",
-    description: "Track all simulated traders, their personalities, balances, and activity in a comprehensive dashboard.",
+    title: "AI Agent Personalities",
+    description: "50+ autonomous traders with distinct strategies—aggressive, conservative, contrarian—each making independent decisions and learning from the market.",
   },
   {
-    title: "Simulation Monitoring",
-    description: "Track simulation metrics, view transaction history, and control the autonomous behavior of your trading agents.",
+    title: "Real-Time Market Simulation",
+    description: "Live AMM-powered pool with actual reserves, slippage, and 24h volume tracking. Watch price movements driven entirely by agent trades.",
   },
   {
-    title: "Real-time Chat",
-    description: "Observe how agents interact, share trading ideas, and influence each other in real-time with natural language conversations.",
+    title: "Agent Social Layer",
+    description: "Agents communicate naturally, share insights, debate trades, and form consensus—creating coordinated squad trades when sentiment aligns.",
   },
   {
-    title: "Advanced LLM Agents",
-    description: "Experience intelligent agents powered by real LLM tool calling, with personality-driven communication and contextual responses.",
+    title: "Execution-First Architecture",
+    description: "Every decision routes to the AMM; no empty cycles. Deterministic logging, micro-trade fallbacks, and resilient quote handling keep the sim alive.",
   },
   {
-    title: "Multi-LLM Support",
-    description: "Choose between OpenAI API for advanced features or local Ollama for cost-effective, private operation.",
+    title: "Multi-LLM Intelligence",
+    description: "Powered by Groq, OpenRouter, or local models with tool-calling for market analysis, balance checks, swaps, and messaging—all persona-driven.",
   },
   {
-    title: "Live Analytics",
-    description: "Monitor market sentiment, trading volumes, agent performance, and price movements with real-time analytics.",
+    title: "Live Analytics Dashboard",
+    description: "Track pool distribution, agent PnL, trading volume, price impact, sentiment shifts, and execution metrics updating every 2 seconds.",
   },
 ];
+
 
 function FeaturesSection() {
   return (
@@ -361,7 +362,7 @@ function FeaturesSection() {
       <div className="relative z-10 container mx-auto max-w-7xl">
         {/* Header */}
         <div className="text-center mb-20">
-          <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 tracking-tight">
+          <h2 className="text-2xl md:text-4xl font-bold text-white mb-6 tracking-tight">
             Cutting-Edge Features
           </h2>
           <p className="text-white/50 text-md md:text-lg max-w-xl mx-auto">
@@ -383,40 +384,40 @@ function FeaturesSection() {
     </section>
   );
 }
-
 const FAQ = [
   {
     question: "How do the AI agents make trading decisions?",
     answer:
-      "Our AI agents use advanced LLM technology with real tool calling capabilities. They analyze market data, communicate with other agents, and make decisions based on their unique personalities, risk profiles, and trading strategies.",
+      "Agents use LLM tool-calling to fetch market data, read/send messages, check balances, and execute swaps; decisions are shaped by each agent’s personality and risk profile.",
   },
   {
     question: "Can I customize the simulation parameters?",
     answer:
-      "Yes! You can adjust the number of agents, their personality types, simulation speed, and even select different trading tokens. The platform supports both OpenAI API and local Ollama for flexible operation.",
+      "Yes—configure agent count, personas, tick interval, batch size, and the trading token; the system supports multiple providers (e.g., Groq/OpenRouter) and local Ollama.",
   },
   {
     question: "Is this suitable for learning about trading?",
     answer:
-      "Absolutely. NeuralTrader provides a risk-free environment to understand market dynamics, agent behavior, and trading strategies. It's perfect for both beginners and experienced traders looking to test strategies.",
+      "Absolutely—it's a risk-free sandbox showing price discovery via an AMM, slippage/liquidity effects, and how social sentiment leads to coordinated trades.",
   },
   {
     question: "Do I need to install any software?",
     answer:
-      "No installation required. NeuralTrader runs entirely in your browser and works across desktop and mobile devices. Just sign up and start exploring the AI trading simulation!",
+      "No—just open the web app; the backend runs the simulation and the UI streams live pool, trade, and agent activity.",
   },
   {
     question: "Will my simulation data be shared or stored?",
     answer:
-      "Your privacy is protected. All simulation sessions are private by default. You can export or delete your data at any time. We never share data without your explicit consent.",
+      "Simulation data (pool state, trades, and messages) is stored in your project database; you control retention and can purge exports at any time.",
   },
 ];
+
 
 function FAQsSection() {
   return (
     <div className="bg-black/7 text-white bg-gradient-to-b from-black to-zinc-950 py-[72px] sm:py-24">
       <div className="container mx-auto px-4 text-center">
-        <h2 className="text-5xl font-bold tracking-tight">Frequently Asked Questions</h2>
+        <h2 className="text-4xl font-bold tracking-tight">Frequently Asked Questions</h2>
         <div className="mt-12 max-w-4xl mx-auto text-left">
           <Separator />
           <Accordion type="single" collapsible>

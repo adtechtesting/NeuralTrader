@@ -52,6 +52,8 @@ model Agent {
   riskTolerance          Float         @default(0.5)
   tradeFrequency         Float         @default(0.5)
   maxPositionSize        Float         @default(0.25)
+  customBehaviors        String[]      @default([])
+  llmProvider            String        @default("GROQ") // LLM provider: GROQ, OPENAI, GEMINI, ANTHROPIC
   
   @@index([personalityType])
   @@index([messageFrequency])

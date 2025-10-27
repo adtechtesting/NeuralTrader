@@ -14,11 +14,13 @@ export default function AgentTestPage() {
   const [agents, setAgents] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     name: '',
-    personalityType: 'ANALYTICAL',
-    llmProvider: 'OPENAI',
+    personalityType: 'MODERATE',
+    llmProvider: 'GROQ',
     initialBalance: 5,
     occupation: 'Trader'
   });
+  const [customBehaviors, setCustomBehaviors] = useState<string[]>([]);
+  const [newBehavior, setNewBehavior] = useState('');
   const router = useRouter();
 
   // Wallet integration
@@ -30,18 +32,23 @@ export default function AgentTestPage() {
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
   const personalityOptions = [
-    { value: 'ANALYTICAL', label: 'Analytical' },
-    { value: 'CREATIVE', label: 'Creative' },
-    { value: 'SOCIAL', label: 'Social' },
-    { value: 'STRATEGIC', label: 'Strategic' }
+    { value: 'CONSERVATIVE', label: 'Conservative' },
+    { value: 'MODERATE', label: 'Moderate' },
+    { value: 'AGGRESSIVE', label: 'Aggressive' },
+    { value: 'TREND_FOLLOWER', label: 'Trend Follower' },
+    { value: 'CONTRARIAN', label: 'Contrarian' },
+    { value: 'TECHNICAL', label: 'Technical Analyst' },
+    { value: 'FUNDAMENTAL', label: 'Fundamental' },
+    { value: 'EMOTIONAL', label: 'Emotional' },
+    { value: 'WHALE', label: 'Whale' },
+    { value: 'NOVICE', label: 'Novice' }
   ];
 
   const llmProviderOptions = [
+    { value: 'GROQ', label: 'Groq (Llama 3)' },
     { value: 'OPENAI', label: 'OpenAI (GPT-4)' },
     { value: 'GEMINI', label: 'Google Gemini' },
-    { value: 'ANTHROPIC', label: 'Anthropic Claude' },
-    { value: 'MISTRAL', label: 'Mistral AI' },
-    { value: 'LOCAL', label: 'Local Ollama' }
+    { value: 'ANTHROPIC', label: 'Anthropic Claude' }
   ];
 
   useEffect(() => {
@@ -122,7 +129,8 @@ export default function AgentTestPage() {
         body: JSON.stringify({
           ...formData,
           walletPublicKey: wallet.publicKey.toString(),
-          walletSignature: signature
+          walletSignature: signature,
+          customBehaviors
         }),
       });
 
@@ -130,17 +138,13 @@ export default function AgentTestPage() {
 
       if (data.success) {
         toast.success(`${formData.name} created successfully!`);
-        setFormData({
-          name: '',
-          personalityType: 'ANALYTICAL',
-          llmProvider: 'OPENAI',
-          initialBalance: 5,
-          occupation: 'Trader'
-        });
-        loadAgents();
-        checkBalance();
+        
+        // Redirect to success page with agent data
+        const agentData = encodeURIComponent(JSON.stringify(data.agent));
+        router.push(`/agent-created?agent=${agentData}`);
       } else {
         toast.error(data.error || 'Failed to create agent');
+        console.error('API Error:', data);
       }
     } catch (error) {
       console.error('Error creating agent:', error);
@@ -273,6 +277,61 @@ export default function AgentTestPage() {
                         className="w-full px-4 py-2.5 bg-neutral-800 border border-neutral-700 rounded-lg text-white text-sm placeholder-white/40 focus:border-neutral-600 focus:outline-none transition-colors"
                         placeholder="e.g., Trader, Analyst"
                       />
+                    </div>
+                  </div>
+
+                  {/* Custom Behaviors */}
+                  <div>
+                    <label className="block text-sm font-medium text-white/70 mb-2">Trading Behaviors (Optional)</label>
+                    <div className="space-y-2 mb-3">
+                      {customBehaviors.map((behavior, i) => (
+                        <div key={i} className="flex items-center gap-2 bg-neutral-800 p-2 rounded">
+                          <input
+                            type="text"
+                            value={behavior}
+                            onChange={(e) => {
+                              const updated = [...customBehaviors];
+                              updated[i] = e.target.value;
+                              setCustomBehaviors(updated);
+                            }}
+                            className="flex-1 bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-sm text-white placeholder-white/40 focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setCustomBehaviors(customBehaviors.filter((_, idx) => idx !== i))}
+                            className="px-2 py-1 text-white/60 hover:text-white"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newBehavior}
+                        onChange={(e) => setNewBehavior(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && newBehavior.trim()) {
+                            setCustomBehaviors([...customBehaviors, newBehavior]);
+                            setNewBehavior('');
+                          }
+                        }}
+                        placeholder="Add behavior instruction... (Press Enter)"
+                        className="flex-1 px-4 py-2.5 bg-neutral-800 border border-neutral-700 rounded-lg text-white text-sm placeholder-white/40 focus:border-neutral-600 focus:outline-none transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (newBehavior.trim()) {
+                            setCustomBehaviors([...customBehaviors, newBehavior]);
+                            setNewBehavior('');
+                          }
+                        }}
+                        className="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-white text-sm transition-colors"
+                      >
+                        Add
+                      </button>
                     </div>
                   </div>
 

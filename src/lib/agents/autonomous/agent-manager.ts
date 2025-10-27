@@ -337,7 +337,7 @@ export class AgentManager {
     
     const { getSelectedToken } = await import('../../config/selectedToken');
     const selectedToken = await getSelectedToken();
-    const tokenSymbol = selectedToken.symbol || 'TOKEN';
+    const tokenSymbol = selectedToken?.symbol || 'TOKEN';
     
     // Create personalized analysis based on personality type
     switch (personalityType) {
@@ -529,7 +529,7 @@ export class AgentManager {
     try {
       const { getSelectedToken } = await import('../../config/selectedToken');
       const selectedToken = await getSelectedToken();
-      const tokenSymbol = selectedToken.symbol || 'TOKEN';
+      const tokenSymbol = selectedToken?.symbol || 'TOKEN';
       console.log(`Executing bootstrap trade for agent ${agentId}: ${inputIsSol ? 'buy' : 'sell'} ${inputAmount} ${inputIsSol ? 'SOL' : tokenSymbol}`);
       
       // Get agent data

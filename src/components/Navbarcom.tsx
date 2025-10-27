@@ -60,7 +60,8 @@ function Navbar({ className }: { className?: string }) {
           className="flex items-center group"
         >
           <span className=" font-bold text-xl tracking-tight text-white group-hover:text-white/90 transition-colors underline">
-         𝗡𝗲𝘂𝗿𝗮𝗹𝘁𝗿𝗮𝗱𝗲𝗿
+     N̷e̷u̷r̷a̷l̷t̷r̷a̷d̷e̷r̷
+
           </span>
         </Link>
 
@@ -72,7 +73,7 @@ function Navbar({ className }: { className?: string }) {
           <Link href="/monitoring">
             <MenuItem setActive={handleHover} item="Simulation" />
           </Link>
-          <Link href="/agent-test">
+          <Link href="/create-agent">
             <MenuItem setActive={handleHover} item="Create Agent" />
           </Link>
           <Link href="/token-setup">

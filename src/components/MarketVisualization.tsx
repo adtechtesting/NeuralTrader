@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { TrendingUp, TrendingDown, RefreshCw, Maximize2, Settings } from 'lucide-react';
 import {
   XAxis,
@@ -51,6 +51,9 @@ export default function MarketVisualization() {
   const [high24h, setHigh24h] = useState(0);
   const [low24h, setLow24h] = useState(0);
   const [showVolume, setShowVolume] = useState(false);
+  
+  // Store price range to prevent chart jumping
+  const priceRangeRef = useRef({ min: 0, max: 0 });
 
   useEffect(() => {
     fetchData();
@@ -146,6 +149,18 @@ export default function MarketVisualization() {
 
     history[history.length - 1].close = currentPrice;
     history[history.length - 1].price = currentPrice;
+    
+    // Calculate stable price range with padding
+    const prices = history.map(h => h.close);
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+    const padding = (maxPrice - minPrice) * 0.1; // 10% padding
+    
+    priceRangeRef.current = {
+      min: minPrice - padding,
+      max: maxPrice + padding
+    };
+    
     setPriceHistory(history);
   };
 
@@ -222,7 +237,6 @@ export default function MarketVisualization() {
       <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
-            {/* Token Info */}
             <div>
               <div className="text-xs text-gray-500 mb-0.5">{tokenData?.name || 'Loading...'}</div>
               <div className="text-lg font-bold text-white">{tokenData?.symbol || 'TOKEN'}/USD</div>
@@ -230,7 +244,6 @@ export default function MarketVisualization() {
 
             <div className="h-8 w-px bg-neutral-800"></div>
 
-            {/* Price & Change */}
             <div className="flex items-center gap-3">
               <div className={`text-2xl font-bold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
                 ${tokenData?.usdPrice?.toFixed(6) || '0.000000'}
@@ -244,7 +257,6 @@ export default function MarketVisualization() {
 
             <div className="h-8 w-px bg-neutral-800"></div>
 
-            {/* 24h Stats */}
             <div className="flex items-center gap-6">
               <div>
                 <div className="text-xs text-gray-500 mb-0.5">24h High</div>
@@ -276,26 +288,25 @@ export default function MarketVisualization() {
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Order Book */}
-        <div className="w-72 bg-neutral-900 border-r border-neutral-800 flex flex-col">
+        {/* Order Book - FIXED: No scrollbar, bigger */}
+        <div className="w-80 xl:w-96 bg-neutral-900 border-r border-neutral-800 flex flex-col">
           <div className="p-3 border-b border-neutral-800">
             <div className="text-sm font-semibold text-white">Order Book</div>
           </div>
 
-          <div className="flex-1 p-3 overflow-auto">
-            {/* Headers */}
+          <div className="flex-1 p-6 overflow-hidden">
             <div className="grid grid-cols-3 gap-2 text-xs text-gray-500 mb-2 font-medium">
               <div>Price (USD)</div>
               <div className="text-right">Amount</div>
               <div className="text-right">Total</div>
             </div>
 
-            {/* Asks */}
+            {/* Asks - Reduced to 10 rows */}
             <div className="space-y-0.5 mb-3">
-              {asks.slice().reverse().slice(0, 12).map((ask, i) => (
+              {asks.slice().reverse().slice(0, 10).map((ask, i) => (
                 <div
                   key={i}
-                  className="grid grid-cols-3 gap-2 text-xs py-1 px-1.5 hover:bg-red-500/5 cursor-pointer relative rounded transition-colors"
+                  className="grid grid-cols-3 gap-2 text-xs py-1 px-2 hover:bg-red-500/5 cursor-pointer relative rounded transition-colors"
                 >
                   <div
                     className="absolute right-0 top-0 bottom-0 bg-red-500/10 rounded"
@@ -308,7 +319,6 @@ export default function MarketVisualization() {
               ))}
             </div>
 
-            {/* Spread */}
             <div className={`flex items-center justify-between py-2 px-3 mb-3 rounded-lg ${
               isPositive ? 'bg-green-500/10 border border-green-500/20' : 'bg-red-500/10 border border-red-500/20'
             }`}>
@@ -318,12 +328,12 @@ export default function MarketVisualization() {
               <div className="text-xs text-gray-400">Spread: {spread}%</div>
             </div>
 
-            {/* Bids */}
+            {/* Bids - Reduced to 10 rows */}
             <div className="space-y-0.5">
-              {bids.slice(0, 12).map((bid, i) => (
+              {bids.slice(0, 10).map((bid, i) => (
                 <div
                   key={i}
-                  className="grid grid-cols-3 gap-2 text-xs py-1 px-1.5 hover:bg-green-500/5 cursor-pointer relative rounded transition-colors"
+                  className="grid grid-cols-3 gap-2 text-xs py-1 px-2 hover:bg-green-500/5 cursor-pointer relative rounded transition-colors"
                 >
                   <div
                     className="absolute right-0 top-0 bottom-0 bg-green-500/10 rounded"
@@ -340,10 +350,8 @@ export default function MarketVisualization() {
 
         {/* Chart Area */}
         <div className="flex-1 bg-black flex flex-col">
-          {/* Chart Toolbar */}
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-800 bg-neutral-900/50">
             <div className="flex items-center gap-4">
-              {/* Time Range */}
               <div className="flex items-center gap-1">
                 {['1M', '5M', '15M', '1H', '4H', '1D'].map((range) => (
                   <button
@@ -360,7 +368,6 @@ export default function MarketVisualization() {
                 ))}
               </div>
 
-              {/* Chart Type */}
               <div className="flex items-center gap-1">
                 {[
                   { key: 'line', label: 'Line' },
@@ -403,7 +410,7 @@ export default function MarketVisualization() {
             </div>
           </div>
 
-          {/* Chart */}
+          {/* Chart - FIXED: Stable domain */}
           <div className="flex-1 p-4">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={priceHistory} margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
@@ -447,7 +454,8 @@ export default function MarketVisualization() {
                   tickLine={false}
                   axisLine={{ stroke: '#262626' }}
                   tickFormatter={(value) => `$${typeof value === 'number' ? value.toFixed(6) : '0'}`}
-                  domain={['dataMin * 0.9998', 'dataMax * 1.0002']}
+                  domain={[priceRangeRef.current.min, priceRangeRef.current.max]}
+                  tickCount={8}
                   width={85}
                   orientation="right"
                   dx={8}
@@ -505,7 +513,7 @@ export default function MarketVisualization() {
                     }
                     return null;
                   }}
-                  cursor={{ stroke: '#3b82f6', strokeWidth: 1, strokeDasharray: '4 4' }}
+                  cursor={{ stroke: '#3b82f6', strokeWidth: 1 }}
                 />
 
                 {showVolume && (

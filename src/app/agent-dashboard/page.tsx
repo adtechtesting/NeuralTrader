@@ -10,6 +10,8 @@ import {
   X,
   AlertTriangle,
   Zap,
+  Plus,
+  Sparkles,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import AgentAvatar from '@/components/AgentAvatar';
@@ -17,6 +19,7 @@ import ChatSection from '@/components/chat/ChatSection';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useRouter } from 'next/navigation';
 import { toast } from "sonner";
+import Link from 'next/link';
 
 interface Agent {
   id: string;
@@ -147,6 +150,9 @@ export default function AgentDashboardPage() {
           <p className="text-white/50 text-sm">Monitor and manage AI trading agents</p>
         </div>
 
+        {/* My Created Agents Section */}
+     
+
         {/* Stats Grid */}
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -176,6 +182,68 @@ export default function AgentDashboardPage() {
             ))}
           </div>
         )}
+           <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <Sparkles className="w-5 h-5" />
+              My Created Agents
+            </h2>
+            <Link href="/create-agent">
+              <button className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-lg font-semibold hover:bg-white/90 transition-all">
+                <Plus className="w-4 h-4" />
+                Create New Agent
+              </button>
+            </Link>
+          </div>
+          
+          {agents && agents.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {agents.slice(0, 4).map((agent) => (
+                <motion.div
+                  key={agent.id}
+                  whileHover={{ scale: 1.02 }}
+                  className="bg-neutral-900 border border-neutral-800 rounded-lg p-4 hover:border-neutral-700 transition-all"
+                >
+                  <div className="flex items-start gap-3 mb-3">
+                    <AgentAvatar 
+                      name={agent.name} 
+                      personalityType={agent.personalityType} 
+                      size={40} 
+                    />
+                    <div className="flex-1">
+                      <h3 className="font-bold text-white text-sm">{agent.name}</h3>
+                      <p className="text-xs text-white/50">{agent.personalityType}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-white/60">Balance</span>
+                      <span className="font-semibold text-green-400">{agent.balance.toFixed(2)} SOL</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/60">Occupation</span>
+                      <span className="font-semibold text-white/80">{agent.occupation}</span>
+                    </div>
+                    <div className="pt-2 border-t border-neutral-800">
+                      <code className="text-white/50 text-xs">{agent.publicKey?.substring(0, 16)}...</code>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-8 text-center">
+              <Sparkles className="w-12 h-12 text-white/30 mx-auto mb-3" />
+              <p className="text-white/60 mb-4">No agents created yet</p>
+              <Link href="/create-agent">
+                <button className="px-6 py-2 bg-white text-black rounded-lg font-semibold hover:bg-white/90 transition-all">
+                  Create Your First Agent
+                </button>
+              </Link>
+            </div>
+          )}
+        </div>
         
         {/* Personality Distribution */}
         {stats?.personalityDistribution && (

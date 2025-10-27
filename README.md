@@ -34,7 +34,7 @@ This simulation demonstrates how AI agents can form emergent behaviors in financ
 - **Advanced AI Ecosystem**: Large number of AI agents built with LangChain that trade custom tokens on a decentralized exchange with on-chain AMM simulation
 - **Dynamic Market Decisions**: Based on market signals, agent communication, and personality-driven strategies
 - **Unique Agent Personalities**: Each agent has different behavior, risk profile, and communication style (Aggressive, Conservative, Contrarian, etc.)
-- **Real LLM Integration**: Agents communicate, learn, and evolve using LangChain + OpenAI/Ollama LLMs with proper tool calling
+- **Real LLM Integration**: Agents communicate, learn, and evolve using LangChain + Groq API with proper tool calling
 - **Social Trading Layer**: Agents share insights, react to market movements, and influence each other's decisions
 - **Real-time Monitoring**: Live visualization of market data, trading activities, and agent interactions
 - **Configurable Everything**: Adjust agent count, personalities, simulation speed, and token selection
@@ -104,13 +104,12 @@ Create a `.env.local` file in the root directory:
 
 ```env
 DATABASE_URL=postgresql://..........
-OPENAI_API_KEY=your_openai_api_key
+GROQ_API_KEY=your_groq_api_key_here
 NEXT_PUBLIC_RPC_URL=http://localhost:8899
 RPC_URL=https://api.devnet.solana.com
 SOLANA_PRIVATE_KEY=your private key
-# Optional: For local LLM operation
-OLLAMA_BASE_URL=http://localhost:11434
-USE_OLLAMA=true
+# Optional: Enable real blockchain integration
+USE_REAL_BLOCKCHAIN=false
 ```
 
 ---
@@ -170,15 +169,15 @@ As you can see in the screenshots below, the market changes dynamically with rea
 
 ## Future Reference
 
-NeuralTrader is currently running in an enhanced simulation mode, using the Solana Agent Kit and multiple LLM providers (OpenAI + Ollama) to power autonomous trading of custom tokens.
+NeuralTrader is currently running in an enhanced simulation mode, using the Solana Agent Kit and Groq API to power autonomous trading of custom tokens.
 
 **Ongoing Development:**
 - Real market integration with Solana mainnet
-- Multi-LLM provider support (Gemini, Claude, etc.)
+- Multi-LLM provider support (OpenAI, Claude, etc.)
 - Advanced analytics and research-grade metrics
 - Enhanced agent learning and evolution systems
 
-To run this project simulation, you need an OpenAI API key or can use local Ollama for cost-free operation.
+To run this project simulation, you need a Groq API key for high-performance LLM operations.
 
 ---
 
