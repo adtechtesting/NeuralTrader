@@ -83,13 +83,14 @@ export async function POST(request: NextRequest) {
         personality: personalityDescriptions[personalityType] || 'AI Trading Agent',
         occupation,
         publicKey: agentPublicKey,
+        creatorWallet: walletPublicKey,
         walletPrivateKey: agentPrivateKey,
         walletBalance: initialBalance,
         tokenBalance: 0,
         active: true,
         llmProvider: 'GROQ', // Default to Groq
         customBehaviors: customBehaviors && customBehaviors.length > 0 ? customBehaviors : [],
-      }
+      } as any
     });
 
     // Log the creation activity
@@ -123,6 +124,7 @@ export async function POST(request: NextRequest) {
         publicKey: agent.publicKey,
         balance: agent.walletBalance,
         occupation: agent.occupation,
+        creatorWallet: walletPublicKey,
         createdAt: agent.createdAt
       }
     });

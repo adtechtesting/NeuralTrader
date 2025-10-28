@@ -127,13 +127,13 @@ export default function Home() {
     <div className="flex flex-wrap gap-4 justify-center mb-20">
       <button 
         onClick={() => router.push("/token-setup")} 
-        className="bg-white text-black px-8 py-4 rounded-full font-medium hover:bg-white/90 transition-all duration-300 transform hover:scale-105 flex items-center cursor-pointer"
+        className="bg-white text-black px-8 py-4 rounded-full font-medium hover:bg-white/90 transition-all duration-300 transform  flex items-center cursor-pointer"
       >
         Start Trading Simulation
         <ArrowRight className="ml-2 w-5 h-5" />
       </button>
 
-      <button className="bg-white/5 backdrop-blur-md border border-white/10 px-8 py-4 rounded-full font-medium hover:bg-white/10 transition-all duration-300 flex items-center">
+      <button onClick={()=> router.push("/agent-test")} className="bg-white/5 backdrop-blur-md border border-white/10 px-8 py-4 rounded-full font-medium hover:bg-white/10 transition-all duration-300 flex items-center hover:cursor-pointer">
         Create Agent
       </button>
     </div>
@@ -149,13 +149,13 @@ export default function Home() {
   <div className="relative group">
     <div className="absolute -inset-1 bg-white/5 rounded-2xl blur opacity-40"></div>
     <div className="relative  px-10 py-6">
-      <div className="flex items-center justify-center gap-12 flex-wrap">
+      <div className="flex items-center justify-center gap-3 flex-wrap">
         {/* Trump */}
         <div className="flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity cursor-pointer">
           <img 
             src="/trump.jpeg" 
             alt="Trump" 
-            className="h-10 w-10 rounded-full object-cover grayscale hover:grayscale-0 transition-all" 
+            className="h-10 w-10 rounded-full object-cover  hover:grayscale-0 transition-all" 
           />
         </div>
         
@@ -164,7 +164,7 @@ export default function Home() {
           <img 
             src="/jupiter.jpg" 
             alt="Jupiter" 
-            className="h-10 w-10 rounded-full object-cover grayscale hover:grayscale-0 transition-all" 
+            className="h-10 w-10 rounded-full object-cover  hover:grayscale-0 transition-all" 
           />
         </div>
         
@@ -173,7 +173,7 @@ export default function Home() {
           <img 
             src="/pump.jpg" 
             alt="Pump" 
-            className="h-10 w-10 rounded-full object-cover grayscale hover:grayscale-0 transition-all" 
+            className="h-10 w-10 rounded-full object-cover  hover:grayscale-0 transition-all" 
           />
         </div>
         
@@ -182,7 +182,7 @@ export default function Home() {
           <img 
             src="/bonk.png" 
             alt="Bonk" 
-            className="h-10 w-10 rounded-full object-cover grayscale hover:grayscale-0 transition-all" 
+            className="h-10 w-10 rounded-full object-cover hover:grayscale-0 transition-all" 
           />
         </div>
       </div>

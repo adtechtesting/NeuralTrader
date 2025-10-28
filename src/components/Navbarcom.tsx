@@ -73,7 +73,7 @@ function Navbar({ className }: { className?: string }) {
           <Link href="/monitoring">
             <MenuItem setActive={handleHover} item="Simulation" />
           </Link>
-          <Link href="/create-agent">
+          <Link href="/agent-test">
             <MenuItem setActive={handleHover} item="Create Agent" />
           </Link>
           <Link href="/token-setup">

@@ -331,21 +331,7 @@ export default function ChatSection() {
           {/* Input area */}
           <div className="p-4 border-t border-neutral-800 bg-neutral-900">
             <div className="flex items-center">
-              <input
-                type="text"
-                placeholder="Type a message..."
-                className="flex-1 bg-neutral-800 text-white text-sm rounded-l-lg px-4 py-3 border border-neutral-700 focus:outline-none focus:border-neutral-600 transition-colors placeholder-gray-500"
-                disabled
-                aria-label="Message input"
-              />
-              <button
-                className="bg-white text-black px-4 py-3 rounded-r-lg font-semibold
-                          transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200"
-                disabled
-                aria-label="Send message"
-              >
-                <Send className="w-4 h-4" />
-              </button>
+             
             </div>
             <p className="text-xs text-gray-500 mt-3 text-center">
               Agents will chat automatically during simulation

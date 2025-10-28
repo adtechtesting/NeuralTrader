@@ -51,6 +51,66 @@ export default function TokenSetupPage() {
     router.push('/monitoring');
   };
 
+  const formatCurrency = (value?: number) => {
+    if (!value || Number.isNaN(value)) return '--';
+    if (value < 1) {
+      return `$${value.toFixed(6)}`;
+    }
+    return `$${value.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
+
+  const formatCompactNumber = (value?: number) => {
+    if (!value || Number.isNaN(value)) return '--';
+    if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)}B`;
+    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
+    if (value >= 1_000) return `${(value / 1_000).toFixed(2)}K`;
+    return value.toString();
+  };
+
+  const featureCards = [
+    {
+      icon: Users,
+      title: "AI Trading Squads",
+      desc: "Deploy diverse agents that collaborate and debate before every trade.",
+    },
+    {
+      icon: Activity,
+      title: "Live Market Telemetry",
+      desc: "Stream price action, liquidity and on-chain flow directly into your sim.",
+    },
+    {
+      icon: TrendingUp,
+      title: "Risk-Free Execution",
+      desc: "Prototype trading theses without capital exposure or wallet risk.",
+    },
+    {
+      icon: CheckCircle,
+      title: "Conversation-Aware",
+      desc: "Agents share market calls in real-time so you never miss high-conviction moves.",
+    }
+  ];
+
+  const setupSteps = [
+    {
+      step: '01',
+      title: 'Select Market Token',
+      copy: 'Choose the asset your agents will track and trade inside the simulation.',
+    },
+    {
+      step: '02',
+      title: 'Review Live Metrics',
+      copy: 'Confirm liquidity, holder depth and momentum before launching agents.',
+    },
+    {
+      step: '03',
+      title: 'Launch Simulation',
+      copy: 'Push to the monitoring suite and let NeuralTrader orchestrate execution.',
+    }
+  ];
+
   return (
     <div className="min-h-screen w-full relative text-white overflow-hidden bg-black">
         <StripedPattern className="[mask-image:radial-gradient(600px_circle_at_center,white,transparent)]" />
@@ -87,144 +147,173 @@ export default function TokenSetupPage() {
       <div className="absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-t from-zinc-950 to-transparent pointer-events-none" />
 
       {/* Content */}
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-6 pt-32 pb-20">
-        <div className="max-w-3xl w-full">
-          {/* Header */}
-          <div className="text-center mb-12">
-        
-           
-            <p className="text-white text-xl max-w-2xl mx-auto">
-              Select a token to start your AI-powered trading simulation on Solana
+      <div className="relative z-10 min-h-screen flex items-center justify-center px-6 pt-32 pb-24">
+        <div className="w-full max-w-5xl space-y-12">
+          {/* Hero */}
+          <div className="text-center space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm text-xs uppercase tracking-[0.28em] text-white/60">
+             NeuralTrader Simulation Setup
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight">
+              Align your AI trading stack around the right Solana token
+            </h1>
+            <p className="text-white/60 text-base md:text-lg max-w-2xl mx-auto">
+              Choose a market, verify depth, and launch your autonomous trading agents into a production-grade environment.
             </p>
           </div>
 
-          {/* Current Token Display */}
-          <div className="relative group mb-6">
-            <div className="absolute -inset-1 bg-gradient-to-r from-gray-600/20 via-white/20 to-gray-600/20 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-500"></div>
-            <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 group-hover:border-white/20 transition-all">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex-1">
-                  <div className="text-xs text-white/40 mb-2 uppercase tracking-wider font-semibold">Selected Token</div>
-                  {loading ? (
-                    <div className="text-white/60">Loading...</div>
-                  ) : currentToken ? (
-                    <div>
-                      <div className="text-3xl font-bold text-white mb-1">
-                        {currentToken.symbol || 'SOL'}
-                      </div>
-                      {currentToken.name && (
-                        <div className="text-sm text-white/60 mb-3">{currentToken.name}</div>
-                      )}
-                      {currentToken.usdPrice && (
-                        <div className="inline-flex items-center gap-2 text-sm text-white/50 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
-                          <TrendingUp size={14} />
-                          ${currentToken.usdPrice.toFixed(currentToken.usdPrice < 1 ? 6 : 2)}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-lg text-white/50">No token selected</div>
-                  )}
-                </div>
-                <button
-                  onClick={() => setShowSelector(true)}
-                  className="px-6 py-3 bg-white text-black rounded-lg hover:bg-white/90 transition-all font-semibold text-sm shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.3)]"
-                >
-                  {currentToken ? 'Change Token' : 'Select Token'}
-                </button>
-              </div>
+        
 
-              {currentToken && (
-                <div className="pt-4 border-t border-white/10 grid grid-cols-3 gap-3">
-                  {currentToken.mcap && (
-                    <div className="bg-white/5 rounded-lg p-3 border border-white/10">
-                      <div className="text-xs text-white/40 mb-1 uppercase tracking-wider">Market Cap</div>
-                      <div className="text-base text-white font-bold">
-                        ${(currentToken.mcap / 1e6).toFixed(2)}M
-                      </div>
+          {/* Token Card */}
+          <div className="relative group">
+            <div className="absolute -inset-1 bg-gradient-to-r from-white/5 via-white/10 to-white/5 rounded-3xl blur opacity-40 group-hover:opacity-60 transition-all duration-500"></div>
+            <div className="relative border border-white/10 rounded-3xl bg-black/60 backdrop-blur-2xl overflow-hidden">
+              <div className="relative p-8 flex flex-col lg:flex-row gap-8">
+                <div className="flex-1 space-y-6">
+                  <div className="flex items-start justify-between gap-6">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.32em] text-white/40 font-semibold mb-3">Selected Token</p>
+                      {loading ? (
+                        <div className="space-y-4">
+                          <div className="h-10 w-40 bg-white/5 rounded-lg animate-pulse" />
+                          <div className="h-4 w-24 bg-white/5 rounded animate-pulse" />
+                          <div className="h-8 w-32 bg-white/5 rounded-lg animate-pulse" />
+                        </div>
+                      ) : currentToken ? (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3">
+                            <span className="text-4xl font-bold text-white tracking-tight">{currentToken.symbol || 'SOL'}</span>
+                            {currentToken.chain && (
+                              <span className="text-[11px] uppercase tracking-[0.2em] text-white/50 border border-white/10 rounded-full px-3 py-1">
+                                {currentToken.chain}
+                              </span>
+                            )}
+                          </div>
+                          {currentToken.name && (
+                            <p className="text-sm text-white/60">{currentToken.name}</p>
+                          )}
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-sm text-white/60">
+                            <TrendingUp size={16} className="text-white" />
+                            <span>{formatCurrency(currentToken.usdPrice)}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-base text-white/60">No token selected yet</div>
+                      )}
                     </div>
-                  )}
-                  {currentToken.liquidity && (
-                    <div className="bg-white/5 rounded-lg p-3 border border-white/10">
-                      <div className="text-xs text-white/40 mb-1 uppercase tracking-wider">Liquidity</div>
-                      <div className="text-base text-white font-bold">
-                        ${(currentToken.liquidity / 1e6).toFixed(2)}M
+                    <button
+                      onClick={() => setShowSelector(true)}
+                      className="px-6 py-3 h-fit bg-white text-black rounded-xl font-semibold text-sm hover:bg-white/90 transition-all shadow-[0_0_24px_rgba(255,255,255,0.18)] hover:shadow-[0_0_36px_rgba(255,255,255,0.25)]"
+                    >
+                      {currentToken ? 'Change Token' : 'Select Token'}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {[
+                      {
+                        label: 'Market Cap',
+                        value: currentToken ? formatCompactNumber(currentToken.mcap) : '--',
+                      },
+                      {
+                        label: 'Liquidity',
+                        value: currentToken ? formatCompactNumber(currentToken.liquidity) : '--',
+                      },
+                      {
+                        label: 'Holder Count',
+                        value: currentToken ? formatCompactNumber(currentToken.holderCount) : '--',
+                      }
+                    ].map((metric, index) => (
+                      <div
+                        key={index}
+                        className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                      >
+                        <div className="text-[11px] uppercase tracking-widest text-white/40 mb-2 font-semibold">
+                          {metric.label}
+                        </div>
+                        <div className="text-lg font-semibold text-white">{metric.value}</div>
                       </div>
-                    </div>
-                  )}
-                  {currentToken.holderCount && (
-                    <div className="bg-white/5 rounded-lg p-3 border border-white/10">
-                      <div className="text-xs text-white/40 mb-1 uppercase tracking-wider">Holders</div>
-                      <div className="text-base text-white font-bold">
-                        {currentToken.holderCount.toLocaleString()}
-                      </div>
-                    </div>
-                  )}
+                    ))}
+                  </div>
                 </div>
-              )}
+
+                <div className="lg:w-64 space-y-5">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <p className="text-xs uppercase tracking-[0.3em] text-white/40 mb-3 font-semibold">Simulation Summary</p>
+                    <ul className="space-y-3 text-sm text-white/60">
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/60"></span>
+                        <span>Agent squads automatically rebalance exposure using the token you select.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/40"></span>
+                        <span>Risk heuristics adjust leverage based on liquidity and holder dispersion.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/30"></span>
+                        <span>Switch tokens anytime without restarting your running simulation.</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Features Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            {[
-              {
-                icon: Users,
-                title: "AI Trading Agents",
-                desc: "Multiple AI agents with different trading strategies"
-              },
-              {
-                icon: Activity,
-                title: "Real-Time Data",
-                desc: "Live market data from Jupiter aggregator"
-              },
-              {
-                icon: TrendingUp,
-                title: "Simulated Trading",
-                desc: "Risk-free testing with no real money"
-              },
-              {
-                icon: CheckCircle,
-                title: "Social Interactions",
-                desc: "Agents share insights in real-time"
-              }
-            ].map((feature, i) => (
-              <div key={i} className="relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-gray-600/20 via-white/20 to-gray-600/20 rounded-xl blur opacity-30 group-hover:opacity-50 transition duration-500"></div>
-                <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-xl p-5 group-hover:border-white/20 transition-all">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0 border border-white/20">
-                      <feature.icon size={18} className="text-white" />
-                    </div>
-                    <div>
-                      <div className="text-white font-semibold mb-1 text-sm">{feature.title}</div>
-                      <div className="text-xs text-white/50 leading-relaxed">{feature.desc}</div>
-                    </div>
+          {/* Steps */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {setupSteps.map((item) => (
+              <div key={item.step} className="relative rounded-2xl border border-white/10 bg-black/50 p-5 overflow-hidden">
+                <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+                <div className="text-xs uppercase tracking-[0.3em] text-white/30 mb-4 font-semibold">{item.step}</div>
+                <h3 className="text-lg font-semibold text-white mb-2">{item.title}</h3>
+                <p className="text-sm text-white/50 leading-relaxed">{item.copy}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Feature Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {featureCards.map((feature, i) => (
+              <div key={i} className="relative group rounded-2xl border border-white/10 bg-black/50 p-6 overflow-hidden">
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{
+                  backgroundImage: 'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, transparent 40%)'
+                }} />
+                <div className="relative flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
+                    <feature.icon size={20} className="text-white" />
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="text-base font-semibold text-white">{feature.title}</h4>
+                    <p className="text-sm text-white/50 leading-relaxed">{feature.desc}</p>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-          
-          {/* Continue Button */}
+
+          {/* Continue CTA */}
           {currentToken ? (
             <button
               onClick={handleContinue}
-              className="group w-full py-4 bg-white text-black rounded-xl hover:bg-white/90 transition-all font-bold text-base flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:shadow-[0_0_50px_rgba(255,255,255,0.3)]"
+              className="group w-full py-4 rounded-2xl bg-white text-black font-semibold text-base flex items-center justify-center gap-2 hover:bg-white/90 transition-all shadow-[0_0_30px_rgba(255,255,255,0.18)] hover:shadow-[0_0_50px_rgba(255,255,255,0.25)]"
             >
-              Continue to Simulation
+              Enter Monitoring Suite
               <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
             </button>
           ) : (
             <div className="text-center py-4">
-              <div className="inline-flex items-center gap-2 px-5 py-3 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl">
-                <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></div>
-                <span className="text-white/60 text-sm font-medium">Please select a token to continue</span>
+              <div className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm">
+                <div className="w-2 h-2 rounded-full bg-white/60 animate-pulse"></div>
+                <span className="text-sm text-white/60 font-medium">Select a token to unlock the simulation dashboard</span>
               </div>
             </div>
           )}
         </div>
       </div>
+
 
       {/* Token Selector Modal */}
       {showSelector && (

@@ -33,8 +33,17 @@
     position: fixed; 
   }
 
-  /* Enhanced animations for loading states */
+  
   .animation-delay-75 {
     animation-delay: 0.075s;
   }
-  
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
+
+* {
+  -ms-overflow-style: none;  
+  scrollbar-width: none;    
+}

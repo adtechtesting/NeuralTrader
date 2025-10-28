@@ -8,9 +8,18 @@ export async function GET(request: NextRequest) {
     const page = parseInt(url.searchParams.get('page') || '1');
     const pageSize = parseInt(url.searchParams.get('pageSize') || '50');
     const personalityType = url.searchParams.get('personalityType') || undefined;
+    const creatorWallet = url.searchParams.get('creatorWallet') || undefined;
 
-    // Build where clause
-    const where = personalityType ? { personalityType } : {};
+    // Build where clause (optional filters)
+    const where: Record<string, any> = {};
+
+    if (creatorWallet) {
+      where.creatorWallet = creatorWallet;
+    }
+
+    if (personalityType) {
+      where.personalityType = personalityType;
+    }
 
     // Get total count
     const totalAgents = await prisma.agent.count({ where });
@@ -31,11 +40,13 @@ export async function GET(request: NextRequest) {
         walletBalance: true,
         tokenBalance: true,
         createdAt: true,
-      }
+        creatorWallet: true,
+      } as any
     });
 
     // Get stats
     const allAgents = await prisma.agent.findMany({
+      where,
       select: {
         personalityType: true,
         occupation: true,
@@ -77,7 +88,8 @@ export async function GET(request: NextRequest) {
       occupation: agent.occupation || 'Trader',
       publicKey: agent.publicKey,
       balance: agent.walletBalance || 0,
-      createdAt: agent.createdAt.toISOString(),
+      creatorWallet: agent.creatorWallet,
+      createdAt: agent.createdAt.toString(),
     }));
 
     return NextResponse.json({

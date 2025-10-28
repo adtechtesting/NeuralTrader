@@ -21,6 +21,7 @@ model Agent {
   personalityType        String        // Existing field  
   occupation             String
   publicKey              String        @unique  // Existing field
+  creatorWallet          String        @default("") // Wallet address of the creator
   walletPrivateKey       String        @map("privateKey")
   walletBalance          Float         @default(0) @map("balance")
   tokenBalance           Float         @default(0)  // New field
@@ -56,6 +57,7 @@ model Agent {
   llmProvider            String        @default("GROQ") // LLM provider: GROQ, OPENAI, GEMINI, ANTHROPIC
   
   @@index([personalityType])
+  @@index([creatorWallet])
   @@index([messageFrequency])
   @@index([socialInfluence])
   @@index([active])

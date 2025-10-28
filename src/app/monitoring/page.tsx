@@ -14,7 +14,7 @@ import {
   Activity,
   List,
   ChevronLeft,
-  ChevronRight,
+  ChevronRight, 
   TrendingDown
 } from 'lucide-react';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -157,6 +157,21 @@ export default function MonitoringPage() {
     }
   };
 
+  const formatPercentage = (value?: number | null, decimals: number = 1): string => {
+    if (value === undefined || value === null) return '0%';
+    return `${(value * 100).toFixed(decimals)}%`;
+  };
+
+  const formatPhase = (phase?: string | null): string => {
+    if (!phase) return 'N/A';
+    return phase.replace(/_/g, ' ');
+  };
+
+  const formatMemoryUsage = (usage?: SimulationStatus['memoryUsage']): string => {
+    if (!usage) return '--';
+    return `${formatNumber(usage.used, 0)} / ${formatNumber(usage.total, 0)} MB`;
+  };
+
   const getDirectionColor = (value: number): string => {
     if (value > 0) return 'text-green-400';
     if (value < 0) return 'text-red-400';
@@ -271,7 +286,7 @@ export default function MonitoringPage() {
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-20 -left-32 w-[500px] h-[500px] rounded-full bg-white opacity-[0.02] blur-[120px]" />
         <div className="absolute bottom-0 -right-32 w-[500px] h-[500px] rounded-full bg-white opacity-[0.02] blur-[120px]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full bg-white opacity-[0.015] blur-[100px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-white opacity-[0.015] blur-[110px]" />
       </div>
 
       {/* Main Layout */}
@@ -420,8 +435,8 @@ export default function MonitoringPage() {
           </AnimatePresence>
 
           {/* Tab Content */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-6 max-w-[1800px] mx-auto">
+          <div className="flex-1 overflow-y-auto" >
+            <div className="p-6 max-w-[1800px] mx-auto space-y-10">
               <AnimatePresence mode="wait">
                 {activeTab === 'home' && (
                   <motion.div
@@ -433,22 +448,22 @@ export default function MonitoringPage() {
                     className="space-y-8"
                   >
                     {/* Page Header */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h1 className="text-4xl font-bold mb-2">Simulation Overview</h1>
-                        <p className="text-white/50">Monitor AI trading simulation in real-time</p>
+                    <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between ">
+                      <div className="space-y-2">
+                        <h1 className="text-4xl font-bold">Simulation Operations Center</h1>
+                        <p className="text-white/55 text-sm max-w-xl">Orchestrate real-time agent trading, AMM liquidity, and telemetry from a single control surface.</p>
                       </div>
-                      <div className="flex items-center gap-3 text-sm">
-                        <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${
-                          loading ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 text-xs sm:text-sm">
+                        <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${
+                          loading ? 'border-white/15 bg-white/5 text-white/70' : 'border-white/10 bg-white/5 text-white/80'
                         }`}>
-                          <div className={`w-2 h-2 rounded-full ${loading ? 'bg-blue-400 animate-pulse' : 'bg-green-400'}`}></div>
-                          <span className="font-medium">
-                            {loading ? 'Updating...' : 'Live'}
+                          <div className={`w-2 h-2 rounded-full ${loading ? 'bg-white/70 animate-pulse' : 'bg-white'}`} />
+                          <span className="font-semibold tracking-wide">
+                            {loading ? 'Syncing' : 'Live'}
                           </span>
                         </div>
-                        <div className="text-white/40 text-xs">
-                          Last updated: {lastUpdate?.toLocaleTimeString() || '--:--:--'}
+                        <div className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-white/55 font-mono">
+                          {lastUpdate ? lastUpdate.toLocaleTimeString() : '--:--:--'}
                         </div>
                       </div>
                     </div>
@@ -457,64 +472,78 @@ export default function MonitoringPage() {
                     <SimulationControls onDataRefresh={loadData} />
 
                     {/* Market Stats Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-  {[
-    { icon: Users, label: "Active Agents", value: `${simulationStatus?.activeAgentCount || 0} / ${simulationStatus?.agentCount || 0}`, subtitle: "Currently trading" },
-    { icon: TrendingUp, label: `${tokenData?.symbol || (simulationStatus?.market?.error ? 'No Token Selected' : 'TOKEN')} Price`, value: simulationStatus?.market?.error ? 'Select Token' : `$${formatNumber(tokenData?.usdPrice || 0, 6)}`, subtitle: simulationStatus?.market?.error ? simulationStatus.market.message : `24h: ${tokenData?.priceChange24h ? (tokenData.priceChange24h >= 0 ? '+' : '') + tokenData.priceChange24h.toFixed(2) + '%' : '0.00%'}`, color: simulationStatus?.market?.error ? "red" : (tokenData?.priceChange24h && tokenData.priceChange24h >= 0 ? "green" : "red"), showChange: !simulationStatus?.market?.error },
-    { icon: Zap, label: "24h Volume", value: simulationStatus?.market?.error ? 'N/A' : `${formatNumber(simulationStatus?.market?.volume24h || 0, 2)} SOL`, subtitle: simulationStatus?.market?.error ? 'Select a token first' : "Total traded volume", color: simulationStatus?.market?.error ? "white" : (simulationStatus?.market?.volume24h && simulationStatus?.market?.volume24h > 0 ? "green" : "white") },
-    { icon: MemoryStick, label: "Liquidity Pool", value: simulationStatus?.market?.error ? 'N/A' : `${formatNumber(simulationStatus?.market?.solReserve || 0, 2)} SOL`, subtitle: simulationStatus?.market?.error ? 'Select a token first' : "Available liquidity", color: simulationStatus?.market?.error ? "white" : (simulationStatus?.market?.solReserve && simulationStatus?.market?.solReserve > 0 ? "green" : "white") },
-    { icon: Activity, label: "Success Rate", value: simulationStatus?.market?.error ? 'N/A' : `${formatNumber((simulationStatus?.market?.successRate || 0) * 100, 1)}%`, subtitle: simulationStatus?.market?.error ? 'Select a token first' : "Trade success rate", color: simulationStatus?.market?.error ? "white" : (simulationStatus?.market?.successRate && simulationStatus?.market?.successRate > 0.5 ? "green" : "red") }
-  ].map((stat, i) => (
-    <motion.div
-      key={i}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: i * 0.1 }}
-      className="relative group"
-    >
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 hover:border-neutral-700 transition-colors">
-        <div className="flex items-start justify-between mb-3">
-          <div className="w-10 h-10 bg-neutral-800 rounded-lg flex items-center justify-center">
-            <stat.icon className="text-white w-5 h-5" />
-          </div>
-          {stat.showChange && tokenData?.priceChange24h !== undefined && (
-            <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold ${
-              tokenData.priceChange24h >= 0
-                ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                : 'bg-red-500/10 text-red-400 border border-red-500/20'
-            }`}>
-              {tokenData.priceChange24h >= 0 ? (
-                <TrendingUp className="w-3 h-3" />
-              ) : (
-                <TrendingDown className="w-3 h-3" />
-              )}
-              {Math.abs(tokenData.priceChange24h).toFixed(2)}%
-            </div>
-          )}
-        </div>
-        <p className="text-white/50 text-xs uppercase tracking-wider mb-2 font-medium">{stat.label}</p>
-        <h3 className={`text-2xl font-bold mb-1 ${stat.color === 'green' ? 'text-green-400' : stat.color === 'red' ? 'text-red-400' : 'text-white'}`}>
-          {stat.value}
-        </h3>
-        <p className="text-white/40 text-xs">{stat.subtitle}</p>
-      </div>
-    </motion.div>
-  ))}
-</div>
-
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                      {[
+                        { icon: Users, label: "Active Agents", value: `${simulationStatus?.activeAgentCount || 0} / ${simulationStatus?.agentCount || 0}`, subtitle: "Currently trading" },
+                        { icon: TrendingUp, label: `${tokenData?.symbol || (simulationStatus?.market?.error ? 'No Token Selected' : 'TOKEN')} Price`, value: simulationStatus?.market?.error ? 'Select Token' : `$${formatNumber(tokenData?.usdPrice || 0, 6)}`, subtitle: simulationStatus?.market?.error ? simulationStatus.market.message : `24h: ${tokenData?.priceChange24h ? (tokenData.priceChange24h >= 0 ? '+' : '') + tokenData.priceChange24h.toFixed(2) + '%' : '0.00%'}`, color: simulationStatus?.market?.error ? "red" : (tokenData?.priceChange24h && tokenData.priceChange24h >= 0 ? "green" : "red"), showChange: !simulationStatus?.market?.error },
+                        { icon: Zap, label: "24h Volume", value: simulationStatus?.market?.error ? 'N/A' : `${formatNumber(simulationStatus?.market?.volume24h || 0, 2)} SOL`, subtitle: simulationStatus?.market?.error ? 'Select a token first' : "Total traded volume", color: simulationStatus?.market?.error ? "white" : (simulationStatus?.market?.volume24h && simulationStatus?.market?.volume24h > 0 ? "green" : "white") },
+                        { icon: MemoryStick, label: "Liquidity Pool", value: simulationStatus?.market?.error ? 'N/A' : `${formatNumber(simulationStatus?.market?.solReserve || 0, 2)} SOL`, subtitle: simulationStatus?.market?.error ? 'Select a token first' : "Available liquidity", color: simulationStatus?.market?.error ? "white" : (simulationStatus?.market?.solReserve && simulationStatus?.market?.solReserve > 0 ? "green" : "white") },
+                      ].map((stat, i) => (
+                        <motion.div
+                          key={i}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.1 }}
+                          className="relative group"
+                        >
+                          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 hover:border-neutral-700 transition-colors relative overflow-hidden">
+                            <div className="absolute inset-0 opacity-0 group-hover:opacity-50 transition-opacity" style={{ background: 'radial-gradient(circle at top, rgba(255,255,255,0.05), transparent 60%)' }} />
+                            <div className="relative flex items-start justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-neutral-800 rounded-xl border border-neutral-700 flex items-center justify-center">
+                                  <stat.icon className="text-white w-5 h-5" />
+                                </div>
+                                <div>
+                                  <p className="text-white/45 text-[11px] uppercase tracking-[0.3em]">{stat.label}</p>
+                                </div>
+                              </div>
+                              {stat.showChange && tokenData?.priceChange24h !== undefined && (
+                                <div className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold ${
+                                  tokenData.priceChange24h >= 0
+                                    ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                                    : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                }`}>
+                                  {tokenData.priceChange24h >= 0 ? (
+                                    <TrendingUp className="w-3 h-3" />
+                                  ) : (
+                                    <TrendingDown className="w-3 h-3" />
+                                  )}
+                                  {Math.abs(tokenData.priceChange24h).toFixed(2)}%
+                                </div>
+                              )}
+                            </div>
+                            <div className="relative">
+                              <h3 className={`text-3xl font-semibold mb-1 ${stat.color === 'green' ? 'text-green-400' : stat.color === 'red' ? 'text-red-400' : 'text-white'}`}>
+                                {stat.value}
+                              </h3>
+                              <p className="text-white/45 text-xs">{stat.subtitle}</p>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
 
                     {/* Trading Chart */}
-                    <motion.div
+                    <motion.section
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.4 }}
-                      className="relative group"
+                      className="space-y-4"
                     >
-                      <div className="absolute -inset-0.5 bg-white/5 rounded-2xl blur opacity-0 group-hover:opacity-100 transition duration-500"></div>
-                      <div className="relative bg-neutral-950/80 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:border-white/20 transition-colors">
-                        <MarketVisualization />
+                      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+                        <div>
+                          <h2 className="text-lg font-semibold uppercase tracking-[0.3em]">Market Telemetry</h2>
+                          <p className="text-xs text-white/45">Live pricing, sentiment, and liquidity signals</p>
+                        </div>
+                        <div className="text-xs text-white/40">Auto-refresh {autoRefresh ? `every ${(refreshRate / 1000).toFixed(0)}s` : 'disabled'}</div>
                       </div>
-                    </motion.div>
+                      <div className="relative group">
+                        <div className="absolute -inset-0.5 bg-white/5 rounded-2xl blur opacity-0 group-hover:opacity-100 transition duration-500" />
+                        <div className="relative bg-neutral-950/80 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:border-white/20 transition-colors">
+                          <MarketVisualization />
+                        </div>
+                      </div>
+                    </motion.section>
                   </motion.div>
                 )}
 
@@ -528,9 +557,12 @@ export default function MonitoringPage() {
                     className="space-y-8"
                   >
                     {/* Page Header */}
-                    <div>
-                      <h1 className="text-4xl font-bold mb-2">AMM Liquidity Pool</h1>
-                      <p className="text-white/50">Real-time liquidity distribution and pool analytics</p>
+                    <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                      <div>
+                        <h1 className="text-4xl font-bold mb-2">AMM Liquidity Pool</h1>
+                        <p className="text-white/50">Real-time liquidity distribution and pool analytics</p>
+                      </div>
+                      <div className="text-xs text-white/45 font-mono">Phase: {formatPhase(simulationStatus?.currentPhase)}</div>
                     </div>
 
                     {/* AMM Visualization */}
@@ -552,112 +584,113 @@ export default function MonitoringPage() {
                     transition={{ duration: 0.3 }}
                     className="space-y-8"
                   >
-                   {/* Page Header */}
-<div className="flex items-center justify-between mb-6">
-  <div>
-    <h1 className="text-4xl font-bold mb-2">Recent Transactions</h1>
-    <p className="text-white/50">All trading activity from AI agents</p>
-  </div>
-  <div className="flex items-center gap-3">
-   
-    
-    <button
-      onClick={loadData}
-      disabled={loading}
-      className="px-5 py-2.5 bg-white text-black rounded-xl hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold flex items-center gap-2 text-sm"
-    >
-      <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-      Refresh
-    </button>
-  </div>
-</div>
-
-{/* Transactions Table */}
-<div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-  <div className="overflow-x-auto">
-    <table className="w-full">
-      <thead className="bg-neutral-800/50 border-b border-neutral-700">
-        <tr>
-          <th className="py-3 px-6 text-left text-xs font-semibold text-white/60 uppercase tracking-wider">Time</th>
-          <th className="py-3 px-6 text-left text-xs font-semibold text-white/60 uppercase tracking-wider">Type</th>
-          <th className="py-3 px-6 text-left text-xs font-semibold text-white/60 uppercase tracking-wider">Agent</th>
-          <th className="py-3 px-6 text-right text-xs font-semibold text-white/60 uppercase tracking-wider">Amount</th>
-          <th className="py-3 px-6 text-right text-xs font-semibold text-white/60 uppercase tracking-wider">Price</th>
-          <th className="py-3 px-6 text-right text-xs font-semibold text-white/60 uppercase tracking-wider">Impact</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-neutral-800">
-        {transactions.length === 0 ? (
-          <tr>
-            <td colSpan={6} className="py-16 text-center">
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-neutral-800 flex items-center justify-center">
-                  <RefreshCw className="w-6 h-6 text-white/20" />
-                </div>
-                <div>
-                  <p className="text-white/40 text-sm font-medium">No transactions yet</p>
-                  <p className="text-white/30 text-xs mt-1">Transactions will appear here once simulation starts</p>
-                </div>
-              </div>
-            </td>
-          </tr>
-        ) : (
-          transactions.map((tx, index) => (
-            <tr
-              key={tx.id}
-              className="hover:bg-neutral-800/30 transition-colors"
-            >
-              <td className="py-3.5 px-6 text-sm text-white/70 font-mono">{formatTime(tx.timestamp)}</td>
-              <td className="py-3.5 px-6">
-                <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-bold ${
-                  tx.type === 'buy' 
-                  ? 'bg-green-500/10 text-green-400 border border-green-500/30' 
-                  : 'bg-red-500/10 text-red-400 border border-red-500/30'
-                }`}>
-                  {tx.type === 'buy' ? 'BUY' : 'SELL'}
-                </span>
-              </td>
-              <td className="py-3.5 px-6">
-                <div className="flex items-center gap-2">
-                
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
-                      {(tx.agent?.displayName || 'S')[0]}
+                    {/* Page Header */}
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h1 className="text-4xl font-bold mb-2">Recent Transactions</h1>
+                        <p className="text-white/50">All trading activity from AI agents</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="hidden sm:flex items-center gap-2 text-xs text-white/45">
+                          <span className="uppercase tracking-[0.3em]">Latency</span>
+                          <div className={`px-2 py-1 rounded-md border text-xs ${loading ? 'border-white/20 text-white/60' : 'border-white/10 text-white/50'}`}>
+                            {lastUpdate ? `${Math.max(0, Math.round((Date.now() - lastUpdate.getTime()) / 1000))}s ago` : 'n/a'}
+                          </div>
+                        </div>
+                        <button
+                          onClick={loadData}
+                          disabled={loading}
+                          className="px-5 py-2.5 bg-white text-black rounded-xl hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold flex items-center gap-2 text-sm"
+                        >
+                          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                          Refresh
+                        </button>
+                      </div>
                     </div>
-                 
-                  <span className="text-sm text-white/80 font-medium">
-                    {tx.agent?.displayName || 'System'}
-                  </span>
-                </div>
-              </td>
-              <td className="py-3.5 px-6 text-sm text-white/80 text-right font-mono">
-                {formatNumber(tx.amount, 4)} {tx.type === 'buy' ? 'SOL' : tokenSymbol || 'TOKEN'}
-              </td>
-              <td className="py-3.5 px-6 text-sm text-white/80 text-right font-mono">
-                {formatNumber(tx.price, 8)} SOL
-              </td>
-              <td className={`py-3.5 px-6 text-sm text-right font-mono font-bold ${getDirectionColor(tx.priceImpact)}`}>
-                {tx.priceImpact > 0 ? '+' : ''}{(tx.priceImpact * 100).toFixed(2)}%
-              </td>
-            </tr>
-          ))
-        )}
-      </tbody>
-    </table>
-  </div>
-  
-  {/* Footer */}
-  {transactions.length > 0 && (
-    <div className="bg-neutral-900 border-t border-neutral-800 px-6 py-3 flex items-center justify-between">
-      <div className="text-xs text-white/40">
-        Showing <span className="text-white/70 font-semibold">{transactions.length}</span> recent transactions
-      </div>
-      <div className="text-xs text-white/40">
-        Last updated: {lastUpdate?.toLocaleTimeString() || '--:--:--'}
-      </div>
-    </div>
-  )}
-</div>
 
+                    {/* Transactions Table */}
+                    <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-neutral-800/50 border-b border-neutral-700">
+                            <tr>
+                              <th className="py-3 px-6 text-left text-xs font-semibold text-white/60 uppercase tracking-wider">Time</th>
+                              <th className="py-3 px-6 text-left text-xs font-semibold text-white/60 uppercase tracking-wider">Type</th>
+                              <th className="py-3 px-6 text-left text-xs font-semibold text-white/60 uppercase tracking-wider">Agent</th>
+                              <th className="py-3 px-6 text-right text-xs font-semibold text-white/60 uppercase tracking-wider">Amount</th>
+                              <th className="py-3 px-6 text-right text-xs font-semibold text-white/60 uppercase tracking-wider">Price</th>
+                              <th className="py-3 px-6 text-right text-xs font-semibold text-white/60 uppercase tracking-wider">Impact</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-neutral-800">
+                            {transactions.length === 0 ? (
+                              <tr>
+                                <td colSpan={6} className="py-16 text-center">
+                                  <div className="flex flex-col items-center gap-3">
+                                    <div className="w-12 h-12 rounded-full bg-neutral-800 flex items-center justify-center">
+                                      <RefreshCw className="w-6 h-6 text-white/20" />
+                                    </div>
+                                    <div>
+                                      <p className="text-white/40 text-sm font-medium">No transactions yet</p>
+                                      <p className="text-white/30 text-xs mt-1">Transactions will appear here once simulation starts</p>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            ) : (
+                              transactions.map((tx) => (
+                                <tr
+                                  key={tx.id}
+                                  className="hover:bg-neutral-800/30 transition-colors"
+                                >
+                                  <td className="py-3.5 px-6 text-sm text-white/70 font-mono">{formatTime(tx.timestamp)}</td>
+                                  <td className="py-3.5 px-6">
+                                    <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-bold ${
+                                      tx.type === 'buy' 
+                                        ? 'bg-green-500/10 text-green-400 border border-green-500/30' 
+                                        : 'bg-red-500/10 text-red-400 border border-red-500/30'
+                                    }`}>
+                                      {tx.type === 'buy' ? 'BUY' : 'SELL'}
+                                    </span>
+                                  </td>
+                                  <td className="py-3.5 px-6">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-6 h-6 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-white text-xs font-semibold">
+                                        {(tx.agent?.displayName || 'S')[0]}
+                                      </div>
+                                      <span className="text-sm text-white/80 font-medium">
+                                        {tx.agent?.displayName || 'System'}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="py-3.5 px-6 text-sm text-white/80 text-right font-mono">
+                                    {formatNumber(tx.amount, 4)} {tx.type === 'buy' ? 'SOL' : tokenSymbol || 'TOKEN'}
+                                  </td>
+                                  <td className="py-3.5 px-6 text-sm text-white/80 text-right font-mono">
+                                    {formatNumber(tx.price, 8)} SOL
+                                  </td>
+                                  <td className={`py-3.5 px-6 text-sm text-right font-mono font-semibold ${getDirectionColor(tx.priceImpact)}`}>
+                                    {tx.priceImpact > 0 ? '+' : ''}{(tx.priceImpact * 100).toFixed(2)}%
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Footer */}
+                      {transactions.length > 0 && (
+                        <div className="bg-neutral-900 border-t border-neutral-800 px-6 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <div className="text-xs text-white/45">
+                            Showing <span className="text-white/70 font-semibold">{transactions.length}</span> recent transactions
+                          </div>
+                          <div className="text-xs text-white/45">
+                            Last updated {lastUpdate?.toLocaleTimeString() || '--:--:--'}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
