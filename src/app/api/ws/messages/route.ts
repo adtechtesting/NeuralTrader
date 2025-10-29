@@ -1,11 +1,10 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/cache/dbCache';
-
-// Store active WebSocket connections
-const activeConnections = new Set<WebSocket>();
-
-// Track message creation timestamps for real-time updates
-let lastMessageTimestamp = new Date();
+import {
+  registerConnection,
+  unregisterConnection,
+  getLastMessageTimestamp
+} from '@/lib/realtime/chatSocketRegistry';
 
 export async function GET(req: NextRequest) {
   // Upgrade to WebSocket connection
@@ -21,10 +20,11 @@ export async function GET(req: NextRequest) {
   console.log('🔗 New WebSocket connection established');
 
   // Add to active connections
-  activeConnections.add(socket);
+  registerConnection(socket);
 
   // Send recent messages on connection
   try {
+    const lastMessageTimestamp = getLastMessageTimestamp();
     const recentMessages = await prisma.message.findMany({
       where: {
         createdAt: {
@@ -74,48 +74,13 @@ export async function GET(req: NextRequest) {
   // Handle connection close
   socket.onclose = () => {
     console.log('🔌 WebSocket connection closed');
-    activeConnections.delete(socket);
+    unregisterConnection(socket);
   };
 
   socket.onerror = (error: Event) => {
     console.error('❌ WebSocket error:', error);
-    activeConnections.delete(socket);
+    unregisterConnection(socket);
   };
 
   return response;
 }
-
-// Function to broadcast new messages to all connected clients
-export async function broadcastMessage(message: any) {
-  const messageData = {
-    type: 'new_message',
-    message: {
-      id: message.id,
-      content: message.content,
-      sentiment: message.sentiment,
-      sender: message.sender,
-      createdAt: message.createdAt,
-      type: message.type
-    }
-  };
-
-  // Update last message timestamp
-  lastMessageTimestamp = new Date();
-
-  // Send to all active connections
-  for (const connection of activeConnections) {
-    if (connection.readyState === WebSocket.OPEN) {
-      try {
-        connection.send(JSON.stringify(messageData));
-      } catch (error) {
-        console.error('Error broadcasting message:', error);
-        activeConnections.delete(connection);
-      }
-    } else {
-      activeConnections.delete(connection);
-    }
-  }
-}
-
-// Export for use in other API routes
-export { activeConnections };

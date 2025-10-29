@@ -1,7 +1,6 @@
-import { Keypair, PublicKey } from "@solana/web3.js";
-import * as bs58 from "bs58";
-import { connection } from "./connection";
-import { SolanaAgentKit } from "solana-agent-kit";
+import { Keypair } from "@solana/web3.js";
+import bs58 from "bs58";
+import { SolanaAgentKit, KeypairWallet } from "solana-agent-kit";
 
 // Function to deploy a new token using SolanaAgentKit's direct method
 export async function deployToken(
@@ -13,9 +12,17 @@ export async function deployToken(
   try {
     console.log("Creating SolanaAgentKit instance...");
     
+    // Decode the private key and create a wallet compatible with SolanaAgentKit
+    const decodedKey = bs58.decode(privateKeyBase58);
+    const keypair = Keypair.fromSecretKey(decodedKey);
+    const wallet = new KeypairWallet(
+      keypair,
+      process.env.NEXT_PUBLIC_RPC_URL!
+    );
+
     // Create the Solana Agent Kit instance directly
     const solanaKit = new SolanaAgentKit(
-      privateKeyBase58,
+      wallet,
       process.env.NEXT_PUBLIC_RPC_URL!,
       {
         OPENAI_API_KEY: process.env.OPENAI_API_KEY,
@@ -33,6 +40,7 @@ export async function deployToken(
     
     try {
       // Use the direct deployToken method from the kit
+      //@ts-ignore
       const result = await solanaKit.deployToken(
         tokenName,           // name
         "https://example.com/token.json", // uri

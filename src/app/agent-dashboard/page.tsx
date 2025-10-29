@@ -20,6 +20,8 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useRouter } from 'next/navigation';
 import { toast } from "sonner";
 import Link from 'next/link';
+import { Spotlight } from '@/components/ui/spotlight';
+import { LightRays } from '@/components/ui/lightrays';
 
 interface Agent {
   id: string;
@@ -233,6 +235,8 @@ export default function AgentDashboardPage() {
   
   return (
     <div className="min-h-screen bg-black">
+       <Spotlight />
+              <LightRays />
       {/* Background Effects */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-20 -left-32 w-[500px] h-[500px] rounded-full bg-white opacity-[0.02] blur-[120px]" />
@@ -247,10 +251,10 @@ export default function AgentDashboardPage() {
             <div className="absolute inset-0 opacity-40" style={{ backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 45%)' }} />
             <div className="relative flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8">
               <div className="max-w-2xl space-y-3">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 text-xs uppercase tracking-[0.28em] text-white/60">
-                  NeuralTrader Agent Command Center
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-xs uppercase tracking-[0.28em] text-white/60">
+                  NeuralTrader 
                 </div>
-                <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight">
+                <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
                   Monitor, iterate, and scale your autonomous trading agents
                 </h1>
                 <p className="text-white/55 text-base md:text-lg">
@@ -380,67 +384,82 @@ export default function AgentDashboardPage() {
 
         {/* Distribution Insights */}
         {stats && (
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-white uppercase tracking-[0.3em]">Personality Mix</h3>
-                  <p className="text-xs text-white/50">Distribution of active archetypes</p>
-                </div>
-                <span className="text-xs text-white/40">Total {personalityTotal}</span>
-              </div>
-              <div className="space-y-3">
-                {personalityEntries.length > 0 ? personalityEntries.map(([type, count]) => {
-                  const percentage = personalityTotal ? Math.round((count / personalityTotal) * 100) : 0;
-                  return (
-                    <button
-                      key={type}
-                      onClick={() => setPersonalityFilter(personalityFilter === type ? '' : type)}
-                      className={`w-full rounded-xl border border-neutral-800 bg-neutral-800/40 px-4 py-3 text-left transition-all ${
-                        personalityFilter === type ? 'border-white/40' : 'hover:border-neutral-700'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between text-sm text-white">
-                        <span className="font-semibold">{type}</span>
-                        <span className="text-xs text-white/60">{count} agents</span>
-                      </div>
-                      <div className="mt-2 h-2 rounded-full bg-neutral-800 overflow-hidden">
-                        <div
-                          className="h-full bg-white/80"
-                          style={{ width: `${percentage}%` }}
-                        ></div>
-                      </div>
-                      <div className="mt-2 text-xs text-white/50">{percentage}% of active roster</div>
-                    </button>
-                  );
-                }) : (
-                  <p className="text-xs text-white/50">No personality data available yet.</p>
-                )}
-              </div>
-            </div>
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  {/* Personality Mix */}
+  <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
+    <div className="flex items-center justify-between mb-4">
+      <div>
+        <h3 className="text-sm font-semibold text-white uppercase tracking-[0.25em]">
+          Personality Mix
+        </h3>
+        <p className="text-xs text-white/50">Active agent archetypes</p>
+      </div>
+      <span className="text-xs text-white/40">{personalityTotal} total</span>
+    </div>
 
-            <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-white uppercase tracking-[0.3em]">Occupational Spread</h3>
-                  <p className="text-xs text-white/50">Dominant agent roles by count</p>
-                </div>
-                <span className="text-xs text-white/40">{occupationEntries.length || 0} roles</span>
+    <div className="grid gap-3">
+      {personalityEntries.length > 0 ? (
+        personalityEntries.map(([type, count]) => {
+          const percentage = personalityTotal ? Math.round((count / personalityTotal) * 100) : 0;
+          return (
+            <button
+              key={type}
+              onClick={() => setPersonalityFilter(personalityFilter === type ? '' : type)}
+              className={`flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-800/40 px-4 py-2 transition-all ${
+                personalityFilter === type ? 'border-white/40' : 'hover:border-neutral-700'
+              }`}
+            >
+              <div className="flex flex-col">
+                <span className="font-semibold text-sm text-white">{type}</span>
+                <span className="text-xs text-white/50">{percentage}% • {count} agents</span>
               </div>
-              <div className="space-y-3">
-                {occupationEntries.length > 0 ? occupationEntries.map(([role, count]) => (
-                  <div key={role} className="rounded-xl border border-neutral-800 bg-neutral-800/40 px-4 py-3">
-                    <div className="flex items-center justify-between text-sm text-white">
-                      <span className="font-semibold">{role}</span>
-                      <span className="text-xs text-white/60">{count} agents</span>
-                    </div>
-                  </div>
-                )) : (
-                  <p className="text-xs text-white/50">No occupation data captured yet.</p>
-                )}
+              <div className="w-24 h-2 bg-neutral-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-white/70"
+                  style={{ width: `${percentage}%` }}
+                ></div>
               </div>
+            </button>
+          );
+        })
+      ) : (
+        <p className="text-xs text-white/50">No personality data yet.</p>
+      )}
+    </div>
+  </div>
+
+  {/* Occupational Spread */}
+  <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
+    <div className="flex items-center justify-between mb-4">
+      <div>
+        <h3 className="text-sm font-semibold text-white uppercase tracking-[0.25em]">
+          Occupational Spread
+        </h3>
+        <p className="text-xs text-white/50">Dominant agent roles</p>
+      </div>
+      <span className="text-xs text-white/40">{occupationEntries.length} roles</span>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {occupationEntries.length > 0 ? (
+        occupationEntries.map(([role, count]) => (
+          <div
+            key={role}
+            className="rounded-xl border border-neutral-800 bg-neutral-800/40 px-3 py-2"
+          >
+            <div className="flex items-center justify-between text-sm text-white">
+              <span className="font-semibold">{role}</span>
+              <span className="text-xs text-white/60">{count}</span>
             </div>
-          </section>
+          </div>
+        ))
+      ) : (
+        <p className="text-xs text-white/50">No occupation data yet.</p>
+      )}
+    </div>
+  </div>
+</section>
+
         )}
 
         {/* Search and Filter */}

@@ -1,4 +1,4 @@
-import { ACTIONS, SolanaAgentKit, createMcpServer } from "solana-agent-kit";
+
 import express, { Request, Response } from "express";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import cors from "cors";
@@ -141,27 +141,7 @@ export async function initMcpServer(port: number = 3030): Promise<McpServerRetur
 
     if (isValid && process.env.SOLANA_PRIVATE_KEY && process.env.NEXT_PUBLIC_RPC_URL) {
   
-      const agent = new SolanaAgentKit(
-        process.env.SOLANA_PRIVATE_KEY as string,
-        process.env.NEXT_PUBLIC_RPC_URL as string,
-        { } 
-      );
       
-
-      const mcp_actions = {
-        GET_ASSET: ACTIONS.GET_ASSET_ACTION,
-        DEPLOY_TOKEN: ACTIONS.DEPLOY_TOKEN_ACTION,
-        GET_PRICE: ACTIONS.FETCH_PRICE_ACTION,
-        WALLET_ADDRESS: ACTIONS.WALLET_ADDRESS_ACTION,
-        BALANCE: ACTIONS.BALANCE_ACTION,
-        TOKEN_BALANCES: ACTIONS.TOKEN_BALANCES_ACTION,
-        TRANSFER: ACTIONS.TRANSFER_ACTION,
-        MINT_NFT: ACTIONS.MINT_NFT_ACTION,
-        TRADE: ACTIONS.TRADE_ACTION,
-        REQUEST_FUNDS: ACTIONS.REQUEST_FUNDS_ACTION,
-        RESOLVE_DOMAIN: ACTIONS.RESOLVE_SOL_DOMAIN_ACTION,
-        GET_TPS: ACTIONS.GET_TPS_ACTION,
-      };
       
       const serverOptions = {
         name: "neural-trader-agent",
@@ -169,7 +149,7 @@ export async function initMcpServer(port: number = 3030): Promise<McpServerRetur
       };
       
     
-      serverInstance = agent;
+    
       
      
       app.get("/sse", async (_req: Request, res: Response) => {
@@ -185,8 +165,8 @@ export async function initMcpServer(port: number = 3030): Promise<McpServerRetur
         });
         
     
-        const server = createMcpServer(mcp_actions, agent, serverOptions);
-        await server.connect(transport);
+       
+       
       });
       
 

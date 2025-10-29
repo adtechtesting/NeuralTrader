@@ -381,71 +381,34 @@ export class AgentManager {
   /**
    * Process agents for social interaction with enhanced logging
    */
-  public async processAgentsForSocialInteraction(batchSize: number = 50): Promise<void> {
+  public async processAgentsForSocialInteraction(batchSize: number = 15): Promise<void> {
     const activeAgentIds = await this.getActiveAgentIds();
-    // Reduce batch size for faster chat generation
-    const selectedAgentIds = activeAgentIds.slice(0, Math.min(batchSize, 8));
+    const selectedAgentIds = activeAgentIds.slice(0, Math.min(batchSize, 15));
 
-    console.log(`💬 Processing ${selectedAgentIds.length} agents for social interaction (reduced for speed)`);
+    console.log(`💬 Processing ${selectedAgentIds.length} agents for REAL-TIME market chat`);
 
-    // Get most recent messages once to share across agents
-    const recentMessages = await prisma.message.findMany({
-      take: 30,
-      orderBy: { createdAt: 'desc' },
-      include: { sender: { select: { id: true, name: true, personalityType: true } } }
-    }) as Message[];
-
-    console.log(`Found ${recentMessages.length} recent messages for agents to process`);
-
+  
     const marketSentiment = await marketData.getMarketSentiment();
+    let chatCount = 0;
 
-    // Track success/failure
-    let interactionCount = 0;
-    let errorCount = 0;
-
-    // Process agents in parallel with concurrency control
     await pMap(
       selectedAgentIds,
       async (agentId) => {
         try {
           const agent = await this.getAgentInstance(agentId);
           if (agent) {
-            // Allow agent to analyze and decide whether to respond
-            const didInteract = await agent.socialInteraction(recentMessages, marketSentiment);
+            await agent.socialInteraction([], marketSentiment);
             this.lastAccessTime.set(agentId, Date.now());
-            interactionCount++;
-
-            // Check if the agent created any new messages by using the send_message tool
-            // Instead of parsing agent state, check for new messages in the database
-            const agentMessages = await prisma.message.findMany({
-              where: {
-                senderId: agentId,
-                createdAt: { gte: new Date(Date.now() - 30000) } // Last 30 seconds
-              },
-              orderBy: { createdAt: 'desc' },
-              take: 1
-            });
-
-            if (agentMessages.length > 0) {
-              // Get agent name for logging
-              const agentData = await prisma.agent.findUnique({
-                where: { id: agentId },
-                select: { name: true }
-              });
-
-              const agentName = agentData?.name || 'Unknown Agent';
-              console.log(`✅ ${agentName} created message: "${agentMessages[0].content.substring(0, 50)}..."`);
-            }
+            chatCount++;
           }
         } catch (error) {
           console.error(`Error in social interaction for agent ${agentId}:`, error);
-          errorCount++;
         }
       },
       { concurrency: this.maxConcurrent }
     );
 
-    console.log(`✅ Social interaction complete: ${interactionCount} interactions processed, ${errorCount} errors`);
+    console.log(`✅ Real-time market chat complete: ${chatCount} agents processed`);
   }
   
   /**

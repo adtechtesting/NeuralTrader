@@ -21,6 +21,9 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useRouter } from 'next/navigation';
 import {toast} from "sonner"
 import { cn } from '@/lib/utils';
+import { Spotlight } from '@/components/ui/spotlight';
+import { LightRays } from '@/components/ui/lightrays';
+import { StripedPattern } from '@/components/ui/strippedpattern';
 
 // Dynamically import components
 const SimulationControls = dynamic(
@@ -36,15 +39,28 @@ interface Transaction {
   id: string;
   type: string;
   amount: number;
-  price: number;
+  price?: number; // ✅ Optional since it's in details
   priceImpact: number;
-  timestamp: number;
+  timestamp?: number; // ✅ Optional
+  createdAt?: Date | string; // ✅ Add this
   agentId?: string;
+  tokenAmount?: number; // ✅ Add this
   agent?: {
-    displayName: string;
-    personalityType: string;
-    avatarUrl: string;
-  }
+    name?: string;
+    displayName?: string;
+    personalityType?: string;
+    avatarUrl?: string;
+  };
+  fromAgent?: { // ✅ Add this
+    name?: string;
+    personalityType?: string;
+  };
+  details?: { // ✅ Add this
+    price?: number;
+    side?: string;
+    inputAmount?: number;
+    outputAmount?: number;
+  };
 }
 
 interface SimulationStatus {
@@ -137,7 +153,7 @@ export default function MonitoringPage() {
     }
   }, [connected, router]);
 
-  const formatNumber = (num: number | undefined | null, decimals: number = 2): string => {
+   const formatNumber = (num: number | undefined | null, decimals: number = 2): string => {
     if (num === undefined || num === null) return '0.00';
     return num.toLocaleString(undefined, {
       minimumFractionDigits: decimals,
@@ -157,25 +173,9 @@ export default function MonitoringPage() {
     }
   };
 
-  const formatPercentage = (value?: number | null, decimals: number = 1): string => {
-    if (value === undefined || value === null) return '0%';
-    return `${(value * 100).toFixed(decimals)}%`;
-  };
-
   const formatPhase = (phase?: string | null): string => {
     if (!phase) return 'N/A';
     return phase.replace(/_/g, ' ');
-  };
-
-  const formatMemoryUsage = (usage?: SimulationStatus['memoryUsage']): string => {
-    if (!usage) return '--';
-    return `${formatNumber(usage.used, 0)} / ${formatNumber(usage.total, 0)} MB`;
-  };
-
-  const getDirectionColor = (value: number): string => {
-    if (value > 0) return 'text-green-400';
-    if (value < 0) return 'text-red-400';
-    return 'text-white/60';
   };
 
   const loadData = useCallback(async () => {
@@ -183,7 +183,7 @@ export default function MonitoringPage() {
       setLoading(true);
       setError(null);
 
-      // Fetch real token data
+      // Fetch token data
       try {
         const tokenResponse = await fetch('/api/simulation/config');
         if (tokenResponse.ok) {
@@ -197,7 +197,7 @@ export default function MonitoringPage() {
         console.log('Could not fetch token config');
       }
 
-      // Fetch pool state for real-time market data
+      // Fetch pool state
       let poolState = null;
       try {
         const poolResponse = await fetch('/api/pool/state');
@@ -217,7 +217,6 @@ export default function MonitoringPage() {
       }
       const statusData = await statusResponse.json();
 
-      // ✅ STRICT: Use pool state data for market stats if available, otherwise show error
       if (poolState && !poolState.error) {
         statusData.market = {
           ...statusData.market,
@@ -226,17 +225,6 @@ export default function MonitoringPage() {
           volume24h: poolState.volume24h,
           price: poolState.lastPrice,
           totalLiquidity: poolState.totalLiquidity
-        };
-      } else if (poolState && poolState.error) {
-        // Show error state when no token selected
-        statusData.market = {
-          error: poolState.error,
-          message: poolState.message,
-          solReserve: 0,
-          tokenReserve: 0,
-          volume24h: 0,
-          price: 0,
-          totalLiquidity: 0
         };
       }
 
@@ -247,8 +235,14 @@ export default function MonitoringPage() {
         throw new Error(`Failed to fetch transactions`);
       }
       const tradesData = await tradesResponse.json();
-      if (tradesData.success) {
-        setTransactions(tradesData.transactions || []);
+      
+      // ✅ Handle both array response and object with transactions array
+      if (Array.isArray(tradesData)) {
+        setTransactions(tradesData);
+      } else if (tradesData.success && Array.isArray(tradesData.transactions)) {
+        setTransactions(tradesData.transactions);
+      } else {
+        setTransactions([]);
       }
 
       setLastUpdate(new Date());
@@ -280,8 +274,12 @@ export default function MonitoringPage() {
     { id: 'trades' as TabType, label: 'Trades', icon: List }
   ];
 
+
   return (
     <div className="min-h-screen bg-black text-white">
+       
+            
+                           
       {/* Background Effects */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-20 -left-32 w-[500px] h-[500px] rounded-full bg-white opacity-[0.02] blur-[120px]" />
@@ -450,7 +448,7 @@ export default function MonitoringPage() {
                     {/* Page Header */}
                     <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between ">
                       <div className="space-y-2">
-                        <h1 className="text-4xl font-bold">Simulation Operations Center</h1>
+                        <h1 className="text-4xl font-bold">Simulation Center</h1>
                         <p className="text-white/55 text-sm max-w-xl">Orchestrate real-time agent trading, AMM liquidity, and telemetry from a single control surface.</p>
                       </div>
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3 text-xs sm:text-sm">
@@ -609,88 +607,110 @@ export default function MonitoringPage() {
                     </div>
 
                     {/* Transactions Table */}
-                    <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden">
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead className="bg-neutral-800/50 border-b border-neutral-700">
-                            <tr>
-                              <th className="py-3 px-6 text-left text-xs font-semibold text-white/60 uppercase tracking-wider">Time</th>
-                              <th className="py-3 px-6 text-left text-xs font-semibold text-white/60 uppercase tracking-wider">Type</th>
-                              <th className="py-3 px-6 text-left text-xs font-semibold text-white/60 uppercase tracking-wider">Agent</th>
-                              <th className="py-3 px-6 text-right text-xs font-semibold text-white/60 uppercase tracking-wider">Amount</th>
-                              <th className="py-3 px-6 text-right text-xs font-semibold text-white/60 uppercase tracking-wider">Price</th>
-                              <th className="py-3 px-6 text-right text-xs font-semibold text-white/60 uppercase tracking-wider">Impact</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-neutral-800">
-                            {transactions.length === 0 ? (
-                              <tr>
-                                <td colSpan={6} className="py-16 text-center">
-                                  <div className="flex flex-col items-center gap-3">
-                                    <div className="w-12 h-12 rounded-full bg-neutral-800 flex items-center justify-center">
-                                      <RefreshCw className="w-6 h-6 text-white/20" />
-                                    </div>
-                                    <div>
-                                      <p className="text-white/40 text-sm font-medium">No transactions yet</p>
-                                      <p className="text-white/30 text-xs mt-1">Transactions will appear here once simulation starts</p>
-                                    </div>
-                                  </div>
-                                </td>
-                              </tr>
-                            ) : (
-                              transactions.map((tx) => (
-                                <tr
-                                  key={tx.id}
-                                  className="hover:bg-neutral-800/30 transition-colors"
-                                >
-                                  <td className="py-3.5 px-6 text-sm text-white/70 font-mono">{formatTime(tx.timestamp)}</td>
-                                  <td className="py-3.5 px-6">
-                                    <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-bold ${
-                                      tx.type === 'buy' 
-                                        ? 'bg-green-500/10 text-green-400 border border-green-500/30' 
-                                        : 'bg-red-500/10 text-red-400 border border-red-500/30'
-                                    }`}>
-                                      {tx.type === 'buy' ? 'BUY' : 'SELL'}
-                                    </span>
-                                  </td>
-                                  <td className="py-3.5 px-6">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-6 h-6 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-white text-xs font-semibold">
-                                        {(tx.agent?.displayName || 'S')[0]}
-                                      </div>
-                                      <span className="text-sm text-white/80 font-medium">
-                                        {tx.agent?.displayName || 'System'}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className="py-3.5 px-6 text-sm text-white/80 text-right font-mono">
-                                    {formatNumber(tx.amount, 4)} {tx.type === 'buy' ? 'SOL' : tokenSymbol || 'TOKEN'}
-                                  </td>
-                                  <td className="py-3.5 px-6 text-sm text-white/80 text-right font-mono">
-                                    {formatNumber(tx.price, 8)} SOL
-                                  </td>
-                                  <td className={`py-3.5 px-6 text-sm text-right font-mono font-semibold ${getDirectionColor(tx.priceImpact)}`}>
-                                    {tx.priceImpact > 0 ? '+' : ''}{(tx.priceImpact * 100).toFixed(2)}%
-                                  </td>
-                                </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      {/* Footer */}
-                      {transactions.length > 0 && (
-                        <div className="bg-neutral-900 border-t border-neutral-800 px-6 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                          <div className="text-xs text-white/45">
-                            Showing <span className="text-white/70 font-semibold">{transactions.length}</span> recent transactions
-                          </div>
-                          <div className="text-xs text-white/45">
-                            Last updated {lastUpdate?.toLocaleTimeString() || '--:--:--'}
-                          </div>
-                        </div>
-                      )}
+                  <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden">
+  <div className="overflow-x-auto">
+    <table className="w-full">
+      <thead className="bg-neutral-800/50 border-b border-neutral-700">
+        <tr>
+          <th className="py-3 px-6 text-left text-xs font-semibold text-white/60 uppercase tracking-wider">Time</th>
+          <th className="py-3 px-6 text-left text-xs font-semibold text-white/60 uppercase tracking-wider">Type</th>
+          <th className="py-3 px-6 text-left text-xs font-semibold text-white/60 uppercase tracking-wider">Agent</th>
+          <th className="py-3 px-6 text-right text-xs font-semibold text-white/60 uppercase tracking-wider">Amount</th>
+          <th className="py-3 px-6 text-right text-xs font-semibold text-white/60 uppercase tracking-wider">Price</th>
+          <th className="py-3 px-6 text-right text-xs font-semibold text-white/60 uppercase tracking-wider">Impact</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-neutral-800">
+        {transactions.length === 0 ? (
+          <tr>
+            <td colSpan={6} className="py-16 text-center">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-neutral-800 flex items-center justify-center">
+                  <RefreshCw className="w-6 h-6 text-white/20" />
+                </div>
+                <div>
+                  <p className="text-white/40 text-sm font-medium">No transactions yet</p>
+                  <p className="text-white/30 text-xs mt-1">Transactions will appear here once simulation starts</p>
+                </div>
+              </div>
+            </td>
+          </tr>
+        ) : (
+          transactions.map((tx) => {
+            const txType = (tx.type || '').toUpperCase();
+                                const txPrice = tx.price || (tx.details as any)?.price || 0;
+                                const txTimestamp = tx.timestamp || (tx.createdAt ? new Date(tx.createdAt).getTime() : Date.now());
+                                const agentName = tx.agent?.name || tx.agent?.displayName || (tx.fromAgent as any)?.name || 'System';
+                                const agentInitial = (agentName[0] || 'S').toUpperCase();
+                             
+            
+            return (
+              <tr
+                key={tx.id}
+                className="hover:bg-neutral-800/30 transition-colors"
+              >
+                <td className="py-3.5 px-6 text-sm text-white/70 font-mono">
+                 {formatTime(txTimestamp)}
+                </td>
+                
+                <td className="py-3.5 px-6">
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-bold ${
+                    txType === 'BUY' 
+                      ? 'bg-green-500/10 text-green-400 border border-green-500/30' 
+                      : 'bg-red-500/10 text-red-400 border border-red-500/30'
+                  }`}>
+                    {txType}
+                  </span>
+                </td>
+                
+                <td className="py-3.5 px-6">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-white text-xs font-semibold">
+                      {agentInitial}
                     </div>
+                    <span className="text-sm text-white/80 font-medium">
+                      {agentName}
+                    </span>
+                  </div>
+                </td>
+                
+                <td className="py-3.5 px-6 text-sm text-white/80 text-right font-mono">
+                  {txType === 'BUY' 
+                    ? `${formatNumber(tx.amount, 4)} SOL` 
+                    : `${formatNumber(tx.tokenAmount || 0, 2)} ${tokenSymbol || 'MET'}`
+                  }
+                </td>
+                
+                <td className="py-3.5 px-6 text-sm text-white/80 text-right font-mono">
+                  {formatNumber(txPrice, 8)} SOL
+                </td>
+                
+                <td className={`py-3.5 px-6 text-sm text-right font-mono font-semibold ${
+                  (tx.priceImpact || 0) > 0 ? 'text-green-400' : 'text-red-400'
+                }`}>
+                  {(tx.priceImpact || 0) > 0 ? '+' : ''}
+                  {formatNumber(tx.priceImpact || 0, 2)}%
+                </td>
+              </tr>
+            );
+          })
+        )}
+      </tbody>
+    </table>
+  </div>
+
+  {transactions.length > 0 && (
+    <div className="bg-neutral-900 border-t border-neutral-800 px-6 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div className="text-xs text-white/45">
+        Showing <span className="text-white/70 font-semibold">{transactions.length}</span> recent transactions
+      </div>
+      <div className="text-xs text-white/45">
+        Last updated {lastUpdate?.toLocaleTimeString() || '--:--:--'}
+      </div>
+    </div>
+  )}
+</div>
+
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -698,7 +718,6 @@ export default function MonitoringPage() {
           </div>
         </div>
       </div>
-
       <ChatSection />
     </div>
   );

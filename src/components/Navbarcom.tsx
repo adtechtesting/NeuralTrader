@@ -59,8 +59,8 @@ function Navbar({ className }: { className?: string }) {
           href="/" 
           className="flex items-center group"
         >
-          <span className=" font-bold text-xl tracking-tight text-white group-hover:text-white/90 transition-colors underline">
-     N̷e̷u̷r̷a̷l̷t̷r̷a̷d̷e̷r̷
+          <span className="text-xl tracking-tight text-white group-hover:text-white/90 transition-colors underline font-extrabold">
+     NeuralTrader
 
           </span>
         </Link>

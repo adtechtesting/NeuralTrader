@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/cache/dbCache';
 import { getCached, setCached } from '@/lib/cache/dbCache';
 import { messagingSystem } from '@/lib/agents/messaging';
-import { broadcastMessage } from '../ws/messages/route';
+import { broadcastMessage, ChatMessagePayload } from '@/lib/realtime/chatSocketRegistry';
 
 export const maxDuration = 60; // Increase timeout to 60 seconds
 
@@ -18,6 +18,58 @@ const FALLBACK_MESSAGES = {
   },
   timestamp: Date.now()
 };
+
+async function toChatPayload(message: any): Promise<ChatMessagePayload | null> {
+  if (!message) return null;
+
+  if (message.sender) {
+    return {
+      id: message.id,
+      content: message.content,
+      sentiment: message.sentiment,
+      sender: {
+        id: message.sender.id,
+        name: message.sender.name,
+        personalityType: message.sender.personalityType,
+        avatarUrl: message.sender.avatarUrl ?? null
+      },
+      createdAt: message.createdAt,
+      type: message.type
+    };
+  }
+
+  const enriched = await prisma.message.findUnique({
+    where: { id: message.id },
+    include: {
+      sender: {
+        select: {
+          id: true,
+          name: true,
+          personalityType: true,
+          avatarUrl: true
+        }
+      }
+    }
+  });
+
+  if (!enriched?.sender) {
+    return null;
+  }
+
+  return {
+    id: enriched.id,
+    content: enriched.content,
+    sentiment: enriched.sentiment,
+    sender: {
+      id: enriched.sender.id,
+      name: enriched.sender.name,
+      personalityType: enriched.sender.personalityType,
+      avatarUrl: enriched.sender.avatarUrl ?? null
+    },
+    createdAt: enriched.createdAt,
+    type: enriched.type
+  };
+}
 
 // Get messages with pagination and caching
 export async function GET(request: NextRequest) {
@@ -241,7 +293,10 @@ export async function POST(request: NextRequest) {
       
       // Broadcast new message via WebSocket
       if (message) {
-        await broadcastMessage(message);
+        const payload = await toChatPayload(message);
+        if (payload) {
+          broadcastMessage(payload);
+        }
       }
       
       return NextResponse.json({
@@ -319,7 +374,10 @@ export async function POST(request: NextRequest) {
       // Broadcast all new messages via WebSocket
       for (const message of messages) {
         if (message) {
-          await broadcastMessage(message);
+          const payload = await toChatPayload(message);
+          if (payload) {
+            broadcastMessage(payload);
+          }
         }
       }
       
@@ -363,7 +421,10 @@ export async function POST(request: NextRequest) {
       
       // Broadcast new message via WebSocket
       if (message) {
-        await broadcastMessage(message);
+        const payload = await toChatPayload(message);
+        if (payload) {
+          broadcastMessage(payload);
+        }
       }
       
       return NextResponse.json({

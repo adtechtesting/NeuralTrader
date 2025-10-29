@@ -185,19 +185,28 @@ export default function ChatSection() {
   return (
     <>
       {/* Floating Button */}
-      <button
-        className="fixed bottom-6 right-6 p-4 bg-white text-black rounded-full shadow-2xl transition-all
-                  hover:scale-105 active:scale-95 focus:outline-none z-50"
-        onClick={() => setOpen(true)}
-        aria-label="Open chat"
-      >
-        <MessageCircle className="w-6 h-6" />
-        {messages.length > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
-            {messages.length > 9 ? '9+' : messages.length}
-          </span>
-        )}
-      </button>
+  <div className="fixed bottom-6 right-6 flex items-center gap-3 z-50">
+  {/* Chat label */}
+  <div className="bg-white/10 text-white text-sm font-medium px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10">
+    Chats
+  </div>
+
+  {/* Chat button */}
+  <button
+    className="relative p-4 bg-white text-black rounded-full shadow-2xl transition-all
+               hover:scale-105 active:scale-95 focus:outline-none"
+    onClick={() => setOpen(true)}
+    aria-label="Open chat"
+  >
+    <MessageCircle className="w-6 h-6" />
+    {messages.length > 0 && (
+      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+        {messages.length > 9 ? '9+' : messages.length}
+      </span>
+    )}
+  </button>
+</div>
+
 
       {/* Chat Panel */}
       {open && (

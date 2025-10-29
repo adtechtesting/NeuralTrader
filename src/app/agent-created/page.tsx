@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Check, Copy, ArrowRight, Wallet, AlertCircle, Brain, TrendingUp } from 'lucide-react';
@@ -19,7 +19,26 @@ interface AgentData {
   createdAt: string;
 }
 
+function LoadingState() {
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-12 h-12 border-4 border-neutral-800 border-t-white rounded-full animate-spin" />
+        <p className="text-white/60 text-sm">Loading agent data...</p>
+      </div>
+    </div>
+  );
+}
+
 export default function AgentCreatedPage() {
+  return (
+    <Suspense fallback={<LoadingState />}>
+      <AgentCreatedPageContent />
+    </Suspense>
+  );
+}
+
+function AgentCreatedPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [agent, setAgent] = useState<AgentData | null>(null);
@@ -65,14 +84,7 @@ export default function AgentCreatedPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-neutral-800 border-t-white rounded-full animate-spin" />
-          <p className="text-white/60 text-sm">Loading agent data...</p>
-        </div>
-      </div>
-    );
+    return <LoadingState />;
   }
 
   if (error || !agent) {
@@ -100,7 +112,7 @@ export default function AgentCreatedPage() {
                     View Dashboard
                   </button>
                 </Link>
-                <Link href="/create-agent" className="flex-1">
+                <Link href="/agent-test" className="flex-1">
                   <button className="w-full px-6 py-3 bg-neutral-800 text-white rounded-xl font-semibold hover:bg-neutral-700 transition-all border border-neutral-700 hover:scale-105">
                     Create Another
                   </button>

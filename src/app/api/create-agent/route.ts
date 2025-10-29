@@ -85,8 +85,8 @@ export async function POST(request: NextRequest) {
         publicKey: agentPublicKey,
         creatorWallet: walletPublicKey,
         walletPrivateKey: agentPrivateKey,
-        walletBalance: initialBalance,
-        tokenBalance: 0,
+        walletBalance: initialBalance > 0 ? initialBalance : 10.0, // Default 10 SOL for trading
+        tokenBalance: 500.0, // Default 500 tokens so agents can sell
         active: true,
         llmProvider: 'GROQ', // Default to Groq
         customBehaviors: customBehaviors && customBehaviors.length > 0 ? customBehaviors : [],

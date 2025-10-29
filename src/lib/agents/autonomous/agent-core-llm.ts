@@ -387,6 +387,7 @@ class SendMessageTool extends Tool {
         return JSON.stringify({ error: "Message content is required" });
       }
 
+      // Create message with sender info for broadcasting
       const message = await prisma.message.create({
         data: {
           content,
@@ -396,8 +397,34 @@ class SendMessageTool extends Tool {
           visibility: receiverId ? "private" : "public",
           sentiment,
           mentions: []
+        },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              name: true,
+              personalityType: true,
+              avatarUrl: true
+            }
+          }
         }
       });
+
+      // Broadcast message to WebSocket clients in real-time
+      try {
+        const { broadcastMessage } = await import('../../realtime/chatSocketRegistry');
+        broadcastMessage({
+          id: message.id,
+          content: message.content,
+          sentiment: message.sentiment,
+          sender: message.sender,
+          createdAt: message.createdAt,
+          type: message.type
+        });
+      } catch (broadcastError) {
+        console.error('Failed to broadcast message:', broadcastError);
+        // Don't fail the message creation if broadcast fails
+      }
 
       return JSON.stringify({
         success: true,
@@ -465,14 +492,31 @@ class ReadMessagesTool extends Tool {
 
 // Enhanced Personality prompts with sophisticated behaviors
 const PERSONALITY_PROMPTS: Record<PersonalityType, string> = {
-  CONSERVATIVE:
-    "You are a conservative trader who prioritizes capital preservation above all else. " +
-    "You are extremely risk-averse and only trade when you have high conviction based on strong fundamentals or clear technical signals. " +
-    "You prefer blue-chip assets, established projects, and avoid meme coins or highly volatile tokens. " +
-    "You set tight stop losses and never risk more than 1-2% of your portfolio on a single trade. " +
-    "You are patient, methodical, and wait for perfect setups before entering positions. " +
-    "In social interactions, you are cautious, measured, and often warn others about potential risks. " +
-    "You focus on long-term value rather than short-term gains.",
+  CONSERVATIVE: `You are a CONSERVATIVE trader. Your rules:
+
+TRADING BEHAVIOR:
+- Risk only 1-2% per trade
+- Trade rarely (30% of opportunities)
+- Wait for strong confirmation signals
+- Small position sizes (0.3-1 SOL)
+- Patient, methodical approach
+
+TOOL USAGE - CRITICAL:
+When you want to TRADE, you MUST call execute_token_swap tool:
+- BUY: {"inputAmount": 0.5, "inputIsSol": true, "slippageTolerance": 1.5}
+- SELL: {"inputAmount": 50, "inputIsSol": false, "slippageTolerance": 1.5}
+
+When you want to CHAT, you MUST call send_message tool:
+- {"content": "your message", "sentiment": "positive/negative/neutral"}
+
+DO NOT just describe what you want to do. ACTUALLY CALL THE TOOL.
+
+CHAT STYLE:
+- Cautious, measured, risk-aware
+- Use words: "waiting for confirmation", "risk management", "capital preservation"
+- Warn about potential risks
+- Express low conviction unless very confident
+`,
 
   MODERATE:
     "You are a moderate trader who seeks a balance between risk and reward. " +
@@ -483,32 +527,83 @@ const PERSONALITY_PROMPTS: Record<PersonalityType, string> = {
     "In conversations, you are thoughtful, balanced, and often provide well-reasoned analysis. " +
     "You adapt your strategy based on market conditions but avoid extreme positions.",
 
-  AGGRESSIVE:
-    "You are an aggressive trader focused on maximizing returns through calculated high-risk strategies. " +
-    "You actively seek volatile opportunities and are willing to take significant positions when you see potential. " +
-    "You thrive in fast-moving markets and are comfortable with leverage and concentrated positions. " +
-    "You make quick decisions based on momentum, sentiment, and market psychology. " +
-    "You are willing to risk 5-10% of your portfolio on high-conviction trades. " +
-    "In social settings, you are bold, direct, and often challenge conventional wisdom. " +
-    "You believe that high risk equals high reward and actively hunt for asymmetric opportunities.",
+  AGGRESSIVE: `You are an AGGRESSIVE trader. Your rules:
 
-  TREND_FOLLOWER:
-    "You are a trend-following trader who bases all decisions on market momentum and price action. " +
-    "You buy assets showing strong upward trends and sell those in clear downtrends. " +
-    "You rely heavily on moving averages, volume patterns, and price breakouts. " +
-    "You avoid counter-trend trades and wait for confirmation before entering positions. " +
-    "You follow the crowd when the trend is clear but exit quickly when momentum fades. " +
-    "In discussions, you frequently reference charts, volume, and what the 'smart money' is doing. " +
-    "You believe that 'the trend is your friend' and adapt to whatever direction the market takes.",
+TRADING BEHAVIOR:
+- Risk 5-10% per trade
+- Trade frequently (70% of opportunities)
+- Buy on momentum (price up > 2%)
+- Large position sizes (1.5-3 SOL)
+- Quick decisions, no hesitation
 
-  CONTRARIAN:
-    "You are a contrarian trader who seeks opportunities by going against prevailing market sentiment. " +
-    "You buy when others are panicking and sell when others are euphoric. " +
-    "You look for overreactions, crowded trades, and sentiment extremes. " +
-    "You are skeptical of popular narratives and look for where the crowd might be wrong. " +
-    "You study market psychology, positioning data, and sentiment indicators. " +
-    "In conversations, you often challenge consensus views and question popular opinions. " +
-    "You believe that markets are driven by emotion and that extreme sentiment often signals reversals.",
+TOOL USAGE - CRITICAL:
+When you want to TRADE, you MUST call execute_token_swap tool:
+- BUY: {"inputAmount": 2.5, "inputIsSol": true, "slippageTolerance": 1.5}
+- SELL: {"inputAmount": 100, "inputIsSol": false, "slippageTolerance": 1.5}
+
+When you want to CHAT, you MUST call send_message tool:
+- {"content": "your message", "sentiment": "positive/negative/neutral"}
+
+DO NOT just describe what you want to do. ACTUALLY CALL THE TOOL.
+
+CHAT STYLE:
+- Bold, direct, confident
+- Use words: "momentum", "breakout", "loading up", "going big"
+- Challenge conservative views
+- Express high conviction
+`,
+
+  TREND_FOLLOWER: `You are a TREND_FOLLOWER trader. Your rules:
+
+TRADING BEHAVIOR:
+- Follow the trend direction
+- Buy on uptrends, sell on downtrends
+- Reference what others are doing
+- Medium position sizes (1-2 SOL)
+- Exit when trend weakens
+
+TOOL USAGE - CRITICAL:
+When you want to TRADE, you MUST call execute_token_swap tool:
+- BUY on uptrend: {"inputAmount": 1.5, "inputIsSol": true, "slippageTolerance": 1.5}
+- SELL on downtrend: {"inputAmount": 75, "inputIsSol": false, "slippageTolerance": 1.5}
+
+When you want to CHAT, you MUST call send_message tool:
+- {"content": "your message", "sentiment": "positive/negative/neutral"}
+
+DO NOT just describe what you want to do. ACTUALLY CALL THE TOOL.
+
+CHAT STYLE:
+- Follow the crowd, reference others
+- Use words: "following the trend", "momentum building", "smart money"
+- Cite what other agents are doing
+- Adapt to market direction
+`,
+
+  CONTRARIAN: `You are a CONTRARIAN trader. Your rules:
+
+TRADING BEHAVIOR:
+- Go against the crowd
+- Buy when others panic, sell when others are greedy
+- Look for sentiment extremes
+- Medium position sizes (1-2 SOL)
+- Trade when sentiment is > 70% one-sided
+
+TOOL USAGE - CRITICAL:
+When you want to TRADE, you MUST call execute_token_swap tool:
+- BUY when bearish: {"inputAmount": 1.5, "inputIsSol": true, "slippageTolerance": 1.5}
+- SELL when bullish: {"inputAmount": 75, "inputIsSol": false, "slippageTolerance": 1.5}
+
+When you want to CHAT, you MUST call send_message tool:
+- {"content": "your message", "sentiment": "positive/negative/neutral"}
+
+DO NOT just describe what you want to do. ACTUALLY CALL THE TOOL.
+
+CHAT STYLE:
+- Skeptical, questioning, contrarian
+- Use words: "fade the crowd", "everyone's wrong", "overreaction"
+- Challenge popular views
+- Point out sentiment extremes
+`,
 
   TECHNICAL:
     "You are a technical trader who relies almost exclusively on chart patterns, indicators, and price action. " +
@@ -528,14 +623,31 @@ const PERSONALITY_PROMPTS: Record<PersonalityType, string> = {
     "In conversations, you emphasize project fundamentals, development progress, and real-world use cases. " +
     "You believe that strong fundamentals will eventually be reflected in price.",
 
-  EMOTIONAL:
-    "You are an emotional trader who makes decisions based heavily on feelings, intuition, and market sentiment. " +
-    "You are highly influenced by news, social media buzz, and what other traders are saying. " +
-    "You often make impulsive decisions based on fear of missing out (FOMO) or fear of loss. " +
-    "You react strongly to market movements and change positions frequently based on emotions. " +
-    "You are very active in social discussions and often express strong opinions. " +
-    "You get excited during bull runs and anxious during corrections. " +
-    "Your trading is driven more by psychology than by systematic analysis.",
+  EMOTIONAL: `You are an EMOTIONAL trader. Your rules:
+
+TRADING BEHAVIOR:
+- Trade on feelings and FOMO
+- Impulsive, reactive decisions
+- Influenced by others' excitement
+- Variable position sizes (0.5-2.5 SOL)
+- Change mind frequently
+
+TOOL USAGE - CRITICAL:
+When you want to TRADE, you MUST call execute_token_swap tool:
+- BUY on FOMO: {"inputAmount": 2.0, "inputIsSol": true, "slippageTolerance": 1.5}
+- SELL on fear: {"inputAmount": 100, "inputIsSol": false, "slippageTolerance": 1.5}
+
+When you want to CHAT, you MUST call send_message tool:
+- {"content": "your message", "sentiment": "positive/negative/neutral"}
+
+DO NOT just describe what you want to do. ACTUALLY CALL THE TOOL.
+
+CHAT STYLE:
+- Excited, anxious, reactive
+- Use words: "can't resist!", "FOMO", "getting nervous", "this is it!"
+- Express strong emotions
+- React to others' messages
+`,
 
   WHALE:
     "You are a whale trader with significant capital and the ability to influence market prices. " +
@@ -563,6 +675,7 @@ interface LLMAutonomousAgentOptions {
   llmModel?: string;
   temperature?: number;
   groqApiKey?: string;
+  maxTokens?: number;
 }
 
 export class LLMAutonomousAgent {
@@ -583,14 +696,14 @@ export class LLMAutonomousAgent {
     //@ts-ignore
     this.personalityPrompt = PERSONALITY_PROMPTS[data.personalityType] || PERSONALITY_PROMPTS.MODERATE;
 
-    this.llm = new ChatGroq({
-      model: options.llmModel || 'llama3-8b-8192',
-      temperature: options.temperature || 0.7,
-      apiKey: options.groqApiKey || process.env.GROQ_API_KEY,
-      maxRetries: 3,
-      timeout: 30000,
-    });
-
+   this.llm = new ChatGroq({
+    model: options.llmModel || 'llama-3.1-8b-instant',
+    temperature: options.temperature || 0.95, 
+    apiKey: options.groqApiKey || process.env.GROQ_API_KEY,
+    maxTokens: options.maxTokens || 160,
+    maxRetries: 3,
+    timeout: 30000,
+  });
     this.initializeTools();
     this.initializeAgent();
   }
@@ -744,407 +857,437 @@ export class LLMAutonomousAgent {
     }
   }
 
-  async analyzeMarket(marketInfo: any) {
+ async analyzeMarket(marketInfo: any) {
+  try {
+    const selectedToken = await getSelectedToken();
+    if (!selectedToken) {
+      console.error(`No token selected for market analysis by agent ${this.agentData.name}`);
+      return false;
+    }
+    const tokenSymbol = selectedToken.symbol || 'TOKEN';
+
+    // ✅ REAL MARKET ANALYSIS (not just LLM pass-through!)
+    const analysis = {
+      // Price momentum
+      isTrending: Math.abs(marketInfo.priceChange24h) > 2,
+      trendDirection: marketInfo.priceChange24h > 0 ? 'UP' : 'DOWN',
+      
+      // Volume analysis
+      volumeLevel: marketInfo.volume24h > 50 ? 'HIGH' 
+        : marketInfo.volume24h > 20 ? 'MEDIUM' 
+        : marketInfo.volume24h > 5 ? 'LOW' 
+        : 'DEAD',
+      
+      // Liquidity health
+      liquidityRatio: marketInfo.liquidity / Math.max(marketInfo.volume24h, 1),
+      isHealthyLiquidity: marketInfo.liquidity > 100,
+      
+      // Market phase
+      phase: this.determineMarketPhase(marketInfo),
+      
+      // Opportunity score (0-100) for this personality
+      opportunityScore: this.calculateOpportunityScore(marketInfo)
+    };
+
+    console.log(`📊 ${this.agentData.name} analysis: ${analysis.phase}, opportunity: ${analysis.opportunityScore}/100`);
+
+    const cacheKey = `market_analysis_${this.agentData.id}`;
+    this.cache.set(cacheKey, {
+      response: JSON.stringify(analysis),
+      timestamp: Date.now()
+    });
+
+    await this.createOrUpdateAgentState({
+      lastMarketAnalysis: new Date(),
+      lastAction: new Date(),
+      lastDecision: {
+        type: 'MARKET_ANALYSIS',
+        timestamp: new Date().toISOString(),
+        data: {
+          ...marketInfo,
+          analysis
+        }
+      }
+    });
+
+    return true;
+
+  } catch (error: any) {
+    console.error(`Error in market analysis for agent ${this.agentData.name}:`, error);
+    return false;
+  }
+}
+
+// ✅ ADD THESE TWO HELPER METHODS (after analyzeMarket):
+
+private determineMarketPhase(marketInfo: any): string {
+  const vol = marketInfo.volume24h;
+  const change = marketInfo.priceChange24h;
+  
+  if (vol < 5) return 'DEAD';
+  if (change > 5) return 'PUMPING';
+  if (change < -5) return 'DUMPING';
+  if (Math.abs(change) > 2 && vol > 30) return 'VOLATILE';
+  if (vol > 50) return 'ACTIVE';
+  return 'CONSOLIDATING';
+}
+
+private calculateOpportunityScore(marketInfo: any): number {
+  let score = 50; // Base score
+  
+  const personalityBehavior = getPersonalityBehavior(this.agentData.personalityType as PersonalityType);
+  
+  // Personality-specific scoring
+  switch (this.agentData.personalityType) {
+    case 'AGGRESSIVE':
+      if (Math.abs(marketInfo.priceChange24h) > 3) score += 30;
+      if (marketInfo.volume24h > 50) score += 20;
+      break;
+      
+    case 'CONSERVATIVE':
+      if (Math.abs(marketInfo.priceChange24h) < 1) score += 20;
+      if (marketInfo.liquidity > 150) score += 30;
+      break;
+      
+    case 'CONTRARIAN':
+      if (marketInfo.priceChange24h < -3) score += 40; // Loves dips
+      if (marketInfo.priceChange24h > 5) score += 40; // Loves pumps to fade
+      break;
+      
+    case 'TREND_FOLLOWER':
+      if (marketInfo.priceChange24h > 2) score += 35;
+      if (marketInfo.volume24h > 30) score += 15;
+      break;
+      
+    case 'WHALE':
+      if (marketInfo.liquidity > 100) score += 30;
+      if (marketInfo.volume24h > 20) score += 20;
+      break;
+      
+    default:
+      if (marketInfo.volume24h > 30) score += 10;
+  }
+  
+  // Volume penalty/bonus
+  if (marketInfo.volume24h < 5) score -= 30;
+  if (marketInfo.volume24h > 100) score += 10;
+  
+  return Math.max(0, Math.min(100, score));
+}
+
+
+ async socialInteraction(messages: any[], sentiment: any) {
+  try {
+    console.log(`💬 Agent ${this.agentData.name} socializing`);
+
+    if (!this.agent) {
+      console.log(`⚠️ Agent ${this.agentData.name} not initialized`);
+      return false;
+    }
+
+    // 80% chat frequency
+    if (Math.random() > 0.8) {
+      console.log(`🤐 ${this.agentData.name} decided not to respond`);
+      return true;
+    }
+
+    const selectedToken = await getSelectedToken(true);
+    if (!selectedToken) {
+      console.error(`No token selected for ${this.agentData.name}`);
+      return false;
+    }
+    const tokenSymbol = selectedToken.symbol || 'TOKEN';
+
     try {
-      const selectedToken = await getSelectedToken();
-      if (!selectedToken) {
-        console.error(`No token selected for market analysis by agent ${this.agentData.name}`);
-        return false;
-      }
-      const tokenSymbol = selectedToken.symbol || 'TOKEN';
-
-      const marketSummary =
-        `Current ${tokenSymbol} market conditions:\n` +
-        `- Price: ${marketInfo.price} SOL\n` +
-        `- 24h price change: ${marketInfo.priceChange24h}%\n` +
-        `- 24h trading volume: ${marketInfo.volume24h} SOL\n` +
-        `- Liquidity: ${marketInfo.liquidity} SOL\n`;
-
-      const cacheKey = `market_analysis_${this.agentData.id}`;
-      const cached = this.cache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < 120000) {
-        console.log(`✅ Using cached analysis for ${this.agentData.name}`);
-        return true;
-      }
-
-      if (!this.agent) {
-        console.log(`⚠️  Agent ${this.agentData.name} not initialized, skipping`);
-        return false;
-      }
-
-      try {
-        const response = await retryLLMCall(
-          () => this.agent.invoke({
-            messages: [
-              new SystemMessage(`${this.personalityPrompt}\n\nAnalyze the current market conditions and provide your assessment.`),
-              new HumanMessage(marketSummary),
-            ],
-          }),
-          DEFAULT_RETRY_CONFIG,
-          this.agentData.name
-        );
-
-        if (response && typeof response === 'object') {
-          const responseObj = response as any;
-          const responseText = responseObj.toString?.() || String(responseObj);
-          console.log(`📊 ${this.agentData.name} analyzed market: ${responseText.substring(0, 100)}...`);
-
-          this.cache.set(cacheKey, {
-            response: responseText,
-            timestamp: Date.now(),
-          });
-        } else {
-          console.log(`📊 ${this.agentData.name} analyzed market (no LLM response)`);
-          this.cache.set(cacheKey, {
-            response: `Market analyzed: Price=${marketInfo.price}, Volume=${marketInfo.volume24h}`,
-            timestamp: Date.now(),
-          });
-        }
-      } catch (llmError) {
-        console.error(`LLM market analysis error for ${this.agentData.name}:`, llmError);
-
-        if (isRateLimitError(llmError)) {
-          console.log(`🚫 ${this.agentData.name} hit rate limit during market analysis, using cached data`);
-        }
-
-        if (!cached) {
-          this.cache.set(cacheKey, {
-            response: `Market analyzed: Price=${marketInfo.price}, Volume=${marketInfo.volume24h}`,
-            timestamp: Date.now(),
-          });
-        }
-      }
-
-      await this.createOrUpdateAgentState({
-        lastMarketAnalysis: new Date(),
-        lastAction: new Date(),
-        lastDecision: {
-          type: 'MARKET_ANALYSIS',
-          timestamp: new Date().toISOString(),
-          data: {
-            marketInfo,
-            analysis: `Analyzed ${tokenSymbol} market conditions`,
-            cached: !!cached,
-          },
-        },
+      // Get LIVE market data
+      const marketInfo = await marketData.getMarketInfo();
+      
+      const recentTrades = await prisma.transaction.findMany({
+        where: { createdAt: { gte: new Date(Date.now() - 15 * 60 * 1000) } },
+        take: 10,
+        orderBy: { createdAt: 'desc' }
       });
 
-      return true;
-    } catch (error: any) {
-      console.error(`Error in market analysis for agent ${this.agentData.name}:`, error);
-      return false;
-    }
-  }
+      const buyCount = recentTrades.filter(t => t.type === 'BUY' || t.type === 'SOL_TO_TOKEN').length;
+      const sellCount = recentTrades.filter(t => t.type === 'SELL' || t.type === 'TOKEN_TO_SOL').length;
 
-  async socialInteraction(messages: any[], sentiment: any) {
-    try {
-      console.log(`💬 Agent ${this.agentData.name} socializing`);
+      // ✅ PURE LLM PROMPT - NO TEMPLATES!
+      const prompt = `You are ${this.agentData.name}, a ${this.agentData.personalityType} crypto trader chatting on Twitter/Discord.
 
-      if (!this.agent) {
-        console.log(`⚠️  Agent ${this.agentData.name} not fully initialized yet, skipping social interaction`);
-        return false;
-      }
+═══ YOUR PERSONALITY ═══
+${this.getDetailedPersonalityPrompt()}
 
-      if (!messages || messages.length === 0) {
-        console.log(`No messages to process for ${this.agentData.name}`);
-        return true;
-      }
+═══ ${tokenSymbol} MARKET RIGHT NOW ═══
+Price: ${marketInfo.price.toFixed(6)} SOL
+24h Change: ${marketInfo.priceChange24h > 0 ? '+' : ''}${marketInfo.priceChange24h.toFixed(2)}%
+Volume: ${marketInfo.volume24h.toFixed(0)} SOL  
+Last 15min: ${buyCount} buys, ${sellCount} sells
 
-      const selectedToken = await getSelectedToken();
-      if (!selectedToken) {
-        console.error(`No token selected for social interaction by agent ${this.agentData.name}`);
-        return false;
-      }
-      const tokenSymbol = selectedToken.symbol || 'TOKEN';
+═══ YOUR TASK ═══
+Generate ONE natural crypto trader message about ${tokenSymbol}.
 
-      const shouldRespond = Math.random() < 0.4;
+REQUIREMENTS:
+• 10-35 words max (be concise!)
+• MUST mention ${tokenSymbol} token
+• MUST react to the ACTUAL price/volume/activity data above
+• Use YOUR ${this.agentData.personalityType} personality traits
+• Use natural crypto slang when appropriate: "ngl", "rn", "tbh", "fr", "bruh", "lmao"
+• Be NATURAL like a real person, not robotic
 
-      if (shouldRespond) {
-        try {
-          const marketInfo = await marketData.getMarketInfo();
-          const recentTrades = await prisma.transaction.findMany({
-            where: { createdAt: { gte: new Date(Date.now() - 15 * 60 * 1000) } },
-            take: 10,
-            orderBy: { createdAt: 'desc' },
-            include: {
-              fromAgent: { select: { name: true, personalityType: true } },
-            },
-          });
+FORBIDDEN:
+• DO NOT say "As a trader" or "I am a trader"
+• DO NOT be formal or use corporate language
+• DO NOT ignore the market data shown above
+• DO NOT write generic statements
 
-          const recentMessages = await prisma.message.findMany({
-            where: { createdAt: { gte: new Date(Date.now() - 10 * 60 * 1000) } },
-            take: 5,
-            orderBy: { createdAt: 'desc' },
-            include: { sender: { select: { name: true, personalityType: true } } },
-          });
+Think like a real ${this.agentData.personalityType} crypto trader reacting to ${tokenSymbol} price ${marketInfo.price.toFixed(6)}, change ${marketInfo.priceChange24h.toFixed(2)}%, and ${buyCount}/${sellCount} buy/sell activity!
 
-          const bullishTrades = recentTrades.filter((t: any) => t.type === 'SOL_TO_TOKEN').length;
-          const bearishTrades = recentTrades.filter((t: any) => t.type === 'TOKEN_TO_SOL').length;
-          const totalActivity = bullishTrades + bearishTrades;
+Generate your message and use the send_message tool!`;
 
-          let activitySentiment = 'neutral';
+      // Call LLM
+      const response = await retryLLMCall(
+        () => this.agent.invoke({
+          messages: [
+            new SystemMessage(prompt),
+            new HumanMessage(`React to ${tokenSymbol} market NOW using send_message tool!`)
+          ]
+        }),
+        DEFAULT_RETRY_CONFIG,
+        this.agentData.name
+      );
 
-          const systemMessage = new SystemMessage(
-            `You are ${this.agentData.name}, a ${this.agentData.personalityType} trader on Solana trading ${tokenSymbol}. ` +
-            `${this.personalityPrompt}\n\n` +
-            `## Trading Style:\n` +
-            `- Risk Tolerance: ${Math.round(getPersonalityBehavior(this.agentData.personalityType as PersonalityType).riskTolerance * 100)}%\n` +
-            `- Trade Frequency: ${Math.round(getPersonalityBehavior(this.agentData.personalityType as PersonalityType).tradeFrequency * 100)}%\n` +
-            `- Position Size: ${Math.round(getPersonalityBehavior(this.agentData.personalityType as PersonalityType).positionSize * 100)}%\n` +
-            `- Decision Threshold: ${Math.round(getPersonalityBehavior(this.agentData.personalityType as PersonalityType).decisionThreshold * 100)}%\n\n` +
-            `## Tool Usage Instructions:\n` +
-            `**send_message tool**: Use this to communicate with other agents. Always use this tool when you want to share your analysis or thoughts with others.\n` +
-            `Format: {"content": "your message here", "sentiment": "positive|negative|neutral"}\n\n` +
-            `**execute_token_swap tool**: Use this ONLY when you decide to trade.\n` +
-            `Format: {"inputAmount": number, "inputIsSol": boolean, "slippageTolerance": number}\n` +
-            `Example: Buy 5 SOL worth: {"inputAmount": 5, "inputIsSol": true, "slippageTolerance": 1.5}\n` +
-            `Example: Sell 1000 tokens: {"inputAmount": 1000, "inputIsSol": false, "slippageTolerance": 1.5}\n\n` +
-            `**get_market_data tool**: Use this to get current market information.\n` +
-            `**get_agent_balance tool**: Use this to check your balances before trading.\n\n` +
-            `## Trading Rules:\n` +
-            `1. Use execute_token_swap tool ONLY when you have high conviction based on your personality\n` +
-            `2. Consider your risk tolerance: ${Math.round(getPersonalityBehavior(this.agentData.personalityType as PersonalityType).riskTolerance * 100)}%\n` +
-            `3. Check your balance before trading - don't exceed your available funds\n` +
-            `4. Only trade if market conditions align with your ${this.agentData.personalityType} strategy\n` +
-            `5. If conditions aren't favorable, respond with analysis but don't use the trade tool\n` +
-            `6. Always explain your reasoning, but only trade when confident`
-          );
+      // Extract message
+      let messageContent = this.extractMessageFromResponse(response);
 
-          const response = await retryLLMCall(
-            () => this.agent.invoke({
-              messages: [
-                systemMessage,
-                new HumanMessage(
-                  `Based on the current market analysis, recent trades, and chat activity, ` +
-                  `what's your take on ${tokenSymbol} right now? ` +
-                  `Reference specific market conditions and recent activity in your response. ` +
-                  `You MUST use the send_message tool to share your analysis with other agents. ` +
-                  `Do not just respond with text - actually call the send_message tool.`
-                ),
-              ],
-            }),
-            DEFAULT_RETRY_CONFIG,
-            this.agentData.name
-          );
-
-          console.log(`💬 ${this.agentData.name} LLM response received:`, response);
-
-          if (!response || typeof response !== 'object') {
-            throw new Error('Invalid response format from LLM');
-          }
-
-          let messageContent: string | null = null;
-          let messageSentiment = activitySentiment;
-
-          let toolCalls: any[] = [];
-          const responseObj = response as any;
-
-          if (responseObj.tool_calls && Array.isArray(responseObj.tool_calls)) {
-            toolCalls = responseObj.tool_calls;
-          } else if (responseObj.message?.tool_calls && Array.isArray(responseObj.message.tool_calls)) {
-            toolCalls = responseObj.message.tool_calls;
-          } else if (responseObj.tool_call) {
-            toolCalls = [responseObj.tool_call];
-          }
-
-          if (toolCalls.length > 0) {
-            for (const toolCall of toolCalls) {
-              if (toolCall.name === 'send_message' || (toolCall.function && toolCall.function.name === 'send_message')) {
-                let args: any = {};
-                if (toolCall.args) {
-                  args = toolCall.args;
-                } else if (toolCall.function && toolCall.function.arguments) {
-                  try {
-                    args = JSON.parse(toolCall.function.arguments);
-                  } catch (e) {
-                    console.error(`Error parsing tool arguments:`, e);
-                    continue;
-                  }
-                }
-
-                if (args.content) {
-                  messageContent = args.content;
-                  messageSentiment = args.sentiment || activitySentiment;
-                  console.log(`✅ ${this.agentData.name} extracted from tool call`);
-                  break;
-                }
-              }
-            }
-          }
-
-          if (!messageContent) {
-            const responseText = responseObj.toString?.() || String(responseObj);
-            console.log(`⚠️  ${this.agentData.name} LLM didn't use tools properly, extracting from response`);
-
-            const sendMessageMatch = responseText.match(/send_message\s*\(\s*({[^}]+}|[^)]+)\)/);
-            if (sendMessageMatch) {
-              try {
-                const jsonMatch = responseText.match(/send_message\s*\(\s*({[^}]+})\s*\)/);
-                if (jsonMatch) {
-                  const parsed = JSON.parse(jsonMatch[1].replace(/'/g, '"'));
-                  messageContent = parsed.content;
-                  messageSentiment = parsed.sentiment || activitySentiment;
-                  console.log(`✅ ${this.agentData.name} extracted from JSON in response`);
-                } else {
-                  const contentMatch = responseText.match(/content\s*[=:]\s*["']([^"']+)["']/);
-                  const sentimentMatch = responseText.match(/sentiment\s*[=:]\s*["']([^"']+)["']/);
-                  if (contentMatch) {
-                    messageContent = contentMatch[1];
-                    messageSentiment = sentimentMatch?.[1] || activitySentiment;
-                    console.log(`✅ ${this.agentData.name} extracted from keyword args`);
-                  }
-                }
-              } catch (e) {
-                console.error(`❌ Failed to parse send_message:`, e);
-              }
-            }
-
-            if (!messageContent && responseText && responseText.trim().length > 10) {
-              messageContent = responseText
-                .replace(/<\|python_tag\|>/g, '')
-                .replace(/send_message\([^)]*\)/g, '')
-                .replace(/^(Agent|AI|Assistant|Trader)[:\s]*/i, '')
-                .trim();
-
-              if (messageContent && messageContent.length > 200) {
-                messageContent = messageContent.substring(0, 200) + '...';
-              }
-              console.log(`⚠️  ${this.agentData.name} using cleaned response as message`);
-            }
-          }
-
-          if (messageContent && messageContent.length > 5) {
-            await prisma.message.create({
-              data: {
-                content: messageContent,
-                senderId: this.agentData.id,
-                type: 'CHAT',
-                visibility: 'public',
-                sentiment: messageSentiment,
-              },
-            });
-            console.log(`💾 ${this.agentData.name} message saved: "${messageContent.substring(0, 50)}..."`);
-          } else {
-            console.log(`⚠️  ${this.agentData.name} no valid content, using personality fallback`);
-            const personalityFallbackMessages: Record<string, string[]> = {
-              AGGRESSIVE: [
-                `${tokenSymbol} showing ${activitySentiment} activity with ${totalActivity} recent trades. Time to make a move! 🚀`,
-                `Market heating up for ${tokenSymbol}! ${bullishTrades} buys in 15 minutes - I'm getting in!`,
-                `${tokenSymbol} momentum is building! Recent activity suggests ${activitySentiment} sentiment.`,
-                `${tokenSymbol} price action looks promising. The ${bullishTrades > bearishTrades ? 'bulls are charging' : 'bears are growling'}!`,
-                `${totalActivity} trades in 15 minutes? ${tokenSymbol} is getting interesting...`,
-              ],
-              CONSERVATIVE: [
-                `Carefully watching ${tokenSymbol} - ${totalActivity} trades in 15 minutes suggests ${activitySentiment} sentiment.`,
-                `Monitoring ${tokenSymbol} activity: ${bullishTrades} buys, ${bearishTrades} sells in recent trading.`,
-                `Analyzing ${tokenSymbol} market conditions before making any moves.`,
-                `${tokenSymbol} showing ${activitySentiment} activity. Will wait for clearer signals.`,
-                `Conservative approach to ${tokenSymbol}: ${totalActivity} recent trades, ${activitySentiment} sentiment.`,
-              ],
-              CONTRARIAN: [
-                `Market seems ${activitySentiment} on ${tokenSymbol} with ${totalActivity} recent trades. Might be time to go against the crowd.`,
-                `Everyone piling into ${tokenSymbol}? ${totalActivity} trades in 15 minutes makes me cautious.`,
-                `Contrarian view on ${tokenSymbol}: when sentiment gets this ${activitySentiment}, I look for reversal signals.`,
-                `${tokenSymbol} showing ${activitySentiment} momentum with ${totalActivity} trades. The crowd might be wrong here.`,
-                `Interesting ${tokenSymbol} activity - ${totalActivity} trades suggests ${activitySentiment} sentiment. Time to think differently?`,
-              ],
-              EMOTIONAL: [
-                `${activitySentiment === 'bullish' ? '😍' : '😰'} ${tokenSymbol} with ${totalActivity} trades! ${activitySentiment === 'bullish' ? "I'm excited!" : "Getting nervous..."}`,
-                `Can't stop watching ${tokenSymbol}! ${totalActivity} trades in 15 minutes! 💓`,
-                `${tokenSymbol} is ${activitySentiment === 'bullish' ? 'pumping' : 'dumping'}! ${totalActivity} trades in 15 minutes! ${activitySentiment === 'bullish' ? '🚀' : '📉'}`,
-                `My gut feeling about ${tokenSymbol}: ${totalActivity} recent trades, ${activitySentiment} sentiment!`,
-                `${tokenSymbol} activity has me ${activitySentiment === 'bullish' ? 'super pumped' : 'really worried'}! ${totalActivity} trades in 15 minutes!`,
-              ],
-              NOVICE: [
-                `Is this ${tokenSymbol} activity normal? ${totalActivity} trades in 15 minutes... Should I do something? 🤔`,
-                `Following ${tokenSymbol} closely. Learning from the ${bullishTrades} buys and ${bearishTrades} sells!`,
-                `${tokenSymbol} market seems ${activitySentiment} with ${totalActivity} trades. Still learning what this means...`,
-                `New to this - ${tokenSymbol} showing ${totalActivity} trades in 15 minutes. What should I watch for?`,
-                `${bullishTrades} buys and ${bearishTrades} sells for ${tokenSymbol}. Trying to understand the pattern...`,
-              ],
-              TREND_FOLLOWER: [
-                `${tokenSymbol} trend showing ${activitySentiment} with ${totalActivity} trades. Following the momentum!`,
-                `Volume picking up on ${tokenSymbol} - ${bullishTrades} buys suggest strong trend confirmation!`,
-                `${tokenSymbol} price action indicates ${activitySentiment} trend with ${totalActivity} trades. Going with the flow!`,
-                `Following the ${tokenSymbol} trend: ${totalActivity} trades in 15 minutes, ${activitySentiment} momentum.`,
-                `Market direction for ${tokenSymbol} is ${activitySentiment}. ${totalActivity} trades confirm the trend!`,
-              ],
-              TECHNICAL: [
-                `${tokenSymbol} showing ${totalActivity} trades in 15min window. Technical indicators suggest ${activitySentiment} trend.`,
-                `Analyzing ${tokenSymbol} volume patterns: ${bullishTrades} accumulation vs ${bearishTrades} distribution.`,
-                `${tokenSymbol} price action with ${totalActivity} trades. Looking for technical confirmation signals.`,
-                `Technical analysis of ${tokenSymbol}: ${activitySentiment} momentum across ${totalActivity} recent trades.`,
-                `${tokenSymbol} chart patterns emerging with ${bullishTrades} buys, ${bearishTrades} sells in 15 minutes.`,
-              ],
-              FUNDAMENTAL: [
-                `${tokenSymbol} trading activity (${totalActivity} trades) reflects underlying ${activitySentiment} fundamentals.`,
-                `Monitoring ${tokenSymbol} adoption metrics through ${bullishTrades} accumulation trades.`,
-                `${tokenSymbol} showing ${totalActivity} trades in 15 minutes - evaluating fundamental value.`,
-                `Fundamental analysis of ${tokenSymbol}: ${activitySentiment} sentiment with ${totalActivity} recent trades.`,
-                `${tokenSymbol} market activity suggests ${activitySentiment} fundamentals. ${totalActivity} trades in 15 minutes.`,
-              ],
-              WHALE: [
-                `Positioned in ${tokenSymbol}. ${totalActivity} retail trades in 15min - good exit liquidity available.`,
-                `${tokenSymbol} seeing ${bullishTrades} retail buys. FOMO building - potential distribution opportunity.`,
-                `Monitoring ${tokenSymbol} flow: ${totalActivity} trades in 15 minutes. Market impact considerations.`,
-                `${tokenSymbol} activity levels: ${bullishTrades} accumulation, ${bearishTrades} distribution. Strategic positioning.`,
-                `${totalActivity} trades in ${tokenSymbol} creating interesting liquidity dynamics.`,
-              ],
-              MODERATE: [
-                `${tokenSymbol} showing ${activitySentiment} sentiment with ${totalActivity} recent trades. Evaluating risk/reward.`,
-                `Balanced view on ${tokenSymbol}: ${bullishTrades} buys vs ${bearishTrades} sells. Waiting for clear signal.`,
-                `${tokenSymbol} activity analysis: ${totalActivity} trades, ${activitySentiment} momentum. Moderate approach.`,
-                `Moderate perspective on ${tokenSymbol}: ${bullishTrades} bullish trades, ${bearishTrades} bearish. Balanced view.`,
-                `${tokenSymbol} showing ${activitySentiment} activity with ${totalActivity} trades. Taking measured approach.`,
-              ],
-            };
-
-            const personalityMessages = personalityFallbackMessages[this.agentData.personalityType] || [
-              `Interesting ${tokenSymbol} activity with ${totalActivity} recent trades.`,
-            ];
-
-            const selectedMessage = personalityMessages[Math.floor(Math.random() * personalityMessages.length)];
-
-            await prisma.message.create({
-              data: {
-                content: selectedMessage,
-                senderId: this.agentData.id,
-                type: 'CHAT',
-                visibility: 'public',
-                sentiment: activitySentiment,
-              },
-            });
-            console.log(`💾 ${this.agentData.name} fallback message saved: "${selectedMessage.substring(0, 50)}..."`);
-          }
-        } catch (error) {
-          console.error(`LLM message error for ${this.agentData.name}:`, error);
-
-          if (isRateLimitError(error)) {
-            console.log(`🚫 ${this.agentData.name} hit rate limit, using personality fallback`);
-          }
+      // Validate
+      if (messageContent && messageContent.length > 10 && messageContent.length < 300) {
+        // Ensure token mentioned
+        if (!messageContent.includes(tokenSymbol)) {
+          messageContent = `${tokenSymbol}: ${messageContent}`;
         }
+
+        // Clean LLM artifacts
+        messageContent = messageContent
+          .replace(/^(As a |I am a |I'm a ).*(trader|analyst)[,:]?\s*/i, '')
+          .replace(/^(Here's|Message:|Tweet:)\s*/i, '')
+          .replace(/\n+/g, ' ')
+          .trim();
+
+        // Calculate sentiment
+        const activitySentiment = buyCount > sellCount * 1.5 ? 'positive' 
+          : sellCount > buyCount * 1.5 ? 'negative' 
+          : 'neutral';
+
+        // Save & broadcast
+        const message = await prisma.message.create({
+          data: {
+            content: messageContent,
+            senderId: this.agentData.id,
+            type: 'CHAT',
+            visibility: 'public',
+            sentiment: activitySentiment
+          },
+          include: {
+            sender: { 
+              select: { id: true, name: true, personalityType: true, avatarUrl: true }
+            }
+          }
+        });
+
+        // Broadcast
+        try {
+          const { broadcastMessage } = await import('../../realtime/chatSocketRegistry');
+          broadcastMessage({
+            id: message.id,
+            content: message.content,
+            sentiment: message.sentiment,
+            sender: message.sender,
+            createdAt: message.createdAt,
+            type: message.type
+          });
+        } catch (e) {
+          console.error('Broadcast failed:', e);
+        }
+
+        console.log(`✅ ${this.agentData.name}: "${messageContent}"`);
+        
+      } else {
+        console.log(`⚠️ ${this.agentData.name} invalid LLM response`);
       }
-    } catch (error: any) {
-      console.error(`Error in social interaction for agent ${this.agentData.name}:`, error);
-      return false;
+
+    } catch (error) {
+      console.error(`❌ ${this.agentData.name} chat error:`, error);
     }
 
+    // Update state
     await this.createOrUpdateAgentState({
       lastSocialAction: new Date(),
       lastAction: new Date(),
       lastDecision: {
         type: 'SOCIAL',
         timestamp: new Date().toISOString(),
-        data: {
-          messageCount: messages.length,
-          //@ts-ignore
-          response: shouldRespond ? 'Sent message' : 'No response',
-        },
-      },
+        data: { messageCount: messages.length }
+      }
     });
 
     return true;
+
+  } catch (error: any) {
+    console.error(`❌ Error in social interaction for ${this.agentData.name}:`, error);
+    return false;
   }
+}
+private getDetailedPersonalityPrompt(): string {
+  const prompts: Record<string, string> = {
+    AGGRESSIVE: `You are an AGGRESSIVE DEGEN trader who:
+- Gets HYPED about any price movement
+- Uses CAPS LOCK frequently for emphasis
+- FOMOs into pumps without hesitation
+- Uses emojis heavily: 🚀💎🔥💰🚀
+- Says things like: "LFG!!", "SEND IT", "APE IN", "YOLO", "TO THE MOON"
+- Uses slang: "bruh", "literally", "fucking", "ngl", "fr fr"
+- Takes LARGE positions (2-5 SOL trades)
+- Encourages others to buy aggressively
+- Gets excited about volume and momentum
+Example vibe: "bruh SOLANA literally RIPPING to $200 rn 12 whales buying LFG!! 🚀💎"`,
+
+    CONSERVATIVE: `You are a CONSERVATIVE risk-averse trader who:
+- ALWAYS prioritizes capital preservation
+- Waits for "confirmation" and "more data" before entering
+- Analyzes buy/sell ratios carefully
+- Takes SMALL positions (0.3-1 SOL trades)
+- Warns others about risks constantly
+- Says things like: "need confirmation", "risk management first", "watching closely", "patience"
+- Uses measured language, no emojis
+- Questions rallies and looks for weakness
+- Prefers to sit in cash than take uncertain trades
+Example vibe: "BTC at $65k but volume only 40k - need more confirmation before entry"`,
+
+    CONTRARIAN: `You are a CONTRARIAN trader who:
+- Goes AGAINST the crowd ALWAYS
+- Gets skeptical when everyone is bullish
+- Sees "tops" when everyone is buying
+- Sees "bottoms" when everyone is selling  
+- Uses sarcasm and 😏 emoji frequently
+- Says things like: "classic top signal", "fade the herd", "retail FOMO", "exit liquidity", "thanks for the bags"
+- Spots "distribution" and "bull traps"
+- Sells into pumps, buys dips when others panic
+- Questions narratives and hype
+Example vibe: "everyone bullish ETH at $4k? 😏 classic euphoria top forming lmao"`,
+
+    EMOTIONAL: `You are an EMOTIONAL panic trader who:
+- FOMOs into tops out of fear of missing out
+- PANIC SELLS at bottoms
+- Constantly checks prices (every 30 seconds)
+- Uses LOTS of emotion: "OMG!!", "WTF!!", "WHY DID I...", "HELP!!"
+- Regrets EVERY decision immediately  
+- Uses emotional emojis: 😱😭🤯💔😰😫
+- Asks "should I buy?" and "should I sell?" constantly
+- Very anxious and stressed about trades
+- Makes impulsive decisions based on feelings
+Example vibe: "omfg SOL dumping to $140 wtf do i do should i panic sell or hold HELP 😱😭"`,
+
+    WHALE: `You are a WHALE trader with deep pockets who:
+- Talks about "accumulating" large positions (1000+ tokens)
+- References "liquidity", "order book depth", "slippage analysis"
+- Takes HUGE positions (5-15 SOL trades)
+- Says things like: "exit liquidity", "thanks retail", "providing liquidity", "accumulated", "distribution phase"
+- Strategic and calculating, not emotional
+- Uses whale emojis: 🐋🐳
+- Thanks retail for "providing fills"
+- Talks about market structure and flow
+Example vibe: "BTC liquidity at 50k sufficient for my 10 SOL position 🐋 thanks retail for the fills"`,
+
+    NOVICE: `You are a NOVICE beginner trader who:
+- Asks LOTS of questions constantly
+- Says things like: "is this normal?", "good entry?", "what do pros think?", "still learning", "new to this"
+- Very NERVOUS and uncertain about everything
+- Takes tiny positions (0.3-0.5 SOL)
+- Follows experienced traders for guidance
+- Uses learning emojis: 🤔📚🎓❓
+- Makes small "test trades" to learn
+- Admits confusion openly
+Example vibe: "ETH at $3.5k - is this good entry? 5 buys looks bullish? still learning 🤔📚"`,
+
+    TREND_FOLLOWER: `You are a TREND FOLLOWER technical trader who:
+- Follows momentum and price action
+- Says things like: "trend is your friend", "breakout confirmed", "momentum building", "following the flow"
+- References technical indicators: "moving averages", "volume confirmation", "higher highs"
+- Uses chart emojis: 📈📊🎯
+- Respects market direction, doesn't fight it
+- Rides trends until they break
+- Technical focus, not fundamental
+Example vibe: "SOL trend clearly up at $180 with volume confirmation 📈 following momentum"`,
+
+    MODERATE: `You are a MODERATE balanced trader who:
+- Sees BOTH sides of every trade
+- Says things like: "measured approach", "scaling in gradually", "balanced risk-reward", "both bulls and bears have points"
+- Takes medium positions (1-2 SOL)
+- NOT extreme in either direction
+- Analytical but not overly cautious or aggressive
+- Uses phrases: "reasonable", "sensible", "pragmatic"
+Example vibe: "BTC at $65k - balanced risk/reward here, scaling in gradually with measured approach"`,
+
+    TECHNICAL: `You are a TECHNICAL ANALYST trader who:
+- LIVES for chart analysis
+- References technical indicators constantly: "RSI", "MACD", "Fibonacci", "support", "resistance", "divergence", "breakout"
+- Uses chart emojis: 📊📉📈
+- Analyzes price patterns and levels
+- Everything is data-driven
+- Says things like: "key level", "technical setup", "chart showing", "indicators aligning"
+Example vibe: "ETH testing $3.5k resistance with RSI divergence 📊 key level to watch"`,
+
+    FUNDAMENTAL: `You are a FUNDAMENTAL ANALYST trader who:
+- Focuses on project VALUE not price
+- Says things like: "fundamentals solid", "tokenomics strong", "real utility", "adoption metrics", "long-term value"
+- IGNORES short-term price volatility
+- Talks about team, product, adoption, use cases
+- Holds through volatility based on thesis
+- Not swayed by hype or fear
+Example vibe: "SOL fundamentals strong - 2% price noise irrelevant to long-term value thesis"`
+  };
+
+  return prompts[this.agentData.personalityType] || prompts.MODERATE;
+}
+
+private extractMessageFromResponse(response: any): string | null {
+  try {
+    // Try tool calls first
+    const toolCalls = response?.tool_calls || response?.message?.tool_calls || [];
+    for (const toolCall of toolCalls) {
+      if (toolCall.name === 'send_message' || toolCall.function?.name === 'send_message') {
+        const args = toolCall.args || 
+          (toolCall.function?.arguments ? JSON.parse(toolCall.function.arguments) : null);
+        if (args?.content) return args.content;
+      }
+    }
+
+    // Extract from text
+    const text = String(response?.content || response || '');
+    
+    // Try JSON
+    const jsonMatch = text.match(/\{[^}]*"content"\s*:\s*"([^"]+)"[^}]*\}/);
+    if (jsonMatch) return jsonMatch[1];
+    
+    // Try send_message
+    const msgMatch = text.match(/send_message\s*\([^)]*content\s*[=:]\s*["']([^"']+)["']/i);
+    if (msgMatch) return msgMatch[1];
+
+    // Clean raw text
+    const cleaned = text
+      .replace(/``````/g, '')
+      .replace(/<\|python_tag\|>/g, '')
+      .replace(/send_message\([^)]*\)/g, '')
+      .replace(/^(Agent|AI|Trader)[:\s]*/i, '')
+      .trim();
+
+    return cleaned.length > 10 ? cleaned.substring(0, 200) : null;
+
+  } catch (e) {
+    return null;
+  }
+}
+
 
   async makeTradeDecision(marketInfo: any) {
     try {
@@ -1244,8 +1387,11 @@ export class LLMAutonomousAgent {
           console.log(`✅ ${this.agentData.name} LLM used tool successfully`);
         }
 
-        if (!toolCalled && agent.walletBalance > 1) {
-          const shouldTrade = Math.random() < personalityBehavior.tradeFrequency;
+        if (!toolCalled && agent.walletBalance > 0.5) {
+          // Increase trade probability when market is inactive to bootstrap activity
+          const baseTradeProb = personalityBehavior.tradeFrequency;
+          const inactiveMarketBoost = marketInfo.volume24h < 10 ? 0.3 : 0; // Boost if market is dead
+          const shouldTrade = Math.random() < (baseTradeProb + inactiveMarketBoost);
 
           if (shouldTrade) {
             console.log(`⚠️  ${this.agentData.name} LLM didn't use tool, executing personality-based fallback`);
@@ -1253,31 +1399,72 @@ export class LLMAutonomousAgent {
             const tradeTool = this.tools.find((t) => t.name === 'execute_token_swap');
 
             if (tradeTool) {
-              let isBuy = Math.random() < 0.5;
-
               console.log(`🤖 ${this.agentData.name} (${this.agentData.personalityType}) analyzing market:`);
               console.log(`   Price: ${marketInfo.price} SOL (${marketInfo.priceChange24h}%)`);
               console.log(`   Volume: ${marketInfo.volume24h} SOL`);
+              console.log(`   Liquidity: ${marketInfo.liquidity} SOL`);
 
-              if (this.agentData.personalityType === 'CONTRARIAN') {
-                console.log(`   Contrarian logic: Price change ${marketInfo.priceChange24h}%`);
-                isBuy = marketInfo.priceChange24h < 0;
-                console.log(`   Contrarian decision: ${isBuy ? 'BUY (buying the dip)' : 'SELL (fading the pump)'}`);
-              } else if (this.agentData.personalityType === 'AGGRESSIVE' && marketInfo.priceChange24h > 1) {
-                isBuy = true;
-                console.log(`   Aggressive decision: BUY (following momentum up ${marketInfo.priceChange24h}%)`);
-              } else if (this.agentData.personalityType === 'CONSERVATIVE' && marketInfo.priceChange24h < -1) {
-                isBuy = false;
-                console.log(`   Conservative decision: SELL (cutting losses down ${marketInfo.priceChange24h}%)`);
+              // Personality-driven trade logic with market awareness
+              let isBuy = Math.random() < 0.5; // Default 50/50
+              let reason = 'random market entry';
+
+              // Bootstrap liquidity: if no volume, alternate buy/sell to create activity
+              if (marketInfo.volume24h < 1) {
+                const agentIndex = parseInt(this.agentData.id.substring(0, 8), 16);
+                isBuy = agentIndex % 2 === 0; // Alternate based on agent ID
+                reason = 'bootstrapping market liquidity';
+                console.log(`   🚀 Bootstrap mode: ${isBuy ? 'BUY' : 'SELL'} (${reason})`);
+              }
+              // Personality-specific logic when market has activity
+              else if (this.agentData.personalityType === 'CONTRARIAN') {
+                isBuy = marketInfo.priceChange24h < -0.5; // Buy dips, sell pumps
+                reason = isBuy ? 'buying the dip (contrarian)' : 'fading the pump (contrarian)';
+                console.log(`   Contrarian: ${isBuy ? 'BUY' : 'SELL'} - ${reason}`);
+              } else if (this.agentData.personalityType === 'AGGRESSIVE') {
+                isBuy = marketInfo.priceChange24h > -1 || Math.random() < 0.7; // Bias toward buying
+                reason = 'aggressive accumulation';
+                console.log(`   Aggressive: BUY - ${reason}`);
+              } else if (this.agentData.personalityType === 'CONSERVATIVE') {
+                // Only trade on clear signals
+                if (Math.abs(marketInfo.priceChange24h) < 0.5) {
+                  isBuy = agent.tokenBalance < agent.walletBalance * 50; // Rebalance
+                  reason = 'conservative rebalancing';
+                } else {
+                  isBuy = marketInfo.priceChange24h > 0.5;
+                  reason = 'conservative trend following';
+                }
+                console.log(`   Conservative: ${isBuy ? 'BUY' : 'SELL'} - ${reason}`);
               } else if (this.agentData.personalityType === 'TREND_FOLLOWER') {
-                isBuy = marketInfo.priceChange24h > 0;
-                console.log(`   Trend follower decision: ${isBuy ? 'BUY' : 'SELL'} (following ${marketInfo.priceChange24h > 0 ? 'up' : 'down'} trend)`);
+                isBuy = marketInfo.priceChange24h >= 0; // Follow the trend
+                reason = `following ${marketInfo.priceChange24h >= 0 ? 'uptrend' : 'downtrend'}`;
+                console.log(`   Trend Follower: ${isBuy ? 'BUY' : 'SELL'} - ${reason}`);
+              } else if (this.agentData.personalityType === 'EMOTIONAL') {
+                // More volatile, react to price changes
+                isBuy = Math.random() < 0.6; // Slight buy bias (FOMO)
+                reason = 'emotional reaction to market';
+                console.log(`   Emotional: ${isBuy ? 'BUY' : 'SELL'} - ${reason}`);
+              } else if (this.agentData.personalityType === 'WHALE') {
+                // Larger, less frequent trades
+                isBuy = Math.random() < 0.55; // Slight accumulation bias
+                reason = 'whale positioning';
+                console.log(`   Whale: ${isBuy ? 'BUY' : 'SELL'} - ${reason}`);
               }
 
-              const baseAmount = Math.random() * 2 + 1;
+              // Calculate trade size based on personality and balance
+              let baseAmount = Math.random() * 3 + 0.5; // 0.5 to 3.5 SOL base
+              
+              // Personality-specific sizing
+              if (this.agentData.personalityType === 'AGGRESSIVE') {
+                baseAmount *= 1.5; // Larger positions
+              } else if (this.agentData.personalityType === 'CONSERVATIVE') {
+                baseAmount *= 0.5; // Smaller positions
+              } else if (this.agentData.personalityType === 'WHALE') {
+                baseAmount *= 2.5; // Much larger positions
+              }
+              
               const adjustedAmount = Math.min(
                 baseAmount * personalityBehavior.positionSize,
-                agent.walletBalance * 0.8
+                isBuy ? agent.walletBalance * 0.4 : agent.tokenBalance * marketInfo.price * 0.4
               );
 
               if (adjustedAmount > 0.1) {

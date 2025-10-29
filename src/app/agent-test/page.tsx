@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Users, Bot, Wallet, AlertCircle } from 'lucide-react';
+import { ArrowRight, Users, Bot, Wallet, AlertCircle, RefreshCwIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { clusterApiUrl, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } from '@solana/web3.js';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { Connection } from '@solana/web3.js';
+import { Spotlight } from '@/components/ui/spotlight';
+import { LightRays } from '@/components/ui/lightrays';
+import { StripedPattern } from '@/components/ui/strippedpattern';
+import { AnimatedGridPattern } from '@/components/ui/flickeringgrid';
 
 export default function AgentTestPage() {
   const [loading, setLoading] = useState(false);
@@ -166,7 +170,17 @@ export default function AgentTestPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="relative min-h-screen overflow-hidden bg-black">
+        <AnimatedGridPattern
+          className="pointer-events-none absolute inset-0 h-full w-full text-white/5 [mask-image:radial-gradient(700px_circle_at_center,white,transparent)]"
+          width={90}
+          height={90}
+          maxOpacity={0.08}
+          numSquares={80}
+        />
+        <Spotlight />
+                    <LightRays />
+                      <StripedPattern className="[mask-image:radial-gradient(600px_circle_at_center,white,transparent)]" />
       {/* Background Effects */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-20 -left-32 w-[500px] h-[500px] rounded-full bg-white opacity-[0.02] blur-[120px]" />
@@ -180,13 +194,13 @@ export default function AgentTestPage() {
             <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, transparent 45%)' }} />
             <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
               <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 text-xs uppercase tracking-[0.28em] text-white/60">
-                  NeuralTrader Agent Builder
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-xs uppercase tracking-[0.28em] text-white/60">
+                  NeuralTrader
                 </div>
                 <div className="space-y-2">
-                  <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight">Launch a production-grade AI trading agent</h1>
-                  <p className="text-white/55 text-base md:text-lg max-w-2xl">
-                    Configure personality, fund an on-chain wallet, and deploy to the NeuralTrader simulation in minutes.
+                  <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">Create an AI Trader That Thinks, Learns, and Trades for You</h1>
+                  <p className="text-white/55 text-base md:text-md max-w-2xl">
+                   Design unique personalities, fund execution wallets, and let agents reason, debate, and trade autonomously inside NeuralTrader’s decentralized simulation.
                   </p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-white/60">
@@ -395,13 +409,13 @@ export default function AgentTestPage() {
                   <button
                     type="submit"
                     disabled={loading || !connected}
-                    className="w-full bg-white text-black px-6 py-3 rounded-xl font-semibold hover:bg-white/90 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-white text-black px-6 py-3 rounded-xl font-semibold hover:bg-white/90 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer"
                   >
                     {loading ? (
                       <div className="animate-spin h-5 w-5 border-2 border-black border-t-transparent rounded-full"></div>
                     ) : (
                       <>
-                        <Bot className="w-5 h-5" />
+                      
                         Create Agent (0.05 SOL)
                       </>
                     )}
@@ -470,10 +484,10 @@ export default function AgentTestPage() {
               </div>
               <button
                 onClick={loadAgents}
-                className="px-4 py-2.5 rounded-xl bg-white text-black text-sm font-semibold hover:bg-white/90 transition-all flex items-center gap-2"
+                className="px-4 py-2.5 rounded-xl bg-white text-black text-sm font-semibold hover:bg-white/90 transition-all flex items-center gap-2 hover:cursor-pointer"
               >
-                Refresh
-                <ArrowRight className="w-4 h-4" />
+            
+                <RefreshCwIcon className="w-4 h-4" />
               </button>
             </div>
 

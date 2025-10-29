@@ -7,6 +7,8 @@ import { CheckCircle, ArrowRight, TrendingUp, Activity, Users, Zap, Sparkles } f
 import { StripedPattern } from '@/components/ui/strippedpattern';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { toast } from "sonner";
+import { Spotlight } from '@/components/ui/spotlight';
+import { LightRays } from '@/components/ui/lightrays';
 export default function TokenSetupPage() {
    const {connected} = useWallet();
   const router = useRouter();
@@ -113,6 +115,8 @@ export default function TokenSetupPage() {
 
   return (
     <div className="min-h-screen w-full relative text-white overflow-hidden bg-black">
+       <Spotlight />
+        <LightRays />
         <StripedPattern className="[mask-image:radial-gradient(600px_circle_at_center,white,transparent)]" />
       {/* Background Effects - Same as Original */}
       <div className="absolute bottom-0 -right-32 w-96 h-96 rounded-full bg-white opacity-5 blur-[120px] pointer-events-none" />
@@ -152,13 +156,13 @@ export default function TokenSetupPage() {
           {/* Hero */}
           <div className="text-center space-y-4">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm text-xs uppercase tracking-[0.28em] text-white/60">
-             NeuralTrader Simulation Setup
+             NeuralTrader 
             </div>
             <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight">
-              Align your AI trading stack around the right Solana token
+             Select a Market Token and Ignite the Simulation
             </h1>
             <p className="text-white/60 text-base md:text-lg max-w-2xl mx-auto">
-              Choose a market, verify depth, and launch your autonomous trading agents into a production-grade environment.
+             Pick a token, set the stage, and watch your AI traders debate, learn, and compete to balance the market.
             </p>
           </div>
 
@@ -242,17 +246,17 @@ export default function TokenSetupPage() {
                     <p className="text-xs uppercase tracking-[0.3em] text-white/40 mb-3 font-semibold">Simulation Summary</p>
                     <ul className="space-y-3 text-sm text-white/60">
                       <li className="flex items-start gap-2">
-                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/60"></span>
-                        <span>Agent squads automatically rebalance exposure using the token you select.</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/40"></span>
-                        <span>Risk heuristics adjust leverage based on liquidity and holder dispersion.</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/30"></span>
-                        <span>Switch tokens anytime without restarting your running simulation.</span>
-                      </li>
+      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/60"></span>
+      <span>AI trading squads rebalance exposure dynamically as they debate and react to real market signals.</span>
+    </li>
+    <li className="flex items-start gap-2">
+      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/40"></span>
+      <span>Each agent learns and adapts through interaction — adjusting risk, liquidity positions, and trading bias on the fly.</span>
+    </li>
+    <li className="flex items-start gap-2">
+      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-white/30"></span>
+      <span>Switch tokens at any time — NeuralTrader recalibrates the entire simulation instantly without stopping agent behavior.</span>
+    </li>
                     </ul>
                   </div>
 

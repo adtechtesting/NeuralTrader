@@ -4,7 +4,14 @@ import { getSelectedToken } from '@/lib/config/selectedToken';
 export async function GET() {
   try {
     const selectedToken = await getSelectedToken();
-    
+
+    if (!selectedToken) {
+      return NextResponse.json(
+        { error: 'No selected token configured' },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json({
       selectedToken: {
         mint: selectedToken.mint,

@@ -75,11 +75,15 @@ export class AgentPool {
       throw new Error(`Agent ${agentId} not found`);
     }
 
-    // Create appropriate agent type
+   
+    const nameHash = agentData.name
+      .split('')
+      .reduce((sum, char) => (sum + char.charCodeAt(0)) % 10_000, 0);
+    const shouldUseASI = this.useASI && (nameHash % 10) < 3;
+
     let agent: any;
 
-    if (this.useASI) {
-      // Create ASI-enhanced agent
+    if (shouldUseASI) {
       agent = new ASINeuralAgent({
         name: agentData.name,
         personalityType: agentData.personalityType,
@@ -89,15 +93,13 @@ export class AgentPool {
         databaseId: agentId
       });
 
-      // Set the database ID for proper message handling
       (agent as any).databaseId = agentId;
       (agent as any).agentName = agentData.name;
 
-      console.log(`🚀 Created ASI-enhanced agent: ${agentData.name}`);
+      console.log(`🚀 Created ASI-enhanced agent (30% bucket): ${agentData.name}`);
     } else {
-      // Create standard LLM agent
       agent = new LLMAutonomousAgent(agentData);
-      console.log(`🤖 Created standard LLM agent: ${agentData.name}`);
+      console.log(`🤖 Created LLM autonomous agent (70% bucket): ${agentData.name}`);
     }
 
     // Add to pool if there's space
@@ -197,6 +199,7 @@ export class AgentPool {
   }
 }
 
+
 export async function makeAgentAct(agentId: string): Promise<{
   success: boolean;
   error?: string;
@@ -221,36 +224,29 @@ export async function makeAgentAct(agentId: string): Promise<{
 
     // Use the appropriate agent method based on type
     if (agent.analyzeMarket && agent.makeTradeDecision && agent.socialInteraction) {
-      // This is an ASI-enhanced agent
-      console.log(`🤖 ASI Agent ${agentId} taking action`);
+      console.log(`🤖 Agent ${agentId} taking action`);
 
-      // Decide what action to take based on agent capabilities
+     
       const actionRoll = Math.random();
 
-      if (actionRoll < 0.4) {
-        // Market analysis
+      if (actionRoll < 0.3) {
+        // Market analysis (30%)
         await agent.analyzeMarket(marketInfo);
         return { success: true, details: { action: 'analyze', marketInfo } };
-      } else if (actionRoll < 0.8) {
-        // Trading decision
+      } else if (actionRoll < 0.5) {
+        // Trading decision (20%)
         await agent.makeTradeDecision(marketInfo);
         return { success: true, details: { action: 'trade', marketInfo } };
       } else {
-        // Social interaction
-        const { prisma } = await import('../cache/dbCache');
-        const recentMessages = await prisma.message.findMany({
-          take: 5,
-          where: { visibility: 'public' },
-          orderBy: { createdAt: 'desc' }
-        });
+     
         const sentiment = await marketData.getMarketSentiment();
-        await agent.socialInteraction(recentMessages, sentiment);
-        return { success: true, details: { action: 'social', messageCount: recentMessages.length } };
+        await agent.socialInteraction([], sentiment); 
+        return { success: true, details: { action: 'social', messageCount: 0 } };
       }
     } else {
-      // Fallback for standard LLM agents
-      console.log(`🧠 Standard LLM Agent ${agentId} taking action`);
-      return { success: true, details: { action: 'llm_action', marketInfo } };
+      // Fallback for agents without all methods
+      console.log(`🧠 Agent ${agentId} taking limited action`);
+      return { success: true, details: { action: 'limited', marketInfo } };
     }
 
   } catch (error) {
