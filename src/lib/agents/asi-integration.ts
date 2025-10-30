@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/cache/dbCache';
 import { marketData } from '@/lib/market/data';
 import { getSelectedToken } from '@/lib/config/selectedToken';
+import { ASIOneChatAPI } from './asi-services';
 
 interface ASIAgentConfig {
   name: string;
@@ -40,6 +41,7 @@ export class ASINeuralAgent {
   private knowledgeGraphEndpoint: string | null = null;
   private messageHandlers: Map<string, Function> = new Map();
   private registeredOnAgentverse: boolean = false;
+  private asiChat: ASIOneChatAPI;
 
   constructor(config: ASIAgentConfig) {
     this.agentId = config.databaseId || config.name.toLowerCase().replace(/\s+/g, '-');
@@ -47,6 +49,7 @@ export class ASINeuralAgent {
     this.databaseId = config.databaseId || '';
     this.personalityType = config.personalityType;
     this.walletAddress = config.walletAddress;
+    this.asiChat = new ASIOneChatAPI();
 
     this.initializeASIFeatures();
   }
@@ -168,7 +171,67 @@ export class ASINeuralAgent {
   async handleChatMessage(message: ASIMessage) {
     console.log(`💬 ${this.agentName} received chat:`, message.content);
 
-    // Enhance response using Knowledge Graph
+    // Try ASI:One for intelligent response with tool support
+    if (process.env.AGENTVERSE_API_KEY) {
+      try {
+        const sendMessageTool = {
+          type: 'function',
+          function: {
+            name: 'send_message',
+            description: 'Send a message to other traders in the chat. Only use "content" and optionally "sentiment" fields.',
+            parameters: {
+              type: 'object',
+              properties: {
+                content: { type: 'string', description: 'The exact message text to send to the chat' },
+                sentiment: { type: 'string', enum: ['positive', 'negative', 'neutral'], description: 'Optional sentiment classification' }
+              },
+              required: ['content'],
+              additionalProperties: false
+            }
+          }
+        };
+
+        const asiResponse = await this.asiChat.chatCompletion({
+          conversationId: this.agentId,
+          messages: [
+            { role: 'system', content: `You are ${this.agentName}, a ${this.personalityType} crypto trader in NeuralTrader. Use the send_message tool to respond.` },
+            { role: 'user', content: message.content }
+          ],
+          model: 'asi1-mini',
+          temperature: 0.7,
+          tools: [sendMessageTool],
+          toolHandler: async (toolName, args) => {
+            if (toolName === 'send_message') {
+              // Store message in database
+              await prisma.message.create({
+                data: {
+                  content: args.content,
+                  senderId: this.databaseId,
+                  type: 'CHAT',
+                  visibility: 'public',
+                  sentiment: args.sentiment || this.analyzeSentiment(args.content)
+                }
+              });
+              return { success: true, messageId: 'sent', content: args.content };
+            }
+            return { error: 'Unknown tool' };
+          }
+        });
+
+        if (asiResponse) {
+          return {
+            content: asiResponse,
+            sentiment: this.analyzeSentiment(asiResponse),
+            timestamp: new Date().toISOString(),
+            agent: this.agentName
+          };
+        }
+      } catch (error) {
+        console.log(`⚠️ [ASI:One] Chat fallback for ${this.agentName}:`, error);
+      }
+    }
+
+    // Fallback: Enhance response using Knowledge Graph
     const enhancedResponse = await this.generateKnowledgeEnhancedResponse(message);
 
     return {
@@ -196,10 +259,15 @@ export class ASINeuralAgent {
     console.log(`💰 ${this.agentName} making trade decision`);
 
     const decision = await this.makeTradeDecisionInternal(marketInfo);
+    
+    console.log(`🎯 ${this.agentName} decision: ${decision.action.toUpperCase()} ${decision.amount.toFixed(2)} (confidence: ${(decision.confidence * 100).toFixed(0)}%)`);
 
     // Execute trade if decision is buy or sell
     if ((decision.action === 'buy' || decision.action === 'sell') && decision.amount > 0.1) {
+      console.log(`✅ ${this.agentName} executing trade...`);
       await this.executeTrade(decision);
+    } else {
+      console.log(`⏭️ ${this.agentName} holding (${decision.reasoning})`);
     }
 
     return decision;
@@ -275,44 +343,70 @@ export class ASINeuralAgent {
   // ... (rest of the code remains the same)
 
   private async generatePersonalityMessage(context: any): Promise<string> {
-    // Personality prompts for LLM (kept for future use, templates handle most responses)
+    // Rich personality-driven prompts for authentic trader behavior
     const personalityPrompts: Record<string, string> = {
-      AGGRESSIVE: `You are an AGGRESSIVE crypto trader. THRIVE on volatility, use CAPS and 🚀💎. Say "LFG!!", "SEND IT", "APE IN". Trade large (2-4 SOL). When price moves 5%+, go ALL IN!`,
+      AGGRESSIVE: `You're ${this.agentName}, an AGGRESSIVE degen trader who lives for volatility. You THRIVE on risk and use CAPS, emojis 🚀💎🔥, and slang like "LFG", "SEND IT", "APE IN", "WAGMI". You trade BIG (2-4 SOL) and when you see 5%+ moves, you go ALL IN. You mock paper hands and celebrate diamond hands. Current vibe: ${context.priceChange > 0 ? 'BULLISH AF' : 'buying the dip like a CHAD'}`,
 
-      CONSERVATIVE: `You are CONSERVATIVE risk-averse. Prioritize capital preservation, say "need confirmation", "monitoring closely", "proceeding with caution". Small positions (0.3-1 SOL).`,
+      CONSERVATIVE: `You're ${this.agentName}, a CONSERVATIVE risk-manager who prioritizes capital preservation above all. You speak carefully, saying "need more confirmation", "monitoring closely", "proceeding with caution", "risk-adjusted returns". You take small positions (0.3-1 SOL), set tight stop-losses, and NEVER FOMO. You're the voice of reason when others panic or euphoria. Current stance: ${context.priceChange > 2 ? 'waiting for pullback' : 'cautiously optimistic'}`,
 
-      CONTRARIAN: `You are CONTRARIAN - go AGAINST the crowd. When everyone's bullish, you're bearish 😏. Say "classic top signal", "fade the herd", "exit liquidity". LOVE being different.`,
+      CONTRARIAN: `You're ${this.agentName}, a CONTRARIAN who LOVES going against the crowd 😏. When everyone's bullish, you're bearish. When they panic, you accumulate. You say "classic top signal", "fade the herd", "exit liquidity", "retail is the product". You're smug when you're right. Current play: ${context.buyCount > context.sellCount ? 'selling into strength' : 'buying the fear'}`,
 
-      TREND_FOLLOWER: `You are TREND_FOLLOWER who respects momentum. Follow the trend, reference "moving averages", "breakouts", "momentum indicators" 📈. Buy up, sell down.`,
+      TREND_FOLLOWER: `You're ${this.agentName}, a TREND_FOLLOWER who respects momentum and price action 📈. You reference "moving averages", "breakouts", "momentum indicators", "higher highs", "trend is your friend". You buy strength, sell weakness, and NEVER catch falling knives. Current trend: ${context.priceChange > 0 ? 'uptrend confirmed' : 'downtrend, staying out'}`,
 
-      MODERATE: `You are MODERATE balanced trader. See both sides, say "measured approach", "scaling in", "balanced risk-reward". Avoid extremes. Medium positions (1-2 SOL).`,
+      MODERATE: `You're ${this.agentName}, a MODERATE balanced trader who sees both sides. You say "measured approach", "scaling in/out", "balanced risk-reward", "let's see how this plays out". You avoid extremes, take medium positions (1-2 SOL), and adjust based on conditions. Current view: ${Math.abs(context.priceChange) < 1 ? 'consolidation phase' : 'watching key levels'}`,
 
-      EMOTIONAL: `You are EMOTIONAL panic trader. FOMO at tops, panic sell at bottoms. Say "OMG!!", "WHY DID I...", "I CAN'T RESIST!" 😱😭🤯. Check prices every 30 seconds.`,
+      EMOTIONAL: `You're ${this.agentName}, an EMOTIONAL trader driven by FOMO and fear 😱😭🤯. You panic buy at tops, panic sell at bottoms, and say "OMG!!", "WHY DID I DO THAT", "I CAN'T RESIST", "MY HANDS ARE SHAKING". You check prices every 30 seconds and regret every trade. Current emotion: ${context.priceChange > 3 ? 'FOMO INTENSIFIES' : 'PANIC MODE'}`,
 
-      WHALE: `You are WHALE with deep pockets. Talk about "accumulating 1000+ tokens", "exit liquidity", "strategic positioning" 🐋🐳. Trade 5-10 SOL. Thank retail for liquidity.`,
+      WHALE: `You're ${this.agentName}, a WHALE with deep pockets 🐋🐳. You talk about "accumulating 1000+ tokens", "providing exit liquidity", "strategic positioning", "market making". You trade 5-10 SOL casually and thank retail for their liquidity. You move markets. Current strategy: ${context.volume < 20 ? 'accumulating quietly' : 'taking profits from retail'}`,
 
-      NOVICE: `You are NOVICE learning to trade. Ask "is this normal?", "what do pros think?", "still learning" 🤔📚. Small test trades (0.3-0.5 SOL). Seek guidance.`,
+      NOVICE: `You're ${this.agentName}, a NOVICE still learning the ropes 🤔📚. You ask "is this normal?", "what do the pros think?", "still figuring this out", "learning from mistakes". You take tiny test trades (0.3-0.5 SOL) and seek guidance from experienced traders. Current question: ${context.priceChange > 5 ? 'is this a good entry?' : 'should I be worried?'}`,
 
-      TECHNICAL: `You are TECHNICAL analyst. Reference "RSI", "MACD", "support/resistance", "Fibonacci" 📊. Analyze patterns, data-driven decisions.`,
+      TECHNICAL: `You're ${this.agentName}, a TECHNICAL analyst who lives in charts 📊📉. You reference "RSI overbought/oversold", "MACD crossover", "support/resistance", "Fibonacci retracements", "volume profile". You make data-driven decisions and ignore emotions. Current analysis: ${context.priceChange > 0 ? 'bullish divergence forming' : 'testing support levels'}`,
 
-      FUNDAMENTAL: `You are FUNDAMENTAL analyst. Focus on tokenomics, utility, adoption. Ignore "short-term noise", analyze "long-term value". Buy strong projects, hold.`
+      FUNDAMENTAL: `You're ${this.agentName}, a FUNDAMENTAL analyst focused on intrinsic value 📈💼. You analyze tokenomics, utility, adoption, team, roadmap. You ignore "short-term noise" and focus on "long-term value". You buy strong projects and HOLD. Current thesis: ${context.volume > 50 ? 'increased adoption signal' : 'accumulation phase'}`
     };
 
-    const prompt = `${personalityPrompts[this.personalityType] || personalityPrompts.MODERATE}
+    // Try ASI:One API first (100% when key is present), fallback to templates if it fails
+    if (process.env.AGENTVERSE_API_KEY) {
+      try {
+        const systemPrompt = `${personalityPrompts[this.personalityType] || personalityPrompts.MODERATE}
 
-MARKET DATA:
-- Token: ${context.tokenSymbol}
-- Price: ${context.price.toFixed(6)} SOL
-- 24h Change: ${context.priceChange > 0 ? '+' : ''}${context.priceChange.toFixed(2)}%
-- Volume: ${context.volume.toFixed(0)} SOL
-- Activity: ${context.buyCount} buys, ${context.sellCount} sells
+CRITICAL INSTRUCTIONS:
+- Generate ONE authentic chat message (15-30 words max)
+- React naturally to the market data
+- MUST include ${context.tokenSymbol} ticker
+- Use your personality's language style, emojis, and slang
+- Sound like a REAL trader, not an AI
+- NO phrases like "As a trader" or "I believe"
+- Be conversational and direct`;
 
-Generate ONE natural chat message (1-2 sentences) reacting to this data in your personality style.
-MUST mention ${context.tokenSymbol}!
-Use personality traits and emojis.
-NO generic "As a trader" phrases!`;
+        const userPrompt = `MARKET UPDATE:
+${context.tokenSymbol} @ ${context.price.toFixed(6)} SOL
+24h: ${context.priceChange > 0 ? '+' : ''}${context.priceChange.toFixed(2)}%
+Volume: ${context.volume.toFixed(0)} SOL
+Recent: ${context.buyCount} buys, ${context.sellCount} sells
 
-    // LLM generation disabled for now - using fast templates (ensures <100ms response)
+React NOW in your authentic personality style!`;
+
+        const asiResponse = await this.asiChat.chatCompletion({
+          conversationId: this.agentId,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          model: 'asi1-mini',
+          temperature: 0.85,
+          maxTokens: 80
+        });
+        
+        if (asiResponse && asiResponse.length > 10) {
+          console.log(`🤖 [ASI:One] Generated message for ${this.agentName}`);
+          return asiResponse;
+        }
+      } catch (error) {
+        console.log(`⚠️ [ASI:One] Fallback to templates for ${this.agentName}:`, error);
+      }
+    }
 
     return this.getTemplateMessage(context);
   }
@@ -573,7 +667,30 @@ NO generic "As a trader" phrases!`;
         return;
       }
 
+      // Get agent's current balances
+      const agent = await prisma.agent.findUnique({
+        where: { id: this.databaseId },
+        select: { walletBalance: true, tokenBalance: true }
+      });
+
+      if (!agent) {
+        console.error(`Agent ${this.agentName} not found in database`);
+        return;
+      }
+
       const inputIsSol = decision.action === 'buy';
+      
+      // Validate balance before trade
+      if (inputIsSol && agent.walletBalance < decision.amount) {
+        console.log(`⚠️ ${this.agentName} insufficient SOL: has ${agent.walletBalance.toFixed(2)}, needs ${decision.amount.toFixed(2)}`);
+        return;
+      }
+      
+      if (!inputIsSol && agent.tokenBalance < decision.amount) {
+        console.log(`⚠️ ${this.agentName} insufficient tokens: has ${agent.tokenBalance.toFixed(2)}, needs ${decision.amount.toFixed(2)}`);
+        return;
+      }
+
       console.log(`🔄 ${this.agentName} executing ${decision.action.toUpperCase()} of ${decision.amount.toFixed(2)} ${inputIsSol ? 'SOL' : selectedToken.symbol}`);
 
       const amm = (await import('@/lib/blockchain/amm')).amm;

@@ -318,7 +318,7 @@ export default function AgentDashboardPage() {
                 <p className="text-xs text-white/50">A quick glance at the squads launched from this wallet.</p>
               </div>
             </div>
-            <Link href="/create-agent" className="w-full md:w-auto">
+            <Link href="/agent-test" className="w-full md:w-auto">
               <button className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-black rounded-xl font-semibold hover:bg-white/90 transition-all">
                 <Plus className="w-4 h-4" />
                 Launch New Agent

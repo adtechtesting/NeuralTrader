@@ -79,7 +79,8 @@ export class AgentPool {
     const nameHash = agentData.name
       .split('')
       .reduce((sum, char) => (sum + char.charCodeAt(0)) % 10_000, 0);
-    const shouldUseASI = this.useASI && (nameHash % 10) < 3;
+    // 90% ASI agents to avoid Groq rate limits
+    const shouldUseASI = this.useASI && (nameHash % 10) < 9;
 
     let agent: any;
 
@@ -96,10 +97,10 @@ export class AgentPool {
       (agent as any).databaseId = agentId;
       (agent as any).agentName = agentData.name;
 
-      console.log(`🚀 Created ASI-enhanced agent (30% bucket): ${agentData.name}`);
+      console.log(`🚀 Created ASI-enhanced agent (90% bucket): ${agentData.name}`);
     } else {
       agent = new LLMAutonomousAgent(agentData);
-      console.log(`🤖 Created LLM autonomous agent (70% bucket): ${agentData.name}`);
+      console.log(`🤖 Created LLM autonomous agent (10% bucket): ${agentData.name}`);
     }
 
     // Add to pool if there's space

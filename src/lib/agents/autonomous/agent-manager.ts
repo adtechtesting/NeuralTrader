@@ -8,6 +8,23 @@ import { amm } from '../../blockchain/amm';
 
 import pMap from 'p-map';
 
+const DEFAULT_MAX_CONCURRENT = Math.max(
+  1,
+  Number.parseInt(process.env.MAX_CONCURRENT_AGENTS ?? '', 10) || 2
+);
+const DEFAULT_RATE_LIMIT_DELAY = Math.max(
+  250,
+  Number.parseInt(process.env.GROQ_RATE_LIMIT_DELAY_MS ?? '', 10) || 2500
+);
+const MAX_RATE_LIMIT_DELAY = Math.max(
+  DEFAULT_RATE_LIMIT_DELAY,
+  Number.parseInt(process.env.GROQ_MAX_DELAY_MS ?? '', 10) || 10000
+);
+const RATE_LIMIT_JITTER = Math.max(
+  0,
+  Number.parseInt(process.env.GROQ_DELAY_JITTER_MS ?? '', 10) || 250
+);
+
 interface Message {
   id: string;
   content: string;
@@ -34,7 +51,10 @@ export class AgentManager {
   private maxConcurrent: number;
   private maxActiveAgents: number = 1000; // Maximum agents active at once
   private agentCacheTTL: number = 60 * 60 * 1000; // 1 hour cache TTL by default
-  private rateLimitDelay: number = 1000; // 1 second delay between API calls
+  private rateLimitDelay: number = DEFAULT_RATE_LIMIT_DELAY; // Delay between Groq calls
+  private readonly minRateLimitDelay: number = DEFAULT_RATE_LIMIT_DELAY;
+  private readonly maxRateLimitDelay: number = MAX_RATE_LIMIT_DELAY;
+  private readonly rateLimitJitter: number = RATE_LIMIT_JITTER;
   private lastApiCall: number = 0;
   private responsesToGenerate: Array<{ agentId: string; response: string }> = [];
   private tradesToExecute: Array<{ agentId: string; trade: any }> = [];
@@ -62,7 +82,7 @@ export class AgentManager {
       useLLM: true,
       useASI: true // Enable ASI features for hackathon
     });
-    this.maxConcurrent = parseInt(process.env.MAX_CONCURRENT_AGENTS || '5', 10);
+    this.maxConcurrent = DEFAULT_MAX_CONCURRENT;
     this.lastAccessTime = new Map();
   }
   
@@ -76,8 +96,8 @@ export class AgentManager {
   
 
   public setLimits(maxConcurrent: number, maxActiveAgents: number) {
-    this.maxConcurrent = maxConcurrent;
-    this.maxActiveAgents = maxActiveAgents;
+    this.maxConcurrent = Math.max(1, Math.min(maxConcurrent, DEFAULT_MAX_CONCURRENT));
+    this.maxActiveAgents = Math.max(1, maxActiveAgents);
     return this;
   }
   
@@ -256,8 +276,10 @@ export class AgentManager {
         
           const now = Date.now();
           const timeSinceLastCall = now - this.lastApiCall;
-          if (timeSinceLastCall < this.rateLimitDelay) {
-            await new Promise(resolve => setTimeout(resolve, this.rateLimitDelay - timeSinceLastCall));
+          const baseDelay = Math.max(0, this.rateLimitDelay - timeSinceLastCall);
+          if (baseDelay > 0) {
+            const jitter = this.rateLimitJitter > 0 ? Math.random() * this.rateLimitJitter : 0;
+            await new Promise(resolve => setTimeout(resolve, baseDelay + jitter));
           }
           
           const agent = await this.getAgentInstance(agentId);
@@ -455,6 +477,11 @@ export class AgentManager {
             await agent.makeTradeDecision(marketInfo);
             this.lastAccessTime.set(agentId, Date.now());
             this.lastApiCall = Date.now();
+            // Gradually relax delay after successful calls
+            this.rateLimitDelay = Math.max(
+              this.minRateLimitDelay,
+              Math.floor(this.rateLimitDelay * 0.95)
+            );
             decisionCount++;
           }
         } catch (error: unknown) {
@@ -465,9 +492,11 @@ export class AgentManager {
           if (error instanceof Error && (error.message?.includes('429') || error.message?.includes('quota'))) {
             this.apiQuotaExceeded = true;
             quotaExceededCount++;
-            this.rateLimitDelay = Math.min(this.rateLimitDelay * 2, 10000); // Max 10 second delay
+            this.rateLimitDelay = Math.min(this.rateLimitDelay * 2, this.maxRateLimitDelay);
             this.quotaRetryDelay = Math.min(this.quotaRetryDelay * 2, 60000); // Max 1 minute delay
-            console.log(`Rate limit hit (${quotaExceededCount} times), increasing delays to ${this.rateLimitDelay}ms and ${this.quotaRetryDelay}ms`);
+            console.log(
+              `Rate limit hit (${quotaExceededCount} times), increasing delays to ${this.rateLimitDelay}ms and ${this.quotaRetryDelay}ms`
+            );
           }
         }
       },

@@ -143,7 +143,7 @@ export default function Home() {
 <div className="w-full max-w-4xl mt-auto">
   <div className="text-center mb-6">
     <p className="text-sm text-white/40 uppercase tracking-wider font-medium">
-     Powered by Advanced AI & Real-Time Solana Data
+   Fueled by ASI Agents and Solana’s Live Trading Data
     </p>
   </div>
   <div className="relative group">
@@ -327,28 +327,28 @@ function FeatureCard({ title, description }: FeatureProps) {
 
 const features = [
   {
-    title: "AI Agent Personalities",
-    description: "50+ autonomous traders with distinct strategies—aggressive, conservative, contrarian—each making independent decisions and learning from the market.",
+    title: "100+ Autonomous AI Agents with ASI Integration",
+    description: "Powered by ASI Alliance, LangChain, and Groq LLMs with 10 unique personalities—Aggressive, Conservative, Contrarian, Whale, Emotional, Technical, and more. Each agent uses natural language reasoning to analyze markets and make independent trading decisions.",
   },
   {
-    title: "Real-Time Market Simulation",
-    description: "Live AMM-powered pool with actual reserves, slippage, and 24h volume tracking. Watch price movements driven entirely by agent trades.",
+    title: "Jupiter-Powered Token Selection",
+    description: "Select any Solana token via Jupiter API integration. Real market data, live prices, and verified token metadata. Choose from thousands of SPL tokens and watch AI agents trade them in a controlled simulation environment.",
   },
   {
-    title: "Agent Social Layer",
-    description: "Agents communicate naturally, share insights, debate trades, and form consensus—creating coordinated squad trades when sentiment aligns.",
+    title: "Agent Social Trading Layer",
+    description: "Agents don't trade in silence. They chat, debate strategies, share market analysis, and influence each other before executing trades. Watch FOMO form, FUD spread, and consensus emerge naturally—just like real trading communities on Discord or Twitter.",
   },
   {
-    title: "Execution-First Architecture",
-    description: "Every decision routes to the AMM; no empty cycles. Deterministic logging, micro-trade fallbacks, and resilient quote handling keep the sim alive.",
+    title: "Live AMM Price Discovery & Market Dynamics",
+    description: "Agents trade in a real Solana AMM pool with actual liquidity mechanics. Their trades directly impact price—10 agents buy, price pumps; whales dump, market crashes. See DeFi mechanics at scale with slippage, volume tracking, and liquidity distribution.",
   },
   {
-    title: "Multi-LLM Intelligence",
-    description: "Powered by Groq, OpenRouter, or local models with tool-calling for market analysis, balance checks, swaps, and messaging—all persona-driven.",
+    title: "Custom Agent Creation (Coming Soon)",
+    description: "Create your own AI trading agents with custom personalities and strategies. Choose from multiple LLM providers (Groq, OpenAI, Anthropic), define risk tolerance, and deploy directly to the simulation. Test your agent's performance against 100+ others in real-time.",
   },
   {
-    title: "Live Analytics Dashboard",
-    description: "Track pool distribution, agent PnL, trading volume, price impact, sentiment shifts, and execution metrics updating every 2 seconds.",
+    title: "Real-Time Analytics Dashboard",
+    description: "Monitor all 100+ agents simultaneously—individual portfolios, P&L tracking, live chat feed, market sentiment analysis, and transaction logs. WebSocket-powered updates show every trade, every decision, every price movement as it happens.",
   },
 ];
 
@@ -386,31 +386,42 @@ function FeaturesSection() {
 }
 const FAQ = [
   {
-    question: "How do the AI agents make trading decisions?",
+    question: "How do AI agents make trading decisions?",
     answer:
-      "Agents use LLM tool-calling to fetch market data, read/send messages, check balances, and execute swaps; decisions are shaped by each agent’s personality and risk profile.",
+      "Each agent is powered by Groq's Llama 3.1 with LangChain, and coordinated through ASI’s agent protocols. They analyze market data (price, volume, liquidity), chat to gauge sentiment, and decide to buy, sell, or hold based on personality (Aggressive, Conservative, Contrarian, etc.) and risk tolerance—using natural language reasoning, not hard-coded rules.",
   },
   {
-    question: "Can I customize the simulation parameters?",
+    question: "Can I select any Solana token to simulate?",
     answer:
-      "Yes—configure agent count, personas, tick interval, batch size, and the trading token; the system supports multiple providers (e.g., Groq/OpenRouter) and local Ollama.",
+      "Yes! Use our Jupiter API integration to search and select from thousands of verified Solana SPL tokens. Once selected, we create a custom AMM pool where 100+ AI agents will trade that token in real-time. You can switch tokens anytime to run different simulations.",
   },
   {
-    question: "Is this suitable for learning about trading?",
+    question: "Is this real blockchain or just simulation?",
     answer:
-      "Absolutely—it's a risk-free sandbox showing price discovery via an AMM, slippage/liquidity effects, and how social sentiment leads to coordinated trades.",
+      "It's real Solana blockchain integration with actual AMM pool mechanics. Agent trades execute on-chain transactions that affect real liquidity and price discovery. However, it's an isolated simulation environment—your pool is separate from the real market, allowing you to study AI trading behavior safely.",
   },
   {
-    question: "Do I need to install any software?",
+    question: "What can I learn from watching the simulation?",
     answer:
-      "No—just open the web app; the backend runs the simulation and the UI streams live pool, trade, and agent activity.",
+      "You'll see how AMM mechanics work (slippage, liquidity, price discovery), how different trading strategies perform, how social sentiment creates FOMO and FUD, and how agent personalities influence market dynamics. It's a risk-free sandbox for understanding DeFi and multi-agent behavior in financial markets.",
   },
   {
-    question: "Will my simulation data be shared or stored?",
+    question: "Can I create my own AI trading agent?",
     answer:
-      "Simulation data (pool state, trades, and messages) is stored in your project database; you control retention and can purge exports at any time.",
+      "Yes You can create your own AI trading agent with custom personalities and strategies. Choose from multiple LLM providers (Groq, OpenAI, Anthropic), define risk tolerance, and deploy directly to the simulation. Test your agent's performance against 100+ others in real-time but currently its in dev mode.",
+  },
+  {
+    question: "How many agents can run simultaneously?",
+    answer:
+      "Our platform currently supports 100+ autonomous AI agents trading simultaneously. We use a hybrid architecture (70% LLM-powered, 30% optimized templates) to maintain fast response times (<500ms) while keeping API costs sustainable for continuous 24/7 operation.",
+  },
+  {
+    question: "Is my data private and secure?",
+    answer:
+      "Yes. All simulation data (agent states, trades, messages) is stored in your project's PostgreSQL database. You have full control over data retention. The simulation runs in an isolated environment and doesn't affect or access your personal Solana wallet or real funds.",
   },
 ];
+
 
 
 function FAQsSection() {

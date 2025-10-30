@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { TrendingUp, TrendingDown, RefreshCw, Maximize2, Settings } from 'lucide-react';
+import { RefreshCw, Maximize2, Settings } from 'lucide-react';
 import {
   XAxis,
   YAxis,
@@ -54,6 +54,8 @@ export default function MarketVisualization() {
   
   // Store price range to prevent chart jumping
   const priceRangeRef = useRef({ min: 0, max: 0 });
+  const historyInitializedRef = useRef(false);
+  const lastPriceRef = useRef(0);
 
   useEffect(() => {
     fetchData();
@@ -62,10 +64,19 @@ export default function MarketVisualization() {
   }, []);
 
   useEffect(() => {
+    // Only regenerate when time range changes
     if (tokenData?.usdPrice) {
+      historyInitializedRef.current = false;
       generatePriceHistory(tokenData.usdPrice);
     }
-  }, [timeRange, tokenData?.usdPrice]);
+  }, [timeRange]);
+
+  useEffect(() => {
+    // Update only the latest price point
+    if (tokenData?.usdPrice && historyInitializedRef.current && lastPriceRef.current !== tokenData.usdPrice) {
+      updateLatestPrice(tokenData.usdPrice);
+    }
+  }, [tokenData?.usdPrice]);
 
   const fetchData = async () => {
     try {
@@ -80,7 +91,9 @@ export default function MarketVisualization() {
         setHigh24h(currentPrice * 1.02);
         setLow24h(currentPrice * 0.98);
         
-        generatePriceHistory(currentPrice);
+        if (!historyInitializedRef.current) {
+          generatePriceHistory(currentPrice);
+        }
         generateOrderBook(currentPrice);
       }
     } catch (error) {
@@ -119,8 +132,8 @@ export default function MarketVisualization() {
         intervalMinutes = 240;
         break;
       case '1D':
-        points = 60;
-        intervalMinutes = 1440;
+        points = 24;
+        intervalMinutes = 60;
         break;
     }
 
@@ -161,12 +174,48 @@ export default function MarketVisualization() {
       max: maxPrice + padding
     };
     
+    lastPriceRef.current = currentPrice;
+    historyInitializedRef.current = true;
     setPriceHistory(history);
+  };
+
+  const updateLatestPrice = (newPrice: number) => {
+    setPriceHistory(prev => {
+      if (prev.length === 0) return prev;
+      
+      const updated = [...prev];
+      const lastPoint = updated[updated.length - 1];
+      
+      // Update only the last point
+      updated[updated.length - 1] = {
+        ...lastPoint,
+        price: newPrice,
+        close: newPrice,
+        high: Math.max(lastPoint.high, newPrice),
+        low: Math.min(lastPoint.low, newPrice)
+      };
+      
+      // Recalculate price range only if needed
+      const prices = updated.map(h => h.close);
+      const minPrice = Math.min(...prices);
+      const maxPrice = Math.max(...prices);
+      const padding = (maxPrice - minPrice) * 0.1;
+      
+      priceRangeRef.current = {
+        min: minPrice - padding,
+        max: maxPrice + padding
+      };
+      
+      lastPriceRef.current = newPrice;
+      return updated;
+    });
   };
 
   const formatTimeLabel = (date: Date, range: string): string => {
     const hours = date.getHours().toString().padStart(2, '0');
     const minutes = date.getMinutes().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
 
     switch(range) {
       case '1M':
@@ -177,7 +226,7 @@ export default function MarketVisualization() {
       case '4H':
         return `${hours}:00`;
       case '1D':
-        return `${date.getMonth() + 1}/${date.getDate()}`;
+        return `${hours}:00`;
       default:
         return `${hours}:${minutes}`;
     }

@@ -233,18 +233,15 @@ export const marketData = {
             gte: oneDayAgo
           },
           status: 'CONFIRMED',
-          type: { in: ['SOL_TO_TOKEN', 'TOKEN_TO_SOL'] }
+          type: { in: ['BUY', 'SELL', 'SOL_TO_TOKEN', 'TOKEN_TO_SOL'] }
         }
       });
 
-      // Calculate volume based on SOL amounts for more accurate volume
+      // Calculate volume based on SOL amounts - all tx types store SOL value in amount field
       const volume24h = recentTransactions.reduce((sum: number, tx: any) => {
-        // Convert token amounts to SOL value for volume calculation
-        if (tx.type === 'SOL_TO_TOKEN' && tx.amount) {
-          return sum + tx.amount; // SOL spent on token purchases
-        } else if (tx.type === 'TOKEN_TO_SOL' && tx.tokenAmount) {
-          // For token sales, calculate SOL value received
-          return sum + (tx.tokenAmount * price);
+        // All transaction types (BUY, SELL, SOL_TO_TOKEN, TOKEN_TO_SOL) store SOL value in amount field
+        if (tx.amount && typeof tx.amount === 'number') {
+          return sum + tx.amount;
         }
         return sum;
       }, 0);
@@ -337,11 +334,13 @@ export const marketData = {
         orderBy: { timestamp: 'desc' }
       });
 
-      // Use live price if available, otherwise calculate from pool
-      let price = livePrice || 0;
-      if (!livePrice && poolState.solAmount > 0 && poolState.tokenAmount > 0) {
-        price = poolState.solAmount / poolState.tokenAmount;
-      }
+      // Calculate AMM price from pool reserves
+      const ammPrice = poolState.solAmount > 0 && poolState.tokenAmount > 0
+        ? poolState.solAmount / poolState.tokenAmount
+        : 0;
+
+      // Use live price if available, otherwise use AMM price
+      const price = livePrice || ammPrice;
 
       const priceChange24h = previousState
         ? ((price - previousState.price) / previousState.price) * 100
@@ -356,23 +355,23 @@ export const marketData = {
             gte: oneDayAgo
           },
           status: 'CONFIRMED',
-          type: { in: ['SOL_TO_TOKEN', 'TOKEN_TO_SOL'] }
+          type: { in: ['BUY', 'SELL', 'SOL_TO_TOKEN', 'TOKEN_TO_SOL'] }
         }
       });
 
-      // Calculate volume based on SOL amounts for more accurate volume
+      // Calculate volume based on SOL amounts - use amount field for both BUY and SELL
       const volume24h = recentTransactions.reduce((sum: number, tx: any) => {
-        if (tx.type === 'SOL_TO_TOKEN' && tx.amount) {
-          return sum + tx.amount; // SOL spent on token purchases
-        } else if (tx.type === 'TOKEN_TO_SOL' && tx.tokenAmount) {
-          return sum + (tx.tokenAmount * price);
+        // All transaction types now store SOL value in amount field
+        if (tx.amount && typeof tx.amount === 'number') {
+          return sum + tx.amount;
         }
         return sum;
       }, 0);
 
       const transactions24h = recentTransactions.length;
 
-      console.log(`Updating market data: price=${price}, volume24h=${volume24h}, transactions=${transactions24h}`);
+      // Single consolidated log with both prices
+      console.log(`📊 Market data: price=${price.toFixed(8)} SOL (${livePrice ? 'live' : 'AMM'}), volume24h=${volume24h.toFixed(2)}, transactions=${transactions24h}, token=${selectedToken?.symbol || 'TOKEN'}`);
 
       const marketState = await prisma.marketState.create({
         data: {
@@ -387,8 +386,10 @@ export const marketData = {
           data: {
             solReserve: poolState.solAmount,
             tokenReserve: poolState.tokenAmount,
-            price,
-            livePrice: livePrice !== null,
+            ammPrice,
+            livePrice: livePrice || null,
+            displayPrice: price,
+            priceSource: livePrice ? 'jupiter' : 'amm',
             tokenSymbol: selectedToken?.symbol || 'SOL',
             lastUpdate: new Date().toISOString()
           },

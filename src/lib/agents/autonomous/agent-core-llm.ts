@@ -224,6 +224,38 @@ class TokenSwapTool extends Tool {
         });
       }
       const tokenSymbol = selectedToken.symbol || 'TOKEN';
+      
+      // Validate agent has sufficient balance before attempting swap
+      const agent = await prisma.agent.findUnique({
+        where: { id: this.agentId },
+        select: { walletBalance: true, tokenBalance: true, name: true }
+      });
+
+      if (!agent) {
+        return JSON.stringify({
+          error: "Agent not found",
+          details: "Could not retrieve agent balance information"
+        });
+      }
+
+      if (inputIsSol && agent.walletBalance < inputAmount) {
+        console.log(`⚠️ ${agent.name} insufficient SOL: has ${agent.walletBalance.toFixed(2)}, needs ${inputAmount.toFixed(2)}`);
+        return JSON.stringify({
+          success: false,
+          error: "Insufficient SOL balance",
+          details: `Available: ${agent.walletBalance.toFixed(2)} SOL, Required: ${inputAmount.toFixed(2)} SOL`
+        });
+      }
+
+      if (!inputIsSol && agent.tokenBalance < inputAmount) {
+        console.log(`⚠️ ${agent.name} insufficient tokens: has ${agent.tokenBalance.toFixed(2)}, needs ${inputAmount.toFixed(2)}`);
+        return JSON.stringify({
+          success: false,
+          error: "Insufficient token balance",
+          details: `Available: ${agent.tokenBalance.toFixed(2)} ${tokenSymbol}, Required: ${inputAmount.toFixed(2)} ${tokenSymbol}`
+        });
+      }
+
       console.log(`[TRADE] Agent ${this.agentId} attempting to ${inputIsSol ? 'buy' : 'sell'} with ${inputAmount} ${inputIsSol ? 'SOL' : tokenSymbol}`);
 
       const safeSlippageTolerance = Math.max(1.0, Math.min(5, slippageTolerance || 1.0));

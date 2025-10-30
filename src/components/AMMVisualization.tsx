@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { RefreshCw, AlertCircle, TrendingUp, Droplets, Activity, Clock } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -18,6 +18,7 @@ interface Transaction {
   amount: number;
   tokenAmount: number;
   confirmedAt: string;
+  type?: 'BUY' | 'SELL';
 }
 
 interface APIData {
@@ -71,6 +72,28 @@ export default function AMMVisualization() {
     }
   };
  
+  const fetchRecentTransactions = async () => {
+    try {
+      const response = await fetch('/api/transactions?limit=10');
+      const data = await response.json();
+      
+      if (data.transactions) {
+        const formattedTxns = data.transactions
+          .filter((tx: any) => tx.type === 'BUY' || tx.type === 'SELL')
+          .map((tx: any) => ({
+            signature: tx.signature || 'N/A',
+            amount: tx.amount || 0,
+            tokenAmount: tx.tokenAmount || 0,
+            confirmedAt: tx.confirmedAt || new Date().toISOString(),
+            type: tx.type as 'BUY' | 'SELL'
+          }));
+        setTransactions(formattedTxns);
+      }
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
+    }
+  };
+
   const fetchAmmData = async () => {
     try {
       setLoading(true);
@@ -109,7 +132,8 @@ export default function AMMVisualization() {
             lastTradedAt: poolState.lastUpdate ? new Date(poolState.lastUpdate).toISOString() : null,
           });
 
-          setTransactions([]); // Clear transactions for now, can be enhanced later
+          // Fetch recent swap transactions
+          fetchRecentTransactions();
           setError(null);
 
           console.log('🔄 Pool UI updated:', poolState.lastPrice);
@@ -127,32 +151,26 @@ export default function AMMVisualization() {
     }
   };
 
-  const useSampleData = () => {
-    setAmmData({
-      solAmount: 1000 + Math.random() * 500,
-      tokenAmount: 10000000 + Math.random() * 5000000,
-      currentPrice: 0.0001 + Math.random() * 0.0001,
-      tradingVolume: 250 + Math.random() * 100,
-      tradingVolume24h: 1200 + Math.random() * 500,
-      lastTradedAt: new Date().toISOString(),
-    });
-
-    const sampleTransactions: Transaction[] = [];
-    for (let i = 0; i < 5; i++) {
-      sampleTransactions.push({
-        signature: `Sample${Math.random().toString(36).substring(2, 10)}`,
-        amount: 1 + Math.random() * 10,
-        tokenAmount: 1000 + Math.random() * 5000,
-        confirmedAt: new Date(Date.now() - i * 1000 * 60 * 5).toISOString(), 
+  // Use stable sample data to prevent fluctuation on errors
+  const useSampleData = useCallback(() => {
+    // Only set sample data once, don't regenerate on every call
+    if (ammData.solAmount === 0) {
+      setAmmData({
+        solAmount: 1000,
+        tokenAmount: 10000000,
+        currentPrice: 0.0001,
+        tradingVolume: 250,
+        tradingVolume24h: 1200,
+        lastTradedAt: new Date().toISOString(),
       });
+      setTransactions([]);
     }
-    setTransactions(sampleTransactions);
-  };
+  }, [ammData.solAmount]);
 
   useEffect(() => {
     fetchTokenSymbol();
     fetchAmmData();
-    const interval = setInterval(fetchAmmData, 2000); // Poll every 2 seconds
+    const interval = setInterval(fetchAmmData, 5000); // Poll every 5 seconds (reduced fluctuation)
     return () => clearInterval(interval);
   }, []);
 
@@ -168,7 +186,8 @@ export default function AMMVisualization() {
     return `${signature.substring(0, 6)}...${signature.substring(signature.length - 6)}`;
   };
 
-  const preparePieChartData = () => {
+  // Memoize calculations to prevent unnecessary re-renders
+  const preparePieChartData = useMemo(() => {
     const tokenValueInSol = ammData.tokenAmount * ammData.currentPrice;
     const total = ammData.solAmount + tokenValueInSol;
     
@@ -180,7 +199,7 @@ export default function AMMVisualization() {
       { name: 'SOL', value: ammData.solAmount },
       { name: tokenSymbol, value: tokenValueInSol }
     ];
-  };
+  }, [ammData.solAmount, ammData.tokenAmount, ammData.currentPrice, tokenSymbol]);
 
   const COLORS = ['#10b981', '#6366f1'];
 
@@ -205,7 +224,11 @@ export default function AMMVisualization() {
     fetchAmmData();
   };
 
-  const totalPoolValue = ammData.solAmount + (ammData.tokenAmount * ammData.currentPrice);
+  // Memoize total pool value calculation
+  const totalPoolValue = useMemo(
+    () => ammData.solAmount + (ammData.tokenAmount * ammData.currentPrice),
+    [ammData.solAmount, ammData.tokenAmount, ammData.currentPrice]
+  );
 
   return (
     <div className="w-full text-white space-y-6">
@@ -296,7 +319,7 @@ export default function AMMVisualization() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={preparePieChartData()}
+                      data={preparePieChartData}
                       cx="50%"
                       cy="50%"
                       innerRadius={70}
@@ -304,7 +327,7 @@ export default function AMMVisualization() {
                       paddingAngle={2}
                       dataKey="value"
                     >
-                      {preparePieChartData().map((entry, index) => (
+                      {preparePieChartData.map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -391,15 +414,27 @@ export default function AMMVisualization() {
                 <div className="p-12 text-center">
                   <Activity className="w-12 h-12 text-white/20 mx-auto mb-3" />
                   <p className="text-white/40 text-sm">No recent transactions</p>
+                  <p className="text-white/30 text-xs mt-2">Waiting for agents to trade...</p>
                 </div>
               ) : (
                 <div className="divide-y divide-neutral-800">
                   {transactions.map((txn, index) => (
-                    <div key={index} className="p-4 hover:bg-neutral-800/30 transition-colors">
+                    <div 
+                      key={index} 
+                      className="p-4 hover:bg-neutral-800/30 transition-all duration-200 animate-fade-in"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="text-xs text-white/40">Signature:</span>
+                            {/* Trade Type Badge */}
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                              txn.type === 'BUY' 
+                                ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                                : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                            }`}>
+                              {txn.type || 'SWAP'}
+                            </span>
                             <code className="text-xs font-mono bg-neutral-800 px-2 py-1 rounded text-white/80">
                               {shortenSignature(txn.signature)}
                             </code>
@@ -409,7 +444,9 @@ export default function AMMVisualization() {
                               <span className="text-white/60">SOL: </span>
                               <span className="font-semibold text-white">{formatNumber(txn.amount, 4)}</span>
                             </div>
-                            <div className="text-white/40">⇄</div>
+                            <div className={`text-lg ${
+                              txn.type === 'BUY' ? 'text-green-400' : 'text-red-400'
+                            }`}>→</div>
                             <div>
                               <span className="text-white/60">{tokenSymbol}: </span>
                               <span className="font-semibold text-white">{formatNumber(txn.tokenAmount, 2)}</span>

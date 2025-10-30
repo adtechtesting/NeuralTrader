@@ -124,7 +124,11 @@ export class SimulationEngine {
       this.status = 'RUNNING';
       this.currentPhase = 'MARKET_ANALYSIS';
       this.lastHeartbeat = Date.now();
-      
+
+      // Clear previous chat history before new run
+      const clearedMessages = await this.clearMessageHistory();
+      await this.logSimulationEvent('INFO', `🗑️ Cleared ${clearedMessages} chat messages before simulation start`);
+
       // Initialize required number of agents with distribution
       await this.agentManager.initializeAgents(
         this._agentCount, 
@@ -147,7 +151,7 @@ export class SimulationEngine {
       
       // Start heartbeat monitoring
       this.startHeartbeatMonitor();
-      
+
       return { 
         success: true, 
         simulationId: this.simulationId,
@@ -160,7 +164,19 @@ export class SimulationEngine {
       return { success: false, message: `Failed to start simulation: ${error.message}` };
     }
   }
-  
+
+  private async clearMessageHistory(): Promise<number> {
+    try {
+      console.log('🗑️ Clearing existing chat messages before simulation run...');
+      const result = await prisma.message.deleteMany({});
+      console.log(`✅ Removed ${result.count} chat messages`);
+      return result.count;
+    } catch (error) {
+      console.error('⚠️ Failed to clear chat messages:', error);
+      return 0;
+    }
+  }
+
   /**
    * Bootstrap the simulation with initial data and activity
    * to overcome the cold-start problem

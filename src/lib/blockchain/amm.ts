@@ -61,9 +61,17 @@ export const amm = {
 
       console.log("Creating new pool with initial liquidity");
 
+      // Get live price from Jupiter to initialize pool correctly
+      const { getSelectedToken } = await import('../config/selectedToken');
+      const selectedToken = await getSelectedToken(true);
+      const livePrice = selectedToken?.usdPrice || 0.01; // Fallback to 0.01 if no live price
+
+      // Initialize pool with realistic reserves based on live price
       const initialSolAmount = 10000;
-      const initialTokenAmount = 1000000;
-      const initialPrice = initialSolAmount / initialTokenAmount;
+      const initialTokenAmount = initialSolAmount / livePrice; // Calculate tokens based on live price
+      const initialPrice = livePrice;
+
+      console.log(`🏊 Initializing pool with live price: ${livePrice.toFixed(8)} SOL per token`);
 
       const newPool = await prisma.poolState.create({
         data: {
