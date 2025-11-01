@@ -656,7 +656,7 @@ export default function AgentDashboardPage() {
           </div>
         </section>
         
-        <ChatSection />
+     
       </main>
     </div>
   );
